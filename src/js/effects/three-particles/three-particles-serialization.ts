@@ -52,6 +52,11 @@ function serializeAny(value: unknown, key?: string): unknown {
     return { x: value.x, y: value.y, z: value.z };
   if (value instanceof THREE.Vector2) return { x: value.x, y: value.y };
   if (value instanceof THREE.Texture) return undefined;
+  // BufferGeometry (e.g. renderer.mesh.geometry for MESH configs) cannot be
+  // meaningfully serialized to JSON — recursing into it would dump typed-array
+  // internals. Omit it, mirroring how THREE.Texture is handled; users must
+  // re-assign the geometry after deserialization.
+  if (value instanceof THREE.BufferGeometry) return undefined;
   if (typeof value === 'function') return undefined;
   if (Array.isArray(value)) return value.map((item) => serializeAny(item));
   if (typeof value === 'object') {
@@ -99,7 +104,8 @@ function serializeAny(value: unknown, key?: string): unknown {
  * - `renderer.blending` is converted to its string identifier (e.g. `"THREE.AdditiveBlending"`).
  * - `EasingCurve.curveFunction` is replaced by a `curveFunctionId` string.
  *   Only predefined `CurveFunctionId` functions can be serialized; custom functions throw.
- * - `THREE.Texture` (`map`), callback fields (`onUpdate`, `onComplete`) are omitted.
+ * - `THREE.Texture` (`map`), `THREE.BufferGeometry` (`renderer.mesh.geometry`)
+ *   and callback fields (`onUpdate`, `onComplete`) are omitted.
  * - An `_editorData` field and other unknown fields are preserved as-is.
  * - A `_version` field is added for forward-compatibility.
  *

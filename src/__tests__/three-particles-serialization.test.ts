@@ -7,6 +7,7 @@ import {
   ForceFieldFalloff,
   ForceFieldType,
   LifeTimeCurve,
+  RendererType,
   SimulationBackend,
   SimulationSpace,
   Shape,
@@ -213,6 +214,39 @@ describe('serializeParticleSystem', () => {
     };
     const result = JSON.parse(serializeParticleSystem(config));
     expect(result.map).toBeUndefined();
+  });
+
+  it('should drop THREE.BufferGeometry (renderer.mesh.geometry) without dumping typed-array internals', () => {
+    const config: ParticleSystemConfig = {
+      renderer: {
+        rendererType: RendererType.MESH,
+        blending: THREE.NormalBlending,
+        mesh: {
+          geometry: new THREE.BoxGeometry(1, 1, 1),
+        },
+      },
+    };
+
+    const json = serializeParticleSystem(config);
+
+    // No BufferGeometry / typed-array internals in the output
+    expect(json).not.toContain('isBufferGeometry');
+    expect(json).not.toContain('normalized');
+    expect(json).not.toContain('itemSize');
+    expect(json).not.toContain('Float32Array');
+
+    const result = JSON.parse(json);
+    expect(result.renderer.mesh.geometry).toBeUndefined();
+    // Sibling renderer fields survive
+    expect(result.renderer.rendererType).toBe('MESH');
+
+    // Round-trips without throwing; geometry stays absent
+    expect(() => deserializeParticleSystem(json)).not.toThrow();
+    const roundTripped = deserializeParticleSystem(json);
+    expect(
+      (roundTripped.renderer as { mesh?: { geometry?: unknown } })?.mesh
+        ?.geometry
+    ).toBeUndefined();
   });
 
   it('should preserve _editorData as-is', () => {
