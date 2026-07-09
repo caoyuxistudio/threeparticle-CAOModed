@@ -300,7 +300,8 @@ export const calculateRandomPositionAndVelocityOnCircle = (
  * @param speed - Speed multiplier for the velocity
  * @param params - Rectangle configuration
  * @param params.rotation - Local rotation of the rectangle (degrees) before
- *                          applying quaternion
+ *                          applying quaternion. `x`/`y` tilt the rectangle out
+ *                          of the XY plane, `z` rotates it within its own plane.
  * @param params.scale - Size of the rectangle (width and height)
  *
  * @remarks
@@ -326,9 +327,17 @@ export const calculateRandomPositionAndVelocityOnRectangle = (
   const yOffset = Math.random() * _scale.y - _scale.y / 2;
   const rotationX = THREE.MathUtils.degToRad(_rotation.x);
   const rotationY = THREE.MathUtils.degToRad(_rotation.y);
-  position.x = xOffset * Math.cos(rotationY);
-  position.y = yOffset * Math.cos(rotationX);
-  position.z = xOffset * Math.sin(rotationY) - yOffset * Math.sin(rotationX);
+  const rotationZ = THREE.MathUtils.degToRad(_rotation.z ?? 0);
+  // Rotate the offsets within the rectangle's plane (around the Z axis) first,
+  // then apply the X/Y tilts the same way as before.
+  const cosZ = Math.cos(rotationZ);
+  const sinZ = Math.sin(rotationZ);
+  const rotatedXOffset = xOffset * cosZ - yOffset * sinZ;
+  const rotatedYOffset = xOffset * sinZ + yOffset * cosZ;
+  position.x = rotatedXOffset * Math.cos(rotationY);
+  position.y = rotatedYOffset * Math.cos(rotationX);
+  position.z =
+    rotatedXOffset * Math.sin(rotationY) - rotatedYOffset * Math.sin(rotationX);
 
   position.applyQuaternion(quaternion);
 

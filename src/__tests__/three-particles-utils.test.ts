@@ -832,4 +832,111 @@ describe('calculateRandomPositionAndVelocityOnRectangle', () => {
     expect(position.y).toBeCloseTo(0);
     expect(position.z).toBeCloseTo(0);
   });
+
+  it('should treat missing rotation.z as 0 (backwards compatible)', () => {
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1);
+
+    calculateRandomPositionAndVelocityOnRectangle(
+      position,
+      quaternion,
+      velocity,
+      1,
+      {
+        rotation: { x: 0, y: 0 }, // no z — matches the library's default config
+        scale: { x: 2, y: 4 },
+      }
+    );
+    randomSpy.mockRestore();
+
+    // random = 1 → xOffset = 1, yOffset = 2, unchanged by z rotation
+    expect(position.x).toBeCloseTo(1);
+    expect(position.y).toBeCloseTo(2);
+    expect(position.z).toBeCloseTo(0);
+  });
+
+  it('should rotate spawn positions within the plane for rotation.z = 90', () => {
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1);
+
+    calculateRandomPositionAndVelocityOnRectangle(
+      position,
+      quaternion,
+      velocity,
+      1,
+      {
+        rotation: { x: 0, y: 0, z: 90 },
+        scale: { x: 2, y: 4 },
+      }
+    );
+    randomSpy.mockRestore();
+
+    // random = 1 → xOffset = 1, yOffset = 2
+    // 90° in-plane rotation maps (x, y) → (-y, x)
+    expect(position.x).toBeCloseTo(-2);
+    expect(position.y).toBeCloseTo(1);
+    // Pure z rotation keeps the rectangle in the XY plane
+    expect(position.z).toBeCloseTo(0);
+  });
+
+  it('should flip spawn positions for rotation.z = 180', () => {
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1);
+
+    calculateRandomPositionAndVelocityOnRectangle(
+      position,
+      quaternion,
+      velocity,
+      1,
+      {
+        rotation: { x: 0, y: 0, z: 180 },
+        scale: { x: 2, y: 4 },
+      }
+    );
+    randomSpy.mockRestore();
+
+    // 180° in-plane rotation maps (x, y) → (-x, -y)
+    expect(position.x).toBeCloseTo(-1);
+    expect(position.y).toBeCloseTo(-2);
+    expect(position.z).toBeCloseTo(0);
+  });
+
+  it('should apply rotation.z before the x/y tilt', () => {
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1);
+
+    calculateRandomPositionAndVelocityOnRectangle(
+      position,
+      quaternion,
+      velocity,
+      1,
+      {
+        rotation: { x: 0, y: 90, z: 90 },
+        scale: { x: 2, y: 4 },
+      }
+    );
+    randomSpy.mockRestore();
+
+    // z = 90 first: (1, 2) → (-2, 1); then y = 90 tilt maps the rotated
+    // x offset onto the z axis: x → 0, z → -2, y stays 1.
+    expect(position.x).toBeCloseTo(0);
+    expect(position.y).toBeCloseTo(1);
+    expect(position.z).toBeCloseTo(-2);
+  });
+
+  it('should keep positions within rectangle bounds for arbitrary rotation.z', () => {
+    const scale = { x: 4, y: 6 };
+    const maxExtent = Math.sqrt((scale.x / 2) ** 2 + (scale.y / 2) ** 2);
+    for (let i = 0; i < 50; i++) {
+      calculateRandomPositionAndVelocityOnRectangle(
+        position,
+        quaternion,
+        velocity,
+        1,
+        {
+          rotation: { x: 0, y: 0, z: 37 },
+          scale,
+        }
+      );
+      // In-plane rotation preserves distance from the center
+      expect(position.length()).toBeLessThanOrEqual(maxExtent + 0.01);
+      expect(position.z).toBeCloseTo(0);
+    }
+  });
 });
