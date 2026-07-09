@@ -184,4 +184,4 @@ Completed: Core system, all shape emitters, lifetime modifiers, noise, burst/dis
 
 **Planned:** Trail Phase 2 (UV texture modes, UV scrolling, width by speed), preset system.
 
-**Coverage target:** >=90% statement, >=80% branch.
+**Coverage floors (enforced via jest `coverageThreshold`):** >=80% statements, >=85% branches.

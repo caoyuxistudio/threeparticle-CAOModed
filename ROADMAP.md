@@ -22,7 +22,7 @@
 | PR checks (lint + test + build + bundle size + CodeQL) | ✅ |
 | Bundle size monitoring (150 KB limit) | ✅ |
 | Performance benchmark suite | ✅ |
-| Test coverage ≥90% stmt, ≥80% branch | ✅ |
+| Test coverage ≥80% stmt, ≥85% branch (enforced via jest coverageThreshold) | ✅ |
 | `llms.txt` / `llms-full.txt` | ✅ |
 | `CHANGELOG.md`, `CONTRIBUTING.md` | ✅ |
 | tsup build (ESM + minified + DTS) | ✅ |

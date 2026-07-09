@@ -62,26 +62,29 @@ export const enum Shape {
 
 /**
  * Defines where on a shape particles are emitted from.
- * Not all shapes support all emit modes.
+ *
+ * Only the BOX shape reads this setting — all other shapes ignore it.
+ * SPHERE, CONE and CIRCLE control volume vs. shell emission through their
+ * `radiusThickness` property instead.
  *
  * @enum {string}
  */
 export const enum EmitFrom {
   /**
    * Emit particles from random positions within the entire volume of the shape.
-   * Supported by: SPHERE, CONE, BOX.
+   * Supported by: BOX. Ignored by all other shapes.
    */
   VOLUME = 'VOLUME',
 
   /**
    * Emit particles from the surface/shell of the shape.
-   * Supported by: SPHERE, CONE, BOX.
+   * Supported by: BOX. Ignored by all other shapes.
    */
   SHELL = 'SHELL',
 
   /**
    * Emit particles from the edges of the shape.
-   * Supported by: BOX.
+   * Supported by: BOX. Ignored by all other shapes.
    */
   EDGE = 'EDGE',
 }
