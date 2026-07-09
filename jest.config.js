@@ -14,5 +14,13 @@ export default {
   testMatch: ['**/__tests__/**/*.test.ts'],
   collectCoverage: true,
   coverageReporters: ['text', 'lcov'],
+  coverageThreshold: {
+    global: {
+      statements: 80,
+      branches: 85,
+      functions: 68,
+      lines: 79,
+    },
+  },
   maxWorkers: '50%',
 };

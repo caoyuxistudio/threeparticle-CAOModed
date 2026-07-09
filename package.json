@@ -6,6 +6,7 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "files": [
     "dist/",
     "webgpu.d.ts",
@@ -18,13 +19,14 @@
   "llmsFull": "https://newkrok.github.io/three-particles/llms-full.txt",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./webgpu": {
-      "import": "./dist/webgpu.js",
-      "types": "./webgpu.d.ts"
-    }
+      "types": "./webgpu.d.ts",
+      "import": "./dist/webgpu.js"
+    },
+    "./package.json": "./package.json"
   },
   "repository": {
     "type": "git",
@@ -75,7 +77,7 @@
     "three-noise": "1.1.2"
   },
   "peerDependencies": {
-    "three": "^0.182.0"
+    "three": ">=0.182.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.29.2",
