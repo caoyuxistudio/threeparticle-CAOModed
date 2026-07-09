@@ -95,6 +95,8 @@ Pushing to `master` triggers fully automated: CI checks -> version bump -> npm p
 - **New examples must always be added at the beginning of the array** (newest first)
 - Each example needs: `id`, `title`, `description`, `tags`, `textureId`, `config`
 - Optional: `previewTime` for non-looping or delayed effects
+- Optional: `cpuOnly: true` forces the demo to default to the CPU backend even when WebGPU is available (use for CPU-specific features like live `updateConfig`)
+- Optional: `liveMorph: { loopSeconds, phases: [{ at, label, config }] }` drives runtime `updateConfig()` phases on the CPU backend — each phase pushes a partial config at time `at` (seconds into the loop). Only non-structural, non-GPU-baked keys may be morphed (not `shape`/`maxParticles`/`renderer`/`map`/`simulationBackend`). Phase 0 should restore every key later phases mutate so the loop resets cleanly. Handled by `createMorphController` in `examples/main.js`. Missing preview images fall back to a gradient placeholder via the img `onerror` handler.
 
 ---
 

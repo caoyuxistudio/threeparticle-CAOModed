@@ -1,6 +1,91 @@
 
 export const examples = [
   {
+    id: "live-morph-showcase",
+    title: "Live Morph (updateConfig)",
+    description: "One CPU particle system reshaped on the fly — colors, forces, noise, and lifetime modifiers are swapped every few seconds via updateConfig() without ever rebuilding the system. Showcases runtime reconfiguration and the optimized CPU hot path at 6 000 particles.",
+    tags: ["updateConfig", "live-update", "cpu", "forceFields", "noise", "advanced"],
+    textureId: "GRADIENT_POINT",
+    cpuOnly: true,
+    // Base config = phase 0 ("Calm Nebula"). Structural keys (shape,
+    // maxParticles, renderer) stay fixed; every morphed key below is a
+    // runtime-updatable property on the CPU backend.
+    config: {"duration":60,"looping":true,"simulationBackend":"CPU","startLifetime":{"min":4.0,"max":5.0},"startSpeed":{"min":0.3,"max":0.7},"startSize":{"min":0.7,"max":1.5},"startOpacity":1.0,"startRotation":{"min":0,"max":360},"startColor":{"min":{"r":0.2,"g":0.4,"b":0.9},"max":{"r":0.4,"g":0.7,"b":1.0}},"maxParticles":6000,"gravity":0,"emission":{"rateOverTime":1200},"shape":{"shape":"SPHERE","sphere":{"radius":2.0,"radiusThickness":1.0,"arc":360}},"renderer":{"blending":"THREE.AdditiveBlending","transparent":true,"depthTest":true,"depthWrite":false},"sizeOverLifetime":{"isActive":true,"lifetimeCurve":{"bezierPoints":[{"x":0,"y":0.3,"percentage":0},{"x":0.2,"y":1.0},{"x":0.7,"y":0.9,"percentage":0.7},{"x":1,"y":0.2,"percentage":1}]}},"opacityOverLifetime":{"isActive":true,"lifetimeCurve":{"bezierPoints":[{"x":0,"y":0,"percentage":0},{"x":0.12,"y":0.9},{"x":0.7,"y":0.8,"percentage":0.7},{"x":1,"y":0,"percentage":1}]}},"noise":{"isActive":true,"useRandomOffset":true,"strength":0.25,"frequency":0.15,"octaves":2,"positionAmount":0.4}},
+    // Every phase keeps the same emission / lifetime / shape so the particle
+    // cloud stays continuously on screen — only appearance & motion morph.
+    // Force fields are gentle and range-limited so nothing gets sucked into a
+    // singularity or flung out of view.
+    liveMorph: {
+      loopSeconds: 16,
+      phases: [
+        {
+          at: 0,
+          label: "Calm Nebula — cool drift",
+          // Restores the base look so the loop wrap resets every morphed key.
+          config: {
+            startColor: {min:{r:0.2,g:0.4,b:0.9},max:{r:0.4,g:0.7,b:1.0}},
+            gravity: 0,
+            forceFields: [],
+            velocityOverLifetime: {isActive:false},
+            rotationOverLifetime: {isActive:false},
+            colorOverLifetime: {isActive:false},
+            noise: {isActive:true,useRandomOffset:true,strength:0.25,frequency:0.15,octaves:2,positionAmount:0.4},
+          },
+        },
+        {
+          at: 4,
+          label: "Ember Swirl — orbital motion + fire gradient",
+          config: {
+            startColor: {min:{r:1.0,g:0.45,b:0.1},max:{r:1.0,g:0.8,b:0.3}},
+            // Every phase declares rotationOverLifetime explicitly so the flag
+            // and its per-particle array stay in lock-step across the loop.
+            rotationOverLifetime: {isActive:false},
+            velocityOverLifetime: {isActive:true,orbital:{y:{min:1.0,max:1.6}}},
+            colorOverLifetime: {isActive:true,
+              r:{bezierPoints:[{x:0,y:1.0,percentage:0},{x:0.5,y:1.0},{x:1,y:0.7,percentage:1}]},
+              g:{bezierPoints:[{x:0,y:0.7,percentage:0},{x:0.5,y:0.35},{x:1,y:0.1,percentage:1}]},
+              b:{bezierPoints:[{x:0,y:0.2,percentage:0},{x:0.5,y:0.05},{x:1,y:0.0,percentage:1}]}},
+            noise: {isActive:true,useRandomOffset:true,strength:0.5,frequency:0.3,octaves:3,positionAmount:0.6},
+          },
+        },
+        {
+          at: 8,
+          label: "Toxic Spin — rotation modifier live-activated",
+          config: {
+            startColor: {min:{r:0.4,g:1.0,b:0.2},max:{r:0.7,g:1.0,b:0.4}},
+            // A gentle inward pull that never fully collapses the cloud.
+            forceFields: [
+              {type:"POINT",position:{x:0,y:0,z:0},strength:-0.6,range:6.0,falloff:"LINEAR"},
+            ],
+            velocityOverLifetime: {isActive:true,orbital:{y:{min:-1.8,max:-1.0}}},
+            rotationOverLifetime: {isActive:true,min:-300,max:300},
+            colorOverLifetime: {isActive:true,
+              r:{bezierPoints:[{x:0,y:0.4,percentage:0},{x:0.5,y:0.6},{x:1,y:0.2,percentage:1}]},
+              g:{bezierPoints:[{x:0,y:1.0,percentage:0},{x:0.5,y:1.0},{x:1,y:0.6,percentage:1}]},
+              b:{bezierPoints:[{x:0,y:0.2,percentage:0},{x:0.5,y:0.4},{x:1,y:0.2,percentage:1}]}},
+            noise: {isActive:true,useRandomOffset:true,strength:0.4,frequency:0.5,octaves:3,positionAmount:0.5},
+          },
+        },
+        {
+          at: 12,
+          label: "Rainbow Bloom — animated color cycle",
+          config: {
+            startColor: {min:{r:1.0,g:1.0,b:1.0},max:{r:1.0,g:1.0,b:1.0}},
+            gravity: 0,
+            forceFields: [],
+            velocityOverLifetime: {isActive:true,orbital:{y:{min:0.4,max:0.8}}},
+            rotationOverLifetime: {isActive:false},
+            colorOverLifetime: {isActive:true,
+              r:{bezierPoints:[{x:0,y:1.0,percentage:0},{x:0.25,y:1.0},{x:0.5,y:0.1},{x:0.75,y:0.2},{x:1,y:1.0,percentage:1}]},
+              g:{bezierPoints:[{x:0,y:0.2,percentage:0},{x:0.25,y:1.0},{x:0.5,y:1.0},{x:0.75,y:0.3},{x:1,y:0.4,percentage:1}]},
+              b:{bezierPoints:[{x:0,y:0.3,percentage:0},{x:0.25,y:0.2},{x:0.5,y:1.0},{x:0.75,y:1.0},{x:1,y:1.0,percentage:1}]}},
+            noise: {isActive:true,useRandomOffset:true,strength:0.3,frequency:0.2,octaves:2,positionAmount:0.35},
+          },
+        },
+      ],
+    },
+  },
+  {
     id: "bubble-surface-pop",
     title: "Bubble Surface Pop",
     description: "Rising bubbles drift upward with organic noise motion and pop into tiny splashes when they hit a water surface collision plane — demonstrates kill zone + death sub-emitters.",

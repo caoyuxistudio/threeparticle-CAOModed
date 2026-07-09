@@ -9,15 +9,22 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
+    "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.webgpu.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.182.0/",
-    "THREE": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js"
+    "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.tsl.js",
+    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.webgpu.js",
+    "THREE": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.webgpu.js"
   }
 }
 </script>
 <script type="module">
 import * as THREE from "three";
 
+// NOTE: for the "local" version this worker uses WebGPURenderer + GPU compute.
+// compute()/render() only *submit* work to the GPU queue, so the CPU-side
+// update/render timings measure submission cost, not GPU execution time. Frame
+// time (fps) still reflects real end-to-end throughput and is the number to
+// compare against CDN (CPU + WebGL) runs.
 const WARMUP_FRAMES = 60;
 const MEASURE_FRAMES = 300;
 const TEXTURE_PATH = "textures/circle.webp";
@@ -124,6 +131,7 @@ function resolveBlending(blending) {
 async function run() {
   const params = new URLSearchParams(window.location.search);
   const version = params.get("v");
+  const backend = params.get("backend") === "GPU" ? "GPU" : "CPU";
   if (!version) {
     parent.postMessage({ type: "error", error: "No version specified" }, "*");
     return;
@@ -141,21 +149,88 @@ async function run() {
     // Continue without texture
   }
 
-  // Load particle library
+  const isLocal = version === "local";
+
+  // Load particle library. "local" loads the freshly-built dev bundle so
+  // uncommitted changes can be benchmarked; anything else loads from the CDN.
   let particleModule;
   try {
-    const cdnUrl = `https://cdn.jsdelivr.net/npm/@newkrok/three-particles@${version}/dist/three-particles.min.js`;
-    particleModule = await import(cdnUrl);
+    const url = isLocal
+      ? "./three-particles.esm.js"
+      : `https://cdn.jsdelivr.net/npm/@newkrok/three-particles@${version}/dist/three-particles.min.js`;
+    particleModule = await import(url);
   } catch (e) {
-    parent.postMessage({ type: "error", error: `Failed to load v${version}: ${e.message}` }, "*");
+    parent.postMessage({ type: "error", error: `Failed to load ${version}: ${e.message}` }, "*");
     return;
   }
 
   const { createParticleSystem, updateParticleSystems } = particleModule;
 
-  // Setup renderer & scene
+  // GPU (WebGPU compute) simulation requires the TSL material factory, which
+  // only the local dev build ships (via registerTSLMaterialFactory). When GPU
+  // is requested for a version that can't provide it, error out instead of
+  // silently running CPU — that would plot a CPU result on a GPU chart and
+  // make the comparison meaningless (CPU vs CPU, GPU vs GPU only).
+  let useGPU = false;
+  if (backend === "GPU") {
+    if (!isLocal || !particleModule.registerTSLMaterialFactory) {
+      parent.postMessage({
+        type: "error",
+        error: `${version} has no GPU compute path (only the local dev build does)`,
+      }, "*");
+      return;
+    }
+    if (!navigator.gpu || !(await navigator.gpu.requestAdapter())) {
+      parent.postMessage({ type: "error", error: "WebGPU not available on this device" }, "*");
+      return;
+    }
+    const {
+      createTSLParticleMaterial,
+      createTSLTrailMaterial,
+      createComputePipeline,
+      writeParticleToModifierBuffers,
+      deactivateParticleInModifierBuffers,
+      flushEmitQueue,
+      registerCurveDataLength,
+      encodeForceFieldsForGPU,
+      encodeCollisionPlanesForGPU,
+    } = await import("./three-particles-webgpu.esm.js");
+    particleModule.registerTSLMaterialFactory({
+      createTSLParticleMaterial,
+      createTSLTrailMaterial,
+      createComputePipeline,
+      writeParticleToModifierBuffers,
+      deactivateParticleInModifierBuffers,
+      flushEmitQueue,
+      registerCurveDataLength,
+      encodeForceFieldsForGPU,
+      encodeCollisionPlanesForGPU,
+    });
+    useGPU = true;
+  }
+
+  // Setup renderer & scene. The renderer MUST match the simulation's material
+  // type:
+  //   • CPU sim → GLSL ShaderMaterial → classic WebGLRenderer.
+  //   • GPU sim → TSL NodeMaterial → WebGPURenderer.
+  // WebGPURenderer only accepts NodeMaterials (even on its WebGL fallback), so
+  // it cannot render the CPU path's ShaderMaterial. The `three` mapping points
+  // at three.webgpu.js (needed for WebGPURenderer + the TSL modules), which
+  // does NOT export WebGLRenderer — so the CPU path pulls WebGLRenderer from
+  // three.module.js explicitly. Both builds are the same three version, so the
+  // geometry/material objects interop across the two renderers.
   const canvas = document.getElementById("c");
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+  let renderer;
+  if (useGPU) {
+    renderer = new THREE.WebGPURenderer({ canvas, antialias: false, alpha: true });
+    await renderer.init();
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  } else {
+    const { WebGLRenderer } = await import(
+      "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js"
+    );
+    renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true });
+  }
   renderer.setSize(320, 220);
 
   const scene = new THREE.Scene();
@@ -169,6 +244,15 @@ async function run() {
     config.renderer.blending = resolveBlending(config.renderer.blending);
   }
   if (texture) config.map = texture;
+  if (useGPU) {
+    // WebGPU has no variable-size point primitives — force POINTS → INSTANCED.
+    config.renderer = config.renderer || {};
+    const rt = config.renderer.rendererType;
+    if (!rt || rt === "POINTS") config.renderer.rendererType = "INSTANCED";
+  } else {
+    // CPU path keeps the original POINTS renderer on the classic WebGLRenderer.
+    config.simulationBackend = "CPU";
+  }
 
   const system = createParticleSystem(config);
   scene.add(system.instance);
@@ -189,6 +273,10 @@ async function run() {
       system.update(cycleData);
     } else {
       updateParticleSystems(cycleData);
+    }
+    // GPU compute dispatch — must run before render (mirrors the examples page).
+    if (system.computeNode) {
+      renderer.compute(system.computeNode);
     }
     const t1 = performance.now();
     renderer.render(scene, camera);

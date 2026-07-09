@@ -24,26 +24,27 @@ export class BenchmarkRunner {
   /**
    * Run benchmarks for the given versions sequentially.
    * @param {string[]} versions
+   * @param {"CPU"|"GPU"} [backend="CPU"] simulation backend to benchmark on
    * @returns {Promise<void>}
    */
-  async run(versions) {
+  async run(versions, backend = "CPU") {
     if (this.running) return;
     this.running = true;
     this.aborted = false;
     this.chart.reset();
 
-    this.setStatus(`Starting benchmark for ${versions.length} version(s)...`);
+    this.setStatus(`Starting ${backend} benchmark for ${versions.length} version(s)...`);
 
     for (let i = 0; i < versions.length; i++) {
       if (this.aborted) break;
       const version = versions[i];
       this.setStatus(
-        `Benchmarking v${version}... (${i + 1}/${versions.length})`
+        `Benchmarking ${version} (${backend})... (${i + 1}/${versions.length})`
       );
       this.chart.addVersion(version);
 
       try {
-        await this.runSingle(version);
+        await this.runSingle(version, backend);
       } catch (e) {
         this.chart.markError(version);
         this.setStatus(`Error on v${version}: ${e.message}`);
@@ -63,9 +64,11 @@ export class BenchmarkRunner {
 
   /**
    * Run benchmark for a single version via an iframe.
+   * @param {string} version
+   * @param {"CPU"|"GPU"} [backend="CPU"]
    * @returns {Promise<object>} result data
    */
-  runSingle(version) {
+  runSingle(version, backend = "CPU") {
     return new Promise((resolve, reject) => {
       // Cleanup any previous iframe
       this.destroyIframe();
@@ -73,7 +76,7 @@ export class BenchmarkRunner {
       const iframe = document.createElement("iframe");
       iframe.style.cssText =
         "width:320px;height:220px;border:none;opacity:0.01;position:absolute;pointer-events:none;";
-      iframe.src = `benchmark-worker.html?v=${encodeURIComponent(version)}`;
+      iframe.src = `benchmark-worker.html?v=${encodeURIComponent(version)}&backend=${encodeURIComponent(backend)}`;
       this.iframeContainer.appendChild(iframe);
       this._currentIframe = iframe;
 

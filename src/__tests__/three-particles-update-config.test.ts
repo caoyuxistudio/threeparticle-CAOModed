@@ -359,4 +359,59 @@ describe('ParticleSystem.updateConfig', () => {
       ps.dispose();
     });
   });
+
+  describe('live rotationOverLifetime toggling', () => {
+    it('should not throw when a particle activates after rotationOverLifetime is toggled off', () => {
+      // Repro for the live-morph crash: activating rotationOverLifetime via
+      // updateConfig allocates the per-particle array, toggling it off deletes
+      // the array. A particle activating afterwards must not write into the
+      // deleted array (was: "Cannot set properties of undefined").
+      const { ps, step } = createTestSystem({
+        emission: { rateOverTime: 30, rateOverDistance: 0 },
+        startLifetime: 1,
+      });
+
+      step(100);
+
+      // Activate rotation over lifetime — allocates the backing array.
+      ps.updateConfig({
+        rotationOverLifetime: { isActive: true, min: -200, max: 200 },
+      });
+      step(200, 100);
+      expect(countActiveParticles(ps)).toBeGreaterThan(0);
+
+      // Toggle it back off — deletes the backing array.
+      ps.updateConfig({ rotationOverLifetime: { isActive: false } });
+
+      // Keep emitting: particles activate while rotation is inactive. Must not throw.
+      expect(() => {
+        for (let t = 300; t <= 1500; t += 100) step(t, 100);
+      }).not.toThrow();
+
+      ps.dispose();
+    });
+
+    it('should keep rotating particles after a re-activation cycle', () => {
+      const { ps, step } = createTestSystem({
+        emission: { rateOverTime: 30, rateOverDistance: 0 },
+        startLifetime: 1,
+      });
+      step(100);
+      // on -> off -> on again (mirrors a morph loop)
+      ps.updateConfig({
+        rotationOverLifetime: { isActive: true, min: -200, max: 200 },
+      });
+      step(200, 100);
+      ps.updateConfig({ rotationOverLifetime: { isActive: false } });
+      step(300, 100);
+      ps.updateConfig({
+        rotationOverLifetime: { isActive: true, min: -150, max: 150 },
+      });
+      expect(() => {
+        for (let t = 400; t <= 1200; t += 100) step(t, 100);
+      }).not.toThrow();
+      expect(countActiveParticles(ps)).toBeGreaterThan(0);
+      ps.dispose();
+    });
+  });
 });

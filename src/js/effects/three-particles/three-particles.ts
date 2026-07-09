@@ -1574,7 +1574,16 @@ export const createParticleSystem = (
       aQuat.needsUpdate = true;
     }
 
-    if (normalizedConfig.rotationOverLifetime.isActive)
+    // Guard on the backing array, not just isActive. When rotationOverLifetime
+    // is toggled live via updateConfig() the flag and its per-particle array
+    // are updated together, but a particle can still activate in a window where
+    // the array is absent (e.g. the flag lingers true from a merge while the
+    // array was deleted). Mirrors the linear/orbital velocity-data guards below
+    // and prevents "Cannot set properties of undefined".
+    if (
+      normalizedConfig.rotationOverLifetime.isActive &&
+      generalData.lifetimeValues.rotationOverLifetime
+    )
       generalData.lifetimeValues.rotationOverLifetime[particleIndex] =
         THREE.MathUtils.randFloat(
           normalizedConfig.rotationOverLifetime.min!,

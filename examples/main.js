@@ -214,6 +214,48 @@ function setupSoftParticlesScene(renderer, camera, width, height) {
   return { renderTarget, groundMesh };
 }
 
+// ─── Live morph controller ──────────────────────────────────────────
+// Drives a demo whose `liveMorph` field lists timed phases. Each phase is
+// { at: <seconds into the loop>, config: <partial config> }. When playback
+// crosses a phase boundary the partial config is pushed through the running
+// system's updateConfig() — showcasing runtime reconfiguration (activating
+// modifiers, swapping colors / forces / emission) on an already-created CPU
+// system without rebuilding it. Loops every `liveMorph.loopSeconds`.
+function createMorphController(system, liveMorph) {
+  if (!system.updateConfig || !liveMorph?.phases?.length) return null;
+  const phases = [...liveMorph.phases].sort((a, b) => a.at - b.at);
+  const loopSeconds = liveMorph.loopSeconds || phases[phases.length - 1].at + 3;
+  let lastApplied = -1;
+
+  const applyPhase = (index) => {
+    const phase = phases[index];
+    const cfg = JSON.parse(JSON.stringify(phase.config));
+    // Resolve blending strings the same way prepareConfig does, so phases can
+    // switch blend modes declaratively.
+    if (cfg.renderer?.blending) cfg.renderer.blending = resolveBlending(cfg.renderer.blending);
+    system.updateConfig(cfg);
+    lastApplied = index;
+  };
+
+  return {
+    label: liveMorph.phases[0]?.label,
+    // Returns the current phase label (for the on-canvas caption) or null.
+    tick(elapsed) {
+      const t = elapsed % loopSeconds;
+      // On loop wrap, allow phase 0 to re-apply.
+      if (t < (phases[lastApplied]?.at ?? 0)) lastApplied = -1;
+      let current = lastApplied;
+      for (let i = 0; i < phases.length; i++) {
+        if (t >= phases[i].at && i > lastApplied) {
+          applyPhase(i);
+          current = i;
+        }
+      }
+      return phases[current]?.label ?? null;
+    },
+  };
+}
+
 class LiveDemo {
   constructor(container, exampleData, rendererType = "POINTS", backend = "CPU") {
     this.container = container;
@@ -292,6 +334,9 @@ class LiveDemo {
     this.scene.add(system.instance);
     this.particleSystem = system;
 
+    // Live morph: only meaningful on the CPU backend (GPU bakes modifiers).
+    this.morph = !useGPU ? createMorphController(system, this.data.liveMorph) : null;
+
     // Update card stats backend label
     const backendLabel = this.container.querySelector(".card-backend-label");
     if (backendLabel) {
@@ -307,6 +352,8 @@ class LiveDemo {
     const delta = this.clock.getDelta();
     const elapsed = this.clock.getElapsedTime();
     const now = performance.now();
+
+    if (this.morph) this.morph.tick(elapsed);
 
     const cycleData = { now: Date.now() - this.pausedDuration, delta, elapsed };
     if (this.particleSystem.update) {
@@ -510,6 +557,9 @@ class ExpandedDemo {
     this.scene.add(system.instance);
     this.particleSystem = system;
 
+    // Live morph: only meaningful on the CPU backend (GPU bakes modifiers).
+    this.morph = !useGPU ? createMorphController(system, this.data.liveMorph) : null;
+
     // Update backend label in stats bar
     const backendLabel = document.getElementById("expand-backend-label");
     if (backendLabel) {
@@ -538,6 +588,13 @@ class ExpandedDemo {
     const delta = this.clock.getDelta();
     const elapsed = this.clock.getElapsedTime();
     const now = performance.now();
+
+    // Live morph: push timed updateConfig() phases before the frame update.
+    if (this.morph) {
+      const label = this.morph.tick(elapsed);
+      const cap = document.getElementById("expand-morph-label");
+      if (cap && label) cap.textContent = label;
+    }
 
     const tickStart = performance.now();
 
@@ -668,6 +725,13 @@ function openExpandModal(exampleData, rendererType, backend = "GPU") {
   expandRendererType = rendererType;
   expandBackendType = backend;
 
+  // Live-morph caption: show only for morph demos running on CPU.
+  const morphCaption = document.getElementById("expand-morph-caption");
+  const morphLabel = document.getElementById("expand-morph-label");
+  const morphActive = !!exampleData.liveMorph && backend === "CPU";
+  morphCaption.classList.toggle("enabled", morphActive);
+  if (!morphActive && morphLabel) morphLabel.textContent = "";
+
   // Backend (GPU/CPU) toggle
   const backendToggle = document.getElementById("expand-backend-toggle");
   if (webgpuAvailable) {
@@ -764,7 +828,7 @@ examples.forEach((example) => {
   card.className = "card";
   card.innerHTML = `
     <div class="card-canvas-wrapper">
-      <img class="preview-img" src="previews/${example.id}.webp" alt="${example.title} preview" />
+      <img class="preview-img" src="previews/${example.id}.webp" alt="${example.title} preview" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div class=\\'preview-placeholder\\'></div>')" />
       <canvas style="display:none"></canvas>
       <div class="play-overlay">
         <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
@@ -779,6 +843,10 @@ examples.forEach((example) => {
         <span class="card-fps">-- FPS</span>
         <span class="card-backend-label"></span>
       </div>
+      <div class="morph-caption${example.liveMorph ? " enabled" : ""}">
+        <span class="morph-badge">live</span>
+        <span class="card-morph-label"></span>
+      </div>
     </div>
     <div class="card-info">
       <h3>${example.title}</h3>
@@ -790,8 +858,8 @@ examples.forEach((example) => {
         <div class="card-btns">
           ${webgpuAvailable
             ? `<div class="backend-toggle">
-              <button data-backend="CPU" title="CPU simulation (GLSL ShaderMaterial)">CPU</button>
-              <button class="active" data-backend="GPU" title="GPU compute simulation (TSL / WebGPU)">GPU</button>
+              <button data-backend="CPU"${example.cpuOnly ? " class=\"active\"" : ""} title="CPU simulation (GLSL ShaderMaterial)">CPU</button>
+              <button${example.cpuOnly ? "" : " class=\"active\""} data-backend="GPU" title="GPU compute simulation (TSL / WebGPU)">GPU</button>
             </div>`
             : ""
           }
@@ -836,7 +904,10 @@ examples.forEach((example) => {
   grid.appendChild(card);
 
   cardRendererTypes.set(card, getConfigRendererType(example));
-  cardBackendTypes.set(card, webgpuAvailable ? "GPU" : "CPU");
+  // Live-morph demos must run on the CPU (updateConfig modifier changes are
+  // baked into the GPU kernel at creation), so default them to CPU even when
+  // WebGPU is available.
+  cardBackendTypes.set(card, webgpuAvailable && !example.cpuOnly ? "GPU" : "CPU");
 
   const backendToggle = card.querySelector(".backend-toggle");
   if (backendToggle) {
@@ -925,10 +996,13 @@ examples.forEach((example) => {
   const iframeHost = document.getElementById("bench-iframe-host");
   const selectAllBtn = document.getElementById("bench-select-all");
   const selectNoneBtn = document.getElementById("bench-select-none");
+  const backendToggle = document.getElementById("bench-backend-toggle");
+  const backendHint = document.getElementById("bench-backend-hint");
 
   if (!overlay) return;
 
   let runner = null;
+  let benchBackend = "CPU";
 
   // Populate version checkboxes
   let versions;
@@ -939,15 +1013,53 @@ examples.forEach((example) => {
     return;
   }
 
-  versionsContainer.innerHTML = versions
-    .map(
-      (v, i) =>
-        `<label><input type="checkbox" value="${v}"${i < 3 ? " checked" : ""} /><span>${v}${i === 0 ? " (latest)" : ""}</span></label>`
-    )
+  // "local" (the dev build) is prepended so uncommitted changes can be
+  // benchmarked against published CDN versions. Checked by default.
+  const benchVersions = ["local", ...versions];
+  versionsContainer.innerHTML = benchVersions
+    .map((v, i) => {
+      const isLocal = v === "local";
+      const label = isLocal ? "local (dev)" : `${v}${i === 1 ? " (latest)" : ""}`;
+      const checked = isLocal || i <= 3 ? " checked" : "";
+      return `<label><input type="checkbox" value="${v}"${checked} /><span>${label}</span></label>`;
+    })
     .join("");
 
+  // GPU compute only exists in the local build, so in GPU mode every CDN
+  // version's checkbox is disabled (and unchecked) — you can only benchmark
+  // "local" on GPU. CPU mode enables all versions. This enforces the
+  // CPU-vs-CPU / GPU-vs-GPU rule at the UI level.
+  const applyBackendConstraints = () => {
+    const gpu = benchBackend === "GPU";
+    versionsContainer.querySelectorAll("label").forEach((label) => {
+      const cb = label.querySelector("input");
+      const disable = gpu && cb.value !== "local";
+      cb.disabled = disable;
+      label.style.opacity = disable ? "0.35" : "";
+      label.style.pointerEvents = disable ? "none" : "";
+      if (disable) cb.checked = false;
+      if (gpu && cb.value === "local") cb.checked = true;
+    });
+    backendHint.textContent = gpu
+      ? "GPU compute — local dev build only."
+      : "CPU simulation — all versions comparable.";
+  };
+  applyBackendConstraints();
+
+  backendToggle.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-backend]");
+    if (!btn) return;
+    benchBackend = btn.dataset.backend;
+    backendToggle.querySelectorAll("button").forEach((b) =>
+      b.classList.toggle("active", b === btn)
+    );
+    applyBackendConstraints();
+  });
+
   selectAllBtn.addEventListener("click", () => {
-    versionsContainer.querySelectorAll("input").forEach((cb) => (cb.checked = true));
+    versionsContainer
+      .querySelectorAll("input:not(:disabled)")
+      .forEach((cb) => (cb.checked = true));
   });
   selectNoneBtn.addEventListener("click", () => {
     versionsContainer.querySelectorAll("input").forEach((cb) => (cb.checked = false));
@@ -1015,11 +1127,11 @@ examples.forEach((example) => {
     if (typeof gtag === "function") {
       gtag("event", "benchmark_start", {
         event_category: "benchmark",
-        event_label: selected.join(","),
+        event_label: `${benchBackend}:${selected.join(",")}`,
       });
     }
 
-    await runner.run(selected);
+    await runner.run(selected, benchBackend);
 
     runBtn.disabled = false;
     abortBtn.disabled = true;

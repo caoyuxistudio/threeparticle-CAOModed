@@ -1,4 +1,4 @@
-import { AdditiveBlending as __WEBPACK_EXTERNAL_MODULE_three_AdditiveBlending__, AmbientLight as __WEBPACK_EXTERNAL_MODULE_three_AmbientLight__, AnimationClip as __WEBPACK_EXTERNAL_MODULE_three_AnimationClip__, Audio as __WEBPACK_EXTERNAL_MODULE_three_Audio__, AudioListener as __WEBPACK_EXTERNAL_MODULE_three_AudioListener__, AudioLoader as __WEBPACK_EXTERNAL_MODULE_three_AudioLoader__, Bone as __WEBPACK_EXTERNAL_MODULE_three_Bone__, Box3 as __WEBPACK_EXTERNAL_MODULE_three_Box3__, BufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_BufferAttribute__, BufferGeometry as __WEBPACK_EXTERNAL_MODULE_three_BufferGeometry__, ClampToEdgeWrapping as __WEBPACK_EXTERNAL_MODULE_three_ClampToEdgeWrapping__, Color as __WEBPACK_EXTERNAL_MODULE_three_Color__, ColorManagement as __WEBPACK_EXTERNAL_MODULE_three_ColorManagement__, Curve as __WEBPACK_EXTERNAL_MODULE_three_Curve__, DataTexture as __WEBPACK_EXTERNAL_MODULE_three_DataTexture__, DirectionalLight as __WEBPACK_EXTERNAL_MODULE_three_DirectionalLight__, DoubleSide as __WEBPACK_EXTERNAL_MODULE_three_DoubleSide__, EquirectangularReflectionMapping as __WEBPACK_EXTERNAL_MODULE_three_EquirectangularReflectionMapping__, Euler as __WEBPACK_EXTERNAL_MODULE_three_Euler__, FileLoader as __WEBPACK_EXTERNAL_MODULE_three_FileLoader__, Float32BufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_Float32BufferAttribute__, FrontSide as __WEBPACK_EXTERNAL_MODULE_three_FrontSide__, Group as __WEBPACK_EXTERNAL_MODULE_three_Group__, ImageBitmapLoader as __WEBPACK_EXTERNAL_MODULE_three_ImageBitmapLoader__, InstancedBufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_InstancedBufferAttribute__, InstancedMesh as __WEBPACK_EXTERNAL_MODULE_three_InstancedMesh__, InterleavedBuffer as __WEBPACK_EXTERNAL_MODULE_three_InterleavedBuffer__, InterleavedBufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_InterleavedBufferAttribute__, Interpolant as __WEBPACK_EXTERNAL_MODULE_three_Interpolant__, InterpolateDiscrete as __WEBPACK_EXTERNAL_MODULE_three_InterpolateDiscrete__, InterpolateLinear as __WEBPACK_EXTERNAL_MODULE_three_InterpolateLinear__, Line as __WEBPACK_EXTERNAL_MODULE_three_Line__, LineBasicMaterial as __WEBPACK_EXTERNAL_MODULE_three_LineBasicMaterial__, LineLoop as __WEBPACK_EXTERNAL_MODULE_three_LineLoop__, LineSegments as __WEBPACK_EXTERNAL_MODULE_three_LineSegments__, LinearFilter as __WEBPACK_EXTERNAL_MODULE_three_LinearFilter__, LinearMipmapLinearFilter as __WEBPACK_EXTERNAL_MODULE_three_LinearMipmapLinearFilter__, LinearMipmapNearestFilter as __WEBPACK_EXTERNAL_MODULE_three_LinearMipmapNearestFilter__, LinearSRGBColorSpace as __WEBPACK_EXTERNAL_MODULE_three_LinearSRGBColorSpace__, Loader as __WEBPACK_EXTERNAL_MODULE_three_Loader__, LoaderUtils as __WEBPACK_EXTERNAL_MODULE_three_LoaderUtils__, Material as __WEBPACK_EXTERNAL_MODULE_three_Material__, MathUtils as __WEBPACK_EXTERNAL_MODULE_three_MathUtils__, Matrix3 as __WEBPACK_EXTERNAL_MODULE_three_Matrix3__, Matrix4 as __WEBPACK_EXTERNAL_MODULE_three_Matrix4__, Mesh as __WEBPACK_EXTERNAL_MODULE_three_Mesh__, MeshBasicMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshBasicMaterial__, MeshLambertMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshLambertMaterial__, MeshPhongMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshPhongMaterial__, MeshPhysicalMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshPhysicalMaterial__, MeshStandardMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshStandardMaterial__, MirroredRepeatWrapping as __WEBPACK_EXTERNAL_MODULE_three_MirroredRepeatWrapping__, MultiplyBlending as __WEBPACK_EXTERNAL_MODULE_three_MultiplyBlending__, NearestFilter as __WEBPACK_EXTERNAL_MODULE_three_NearestFilter__, NearestMipmapLinearFilter as __WEBPACK_EXTERNAL_MODULE_three_NearestMipmapLinearFilter__, NearestMipmapNearestFilter as __WEBPACK_EXTERNAL_MODULE_three_NearestMipmapNearestFilter__, NoBlending as __WEBPACK_EXTERNAL_MODULE_three_NoBlending__, NoColorSpace as __WEBPACK_EXTERNAL_MODULE_three_NoColorSpace__, NormalBlending as __WEBPACK_EXTERNAL_MODULE_three_NormalBlending__, NumberKeyframeTrack as __WEBPACK_EXTERNAL_MODULE_three_NumberKeyframeTrack__, Object3D as __WEBPACK_EXTERNAL_MODULE_three_Object3D__, OrthographicCamera as __WEBPACK_EXTERNAL_MODULE_three_OrthographicCamera__, PerspectiveCamera as __WEBPACK_EXTERNAL_MODULE_three_PerspectiveCamera__, PointLight as __WEBPACK_EXTERNAL_MODULE_three_PointLight__, Points as __WEBPACK_EXTERNAL_MODULE_three_Points__, PointsMaterial as __WEBPACK_EXTERNAL_MODULE_three_PointsMaterial__, PositionalAudio as __WEBPACK_EXTERNAL_MODULE_three_PositionalAudio__, PropertyBinding as __WEBPACK_EXTERNAL_MODULE_three_PropertyBinding__, Quaternion as __WEBPACK_EXTERNAL_MODULE_three_Quaternion__, QuaternionKeyframeTrack as __WEBPACK_EXTERNAL_MODULE_three_QuaternionKeyframeTrack__, RepeatWrapping as __WEBPACK_EXTERNAL_MODULE_three_RepeatWrapping__, SRGBColorSpace as __WEBPACK_EXTERNAL_MODULE_three_SRGBColorSpace__, ShapeUtils as __WEBPACK_EXTERNAL_MODULE_three_ShapeUtils__, Skeleton as __WEBPACK_EXTERNAL_MODULE_three_Skeleton__, SkinnedMesh as __WEBPACK_EXTERNAL_MODULE_three_SkinnedMesh__, Sphere as __WEBPACK_EXTERNAL_MODULE_three_Sphere__, SphereGeometry as __WEBPACK_EXTERNAL_MODULE_three_SphereGeometry__, SpotLight as __WEBPACK_EXTERNAL_MODULE_three_SpotLight__, SubtractiveBlending as __WEBPACK_EXTERNAL_MODULE_three_SubtractiveBlending__, Texture as __WEBPACK_EXTERNAL_MODULE_three_Texture__, TextureLoader as __WEBPACK_EXTERNAL_MODULE_three_TextureLoader__, TriangleFanDrawMode as __WEBPACK_EXTERNAL_MODULE_three_TriangleFanDrawMode__, TriangleStripDrawMode as __WEBPACK_EXTERNAL_MODULE_three_TriangleStripDrawMode__, TrianglesDrawMode as __WEBPACK_EXTERNAL_MODULE_three_TrianglesDrawMode__, Uint16BufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_Uint16BufferAttribute__, Vector2 as __WEBPACK_EXTERNAL_MODULE_three_Vector2__, Vector3 as __WEBPACK_EXTERNAL_MODULE_three_Vector3__, Vector4 as __WEBPACK_EXTERNAL_MODULE_three_Vector4__, VectorKeyframeTrack as __WEBPACK_EXTERNAL_MODULE_three_VectorKeyframeTrack__ } from "three";
+import { AdditiveBlending as __WEBPACK_EXTERNAL_MODULE_three_AdditiveBlending__, AmbientLight as __WEBPACK_EXTERNAL_MODULE_three_AmbientLight__, AnimationClip as __WEBPACK_EXTERNAL_MODULE_three_AnimationClip__, Audio as __WEBPACK_EXTERNAL_MODULE_three_Audio__, AudioListener as __WEBPACK_EXTERNAL_MODULE_three_AudioListener__, AudioLoader as __WEBPACK_EXTERNAL_MODULE_three_AudioLoader__, Bone as __WEBPACK_EXTERNAL_MODULE_three_Bone__, Box3 as __WEBPACK_EXTERNAL_MODULE_three_Box3__, BufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_BufferAttribute__, BufferGeometry as __WEBPACK_EXTERNAL_MODULE_three_BufferGeometry__, ClampToEdgeWrapping as __WEBPACK_EXTERNAL_MODULE_three_ClampToEdgeWrapping__, Color as __WEBPACK_EXTERNAL_MODULE_three_Color__, ColorManagement as __WEBPACK_EXTERNAL_MODULE_three_ColorManagement__, Curve as __WEBPACK_EXTERNAL_MODULE_three_Curve__, DataTexture as __WEBPACK_EXTERNAL_MODULE_three_DataTexture__, DirectionalLight as __WEBPACK_EXTERNAL_MODULE_three_DirectionalLight__, DoubleSide as __WEBPACK_EXTERNAL_MODULE_three_DoubleSide__, EquirectangularReflectionMapping as __WEBPACK_EXTERNAL_MODULE_three_EquirectangularReflectionMapping__, Euler as __WEBPACK_EXTERNAL_MODULE_three_Euler__, FileLoader as __WEBPACK_EXTERNAL_MODULE_three_FileLoader__, Float32BufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_Float32BufferAttribute__, FrontSide as __WEBPACK_EXTERNAL_MODULE_three_FrontSide__, Group as __WEBPACK_EXTERNAL_MODULE_three_Group__, ImageBitmapLoader as __WEBPACK_EXTERNAL_MODULE_three_ImageBitmapLoader__, InstancedBufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_InstancedBufferAttribute__, InstancedMesh as __WEBPACK_EXTERNAL_MODULE_three_InstancedMesh__, InterleavedBuffer as __WEBPACK_EXTERNAL_MODULE_three_InterleavedBuffer__, InterleavedBufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_InterleavedBufferAttribute__, Interpolant as __WEBPACK_EXTERNAL_MODULE_three_Interpolant__, InterpolateDiscrete as __WEBPACK_EXTERNAL_MODULE_three_InterpolateDiscrete__, InterpolateLinear as __WEBPACK_EXTERNAL_MODULE_three_InterpolateLinear__, Line as __WEBPACK_EXTERNAL_MODULE_three_Line__, LineBasicMaterial as __WEBPACK_EXTERNAL_MODULE_three_LineBasicMaterial__, LineLoop as __WEBPACK_EXTERNAL_MODULE_three_LineLoop__, LineSegments as __WEBPACK_EXTERNAL_MODULE_three_LineSegments__, LinearFilter as __WEBPACK_EXTERNAL_MODULE_three_LinearFilter__, LinearMipmapLinearFilter as __WEBPACK_EXTERNAL_MODULE_three_LinearMipmapLinearFilter__, LinearMipmapNearestFilter as __WEBPACK_EXTERNAL_MODULE_three_LinearMipmapNearestFilter__, LinearSRGBColorSpace as __WEBPACK_EXTERNAL_MODULE_three_LinearSRGBColorSpace__, Loader as __WEBPACK_EXTERNAL_MODULE_three_Loader__, LoaderUtils as __WEBPACK_EXTERNAL_MODULE_three_LoaderUtils__, Material as __WEBPACK_EXTERNAL_MODULE_three_Material__, MathUtils as __WEBPACK_EXTERNAL_MODULE_three_MathUtils__, Matrix3 as __WEBPACK_EXTERNAL_MODULE_three_Matrix3__, Matrix4 as __WEBPACK_EXTERNAL_MODULE_three_Matrix4__, Mesh as __WEBPACK_EXTERNAL_MODULE_three_Mesh__, MeshBasicMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshBasicMaterial__, MeshLambertMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshLambertMaterial__, MeshPhongMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshPhongMaterial__, MeshPhysicalMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshPhysicalMaterial__, MeshStandardMaterial as __WEBPACK_EXTERNAL_MODULE_three_MeshStandardMaterial__, MirroredRepeatWrapping as __WEBPACK_EXTERNAL_MODULE_three_MirroredRepeatWrapping__, MultiplyBlending as __WEBPACK_EXTERNAL_MODULE_three_MultiplyBlending__, NearestFilter as __WEBPACK_EXTERNAL_MODULE_three_NearestFilter__, NearestMipmapLinearFilter as __WEBPACK_EXTERNAL_MODULE_three_NearestMipmapLinearFilter__, NearestMipmapNearestFilter as __WEBPACK_EXTERNAL_MODULE_three_NearestMipmapNearestFilter__, NoBlending as __WEBPACK_EXTERNAL_MODULE_three_NoBlending__, NormalBlending as __WEBPACK_EXTERNAL_MODULE_three_NormalBlending__, NumberKeyframeTrack as __WEBPACK_EXTERNAL_MODULE_three_NumberKeyframeTrack__, Object3D as __WEBPACK_EXTERNAL_MODULE_three_Object3D__, OrthographicCamera as __WEBPACK_EXTERNAL_MODULE_three_OrthographicCamera__, PerspectiveCamera as __WEBPACK_EXTERNAL_MODULE_three_PerspectiveCamera__, PointLight as __WEBPACK_EXTERNAL_MODULE_three_PointLight__, Points as __WEBPACK_EXTERNAL_MODULE_three_Points__, PointsMaterial as __WEBPACK_EXTERNAL_MODULE_three_PointsMaterial__, PositionalAudio as __WEBPACK_EXTERNAL_MODULE_three_PositionalAudio__, PropertyBinding as __WEBPACK_EXTERNAL_MODULE_three_PropertyBinding__, Quaternion as __WEBPACK_EXTERNAL_MODULE_three_Quaternion__, QuaternionKeyframeTrack as __WEBPACK_EXTERNAL_MODULE_three_QuaternionKeyframeTrack__, RepeatWrapping as __WEBPACK_EXTERNAL_MODULE_three_RepeatWrapping__, SRGBColorSpace as __WEBPACK_EXTERNAL_MODULE_three_SRGBColorSpace__, ShapeUtils as __WEBPACK_EXTERNAL_MODULE_three_ShapeUtils__, Skeleton as __WEBPACK_EXTERNAL_MODULE_three_Skeleton__, SkinnedMesh as __WEBPACK_EXTERNAL_MODULE_three_SkinnedMesh__, Sphere as __WEBPACK_EXTERNAL_MODULE_three_Sphere__, SphereGeometry as __WEBPACK_EXTERNAL_MODULE_three_SphereGeometry__, SpotLight as __WEBPACK_EXTERNAL_MODULE_three_SpotLight__, SubtractiveBlending as __WEBPACK_EXTERNAL_MODULE_three_SubtractiveBlending__, Texture as __WEBPACK_EXTERNAL_MODULE_three_Texture__, TextureLoader as __WEBPACK_EXTERNAL_MODULE_three_TextureLoader__, TriangleFanDrawMode as __WEBPACK_EXTERNAL_MODULE_three_TriangleFanDrawMode__, TriangleStripDrawMode as __WEBPACK_EXTERNAL_MODULE_three_TriangleStripDrawMode__, TrianglesDrawMode as __WEBPACK_EXTERNAL_MODULE_three_TrianglesDrawMode__, Uint16BufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_Uint16BufferAttribute__, Vector2 as __WEBPACK_EXTERNAL_MODULE_three_Vector2__, Vector3 as __WEBPACK_EXTERNAL_MODULE_three_Vector3__, Vector4 as __WEBPACK_EXTERNAL_MODULE_three_Vector4__, VectorKeyframeTrack as __WEBPACK_EXTERNAL_MODULE_three_VectorKeyframeTrack__ } from "three";
 import { Continue as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Continue__, Discard as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Discard__, Fn as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Fn__, If as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__, Loop as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Loop__, abs as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_abs__, attribute as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_attribute__, cameraPosition as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cameraPosition__, cameraProjectionMatrix as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cameraProjectionMatrix__, cameraViewMatrix as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cameraViewMatrix__, compute as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_compute__, cos as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__, cross as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cross__, dot as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_dot__, float as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__, floor as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_floor__, fract as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_fract__, instanceIndex as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_instanceIndex__, length as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_length__, max as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_max__, min as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_min__, mix as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_mix__, mod as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_mod__, modelViewMatrix as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_modelViewMatrix__, normalLocal as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_normalLocal__, normalize as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_normalize__, pointUV as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_pointUV__, positionLocal as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_positionLocal__, round as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_round__, screenUV as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_screenUV__, sin as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__, smoothstep as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_smoothstep__, step as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_step__, storage as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_storage__, texture as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_texture__, uniform as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_uniform__, uv as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_uv__, varyingProperty as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_varyingProperty__, vec2 as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec2__, vec3 as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__, vec4 as __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__ } from "three/tsl";
 import { MeshBasicNodeMaterial as __WEBPACK_EXTERNAL_MODULE_three_webgpu_84e9d76f_MeshBasicNodeMaterial__, PointsNodeMaterial as __WEBPACK_EXTERNAL_MODULE_three_webgpu_84e9d76f_PointsNodeMaterial__, StorageBufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_webgpu_84e9d76f_StorageBufferAttribute__, StorageInstancedBufferAttribute as __WEBPACK_EXTERNAL_MODULE_three_webgpu_84e9d76f_StorageInstancedBufferAttribute__ } from "three/webgpu";
 /******/ var __webpack_modules__ = ({
@@ -15815,6 +15815,28 @@ class FBM {
 
 
 
+// src/js/effects/three-particles/version.ts
+var REVISION = "3.0.0" ;
+if (typeof globalThis !== "undefined") {
+  const g = globalThis;
+  if (g.__THREE_PARTICLES__ && g.__THREE_PARTICLES__ !== REVISION) {
+    console.warn(
+      "WARNING: Multiple instances of @newkrok/three-particles being imported."
+    );
+  } else {
+    g.__THREE_PARTICLES__ = REVISION;
+  }
+}
+
+// src/js/effects/three-particles/color-utils.ts
+var sRGBToLinear = (c) => c < 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+var linearToSRGB = (c) => c < 31308e-7 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+var rgbSRGBToLinear = (c) => ({
+  r: sRGBToLinear(c.r ?? 0),
+  g: sRGBToLinear(c.g ?? 0),
+  b: sRGBToLinear(c.b ?? 0)
+});
+
 // src/js/effects/three-particles/three-particles-bezier.ts
 var cache = (/* unused pure expression or super */ null && ([]));
 var nCr = (n, k) => {
@@ -15837,12 +15859,14 @@ var createBezierCurveFunction = (particleSystemId, bezierPoints) => {
       if (percentage > 1) return bezierPoints[bezierPoints.length - 1].y;
       let start = 0;
       let stop = bezierPoints.length - 1;
-      bezierPoints.find((point, index) => {
-        const result = percentage < (point.percentage ?? 0);
-        if (result) stop = index;
-        else if (point.percentage !== void 0) start = index;
-        return result;
-      });
+      for (let i = 0; i < bezierPoints.length; i++) {
+        const point = bezierPoints[i];
+        if (percentage < (point.percentage ?? 0)) {
+          stop = i;
+          break;
+        }
+        if (point.percentage !== void 0) start = i;
+      }
       const n = stop - start;
       const calculatedPercentage = (percentage - (bezierPoints[start].percentage ?? 0)) / ((bezierPoints[stop].percentage ?? 1) - (bezierPoints[start].percentage ?? 0));
       let value = 0;
@@ -15976,10 +16000,10 @@ var SubEmitterTrigger = /* @__PURE__ */ ((SubEmitterTrigger2) => {
   SubEmitterTrigger2["DEATH"] = "DEATH";
   return SubEmitterTrigger2;
 })(SubEmitterTrigger || {});
-var ForceFieldType = /* @__PURE__ */ ((ForceFieldType3) => {
-  ForceFieldType3["POINT"] = "POINT";
-  ForceFieldType3["DIRECTIONAL"] = "DIRECTIONAL";
-  return ForceFieldType3;
+var ForceFieldType = /* @__PURE__ */ ((ForceFieldType2) => {
+  ForceFieldType2["POINT"] = "POINT";
+  ForceFieldType2["DIRECTIONAL"] = "DIRECTIONAL";
+  return ForceFieldType2;
 })(ForceFieldType || {});
 var RendererType = /* @__PURE__ */ ((RendererType2) => {
   RendererType2["POINTS"] = "POINTS";
@@ -15988,17 +16012,17 @@ var RendererType = /* @__PURE__ */ ((RendererType2) => {
   RendererType2["MESH"] = "MESH";
   return RendererType2;
 })(RendererType || {});
-var ForceFieldFalloff = /* @__PURE__ */ ((ForceFieldFalloff3) => {
-  ForceFieldFalloff3["NONE"] = "NONE";
-  ForceFieldFalloff3["LINEAR"] = "LINEAR";
-  ForceFieldFalloff3["QUADRATIC"] = "QUADRATIC";
-  return ForceFieldFalloff3;
+var ForceFieldFalloff = /* @__PURE__ */ ((ForceFieldFalloff2) => {
+  ForceFieldFalloff2["NONE"] = "NONE";
+  ForceFieldFalloff2["LINEAR"] = "LINEAR";
+  ForceFieldFalloff2["QUADRATIC"] = "QUADRATIC";
+  return ForceFieldFalloff2;
 })(ForceFieldFalloff || {});
-var CollisionPlaneMode = /* @__PURE__ */ ((CollisionPlaneMode3) => {
-  CollisionPlaneMode3["KILL"] = "KILL";
-  CollisionPlaneMode3["CLAMP"] = "CLAMP";
-  CollisionPlaneMode3["BOUNCE"] = "BOUNCE";
-  return CollisionPlaneMode3;
+var CollisionPlaneMode = /* @__PURE__ */ ((CollisionPlaneMode2) => {
+  CollisionPlaneMode2["KILL"] = "KILL";
+  CollisionPlaneMode2["CLAMP"] = "CLAMP";
+  CollisionPlaneMode2["BOUNCE"] = "BOUNCE";
+  return CollisionPlaneMode2;
 })(CollisionPlaneMode || {});
 var SimulationBackend = /* @__PURE__ */ ((SimulationBackend2) => {
   SimulationBackend2["AUTO"] = "AUTO";
@@ -16140,9 +16164,14 @@ var calculateRandomPositionAndVelocityOnRectangle = (position, quaternion, veloc
   const yOffset = Math.random() * _scale.y - _scale.y / 2;
   const rotationX = THREE5.MathUtils.degToRad(_rotation.x);
   const rotationY = THREE5.MathUtils.degToRad(_rotation.y);
-  position.x = xOffset * Math.cos(rotationY);
-  position.y = yOffset * Math.cos(rotationX);
-  position.z = xOffset * Math.sin(rotationY) - yOffset * Math.sin(rotationX);
+  const rotationZ = THREE5.MathUtils.degToRad(_rotation.z ?? 0);
+  const cosZ = Math.cos(rotationZ);
+  const sinZ = Math.sin(rotationZ);
+  const rotatedXOffset = xOffset * cosZ - yOffset * sinZ;
+  const rotatedYOffset = xOffset * sinZ + yOffset * cosZ;
+  position.x = rotatedXOffset * Math.cos(rotationY);
+  position.y = rotatedYOffset * Math.cos(rotationX);
+  position.z = rotatedXOffset * Math.sin(rotationY) - rotatedYOffset * Math.sin(rotationX);
   position.applyQuaternion(quaternion);
   velocity.set(0, 0, speed);
   velocity.applyQuaternion(quaternion);
@@ -16233,7 +16262,8 @@ var applyModifiers = ({
   attributes,
   scalarArray,
   particleLifetimePercentage,
-  particleIndex
+  particleIndex,
+  updateFlags
 }) => {
   const {
     particleSystemId,
@@ -16241,7 +16271,8 @@ var applyModifiers = ({
     lifetimeValues,
     linearVelocityData,
     orbitalVelocityData,
-    noise
+    noise,
+    modifierCurves
   } = generalData;
   const positionIndex = particleIndex * 3;
   const positionArr = attributes.position.array;
@@ -16254,7 +16285,8 @@ var applyModifiers = ({
     positionArr[positionIndex] += normalizedXSpeed * delta;
     positionArr[positionIndex + 1] += normalizedYSpeed * delta;
     positionArr[positionIndex + 2] += normalizedZSpeed * delta;
-    attributes.position.needsUpdate = true;
+    if (updateFlags) updateFlags.position = true;
+    else attributes.position.needsUpdate = true;
   }
   if (orbitalVelocityData) {
     const { speed, positionOffset, valueModifiers } = orbitalVelocityData[particleIndex];
@@ -16273,10 +16305,11 @@ var applyModifiers = ({
     positionArr[positionIndex] += positionOffset.x;
     positionArr[positionIndex + 1] += positionOffset.y;
     positionArr[positionIndex + 2] += positionOffset.z;
-    attributes.position.needsUpdate = true;
+    if (updateFlags) updateFlags.position = true;
+    else attributes.position.needsUpdate = true;
   }
   if (normalizedConfig.sizeOverLifetime.isActive) {
-    const multiplier = calculateValue(
+    const multiplier = modifierCurves?.size ? modifierCurves.size(particleLifetimePercentage) : calculateValue(
       particleSystemId,
       normalizedConfig.sizeOverLifetime.lifetimeCurve,
       particleLifetimePercentage
@@ -16284,7 +16317,7 @@ var applyModifiers = ({
     scalarArray[base + S_SIZE] = startValues.startSize[particleIndex] * multiplier;
   }
   if (normalizedConfig.opacityOverLifetime.isActive) {
-    const multiplier = calculateValue(
+    const multiplier = modifierCurves?.opacity ? modifierCurves.opacity(particleLifetimePercentage) : calculateValue(
       particleSystemId,
       normalizedConfig.opacityOverLifetime.lifetimeCurve,
       particleLifetimePercentage
@@ -16292,17 +16325,17 @@ var applyModifiers = ({
     scalarArray[base + S_COLOR_A] = startValues.startOpacity[particleIndex] * multiplier;
   }
   if (normalizedConfig.colorOverLifetime.isActive) {
-    const rMultiplier = calculateValue(
+    const rMultiplier = modifierCurves?.colorR ? modifierCurves.colorR(particleLifetimePercentage) : calculateValue(
       particleSystemId,
       normalizedConfig.colorOverLifetime.r,
       particleLifetimePercentage
     );
-    const gMultiplier = calculateValue(
+    const gMultiplier = modifierCurves?.colorG ? modifierCurves.colorG(particleLifetimePercentage) : calculateValue(
       particleSystemId,
       normalizedConfig.colorOverLifetime.g,
       particleLifetimePercentage
     );
-    const bMultiplier = calculateValue(
+    const bMultiplier = modifierCurves?.colorB ? modifierCurves.colorB(particleLifetimePercentage) : calculateValue(
       particleSystemId,
       normalizedConfig.colorOverLifetime.b,
       particleLifetimePercentage
@@ -16341,7 +16374,8 @@ var applyModifiers = ({
     noiseInput.set(noisePosition, noisePosition, noisePosition);
     noiseOnPosition = sampler.get3(noiseInput);
     positionArr[positionIndex + 2] += noiseOnPosition * noisePower * positionAmount;
-    attributes.position.needsUpdate = true;
+    if (updateFlags) updateFlags.position = true;
+    else attributes.position.needsUpdate = true;
   }
   if (attributes.quat) {
     const rotZ = scalarArray[base + S_ROTATION];
@@ -16351,7 +16385,8 @@ var applyModifiers = ({
     attributes.quat.array[qi + 1] = 0;
     attributes.quat.array[qi + 2] = Math.sin(halfZ);
     attributes.quat.array[qi + 3] = Math.cos(halfZ);
-    attributes.quat.needsUpdate = true;
+    if (updateFlags) updateFlags.quat = true;
+    else attributes.quat.needsUpdate = true;
   }
 };
 
@@ -16454,6 +16489,7 @@ var InstancedParticleFragmentShader = (/* unused pure expression or super */ nul
     }
 
     #include <logdepthbuf_fragment>
+    #include <colorspace_fragment>
   }
 `));
 var instanced_particle_fragment_shader_glsl_default = (/* unused pure expression or super */ null && (InstancedParticleFragmentShader));
@@ -16608,6 +16644,7 @@ var MeshParticleFragmentShader = (/* unused pure expression or super */ null && 
     }
 
     #include <logdepthbuf_fragment>
+    #include <colorspace_fragment>
   }
 `));
 var mesh_particle_fragment_shader_glsl_default = (/* unused pure expression or super */ null && (MeshParticleFragmentShader));
@@ -16768,6 +16805,7 @@ var ParticleSystemFragmentShader = (/* unused pure expression or super */ null &
     }
 
     #include <logdepthbuf_fragment>
+    #include <colorspace_fragment>
   }
 `));
 var particle_system_fragment_shader_glsl_default = (/* unused pure expression or super */ null && (ParticleSystemFragmentShader));
@@ -16868,6 +16906,7 @@ var TrailFragmentShader = (/* unused pure expression or super */ null && (`
     if (discardBackgroundColor && abs(length(gl_FragColor.rgb - backgroundColor.rgb)) < backgroundColorTolerance) discard;
 
     #include <logdepthbuf_fragment>
+    #include <colorspace_fragment>
   }
 `));
 var trail_fragment_shader_glsl_default = (/* unused pure expression or super */ null && (TrailFragmentShader));
@@ -17088,8 +17127,15 @@ var setUniformVec3 = (u, x, y, z) => {
   u.value.set(x, y, z);
 };
 var _tslMaterialFactory = null;
-var registerTSLMaterialFactory = (factory) => {
+var registerTSLMaterialFactory = (factory, options) => {
+  if (options && "renderer" in options && !isComputeCapableRenderer(options.renderer)) {
+    console.warn(
+      "three-particles: registerTSLMaterialFactory skipped \u2014 the provided renderer does not support compute dispatches (expected THREE.WebGPURenderer). Particle systems will use the CPU/GLSL path."
+    );
+    return false;
+  }
   _tslMaterialFactory = factory;
+  return true;
 };
 var _subEmitterPosition = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
 var _subLocalPosition = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
@@ -17098,6 +17144,12 @@ var _lastWorldPositionSnapshot = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__()
 var _localForceFieldPos = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
 var _localForceFieldDir = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
 var _inverseQuat = new __WEBPACK_EXTERNAL_MODULE_three_Quaternion__();
+var arraySlicesEqual = (a, aOffset, b, bOffset, length) => {
+  for (let i = 0; i < length; i++) {
+    if (a[aOffset + i] !== b[bOffset + i]) return false;
+  }
+  return true;
+};
 var _localForceFields = (/* unused pure expression or super */ null && ([]));
 var _localCollisionPlanePos = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
 var _localCollisionPlaneNormal = new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
@@ -17107,6 +17159,7 @@ new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
 new __WEBPACK_EXTERNAL_MODULE_three_Vector3__();
 var _distanceStep = { x: 0, y: 0, z: 0 };
 var _tempPosition = { x: 0, y: 0, z: 0 };
+var _modifierUpdateFlags = { position: false, quat: false };
 var _modifierParams = {
   delta: 0,
   generalData: null,
@@ -17114,8 +17167,30 @@ var _modifierParams = {
   attributes: null,
   scalarArray: null,
   particleLifetimePercentage: 0,
+  particleIndex: 0,
+  updateFlags: _modifierUpdateFlags
+};
+var _forceFieldParams = {
+  particleSystemId: 0,
+  forceFields: null,
+  velocity: null,
+  positionArr: null,
+  positionIndex: 0,
+  delta: 0,
+  systemLifetimePercentage: 0
+};
+var _collisionParams = {
+  collisionPlanes: null,
+  velocity: null,
+  positionArr: null,
+  positionIndex: 0,
+  scalarArr: null,
+  scalarBase: 0,
+  deactivateParticle: null,
   particleIndex: 0
 };
+var _viewportSize = new __WEBPACK_EXTERNAL_MODULE_three_Vector2__();
+var _frameNow = 0;
 var toVector3 = (v, fallback) => v ? new THREE5.Vector3(v.x ?? 0, v.y ?? 0, v.z ?? 0) : fallback.clone();
 var normalizeForceFields = (rawForceFields) => (rawForceFields ?? []).map((ff) => ({
   isActive: ff.isActive ?? true,
@@ -17188,8 +17263,7 @@ var DEFAULT_PARTICLE_SYSTEM_CONFIG = {
       arc: 360
     },
     rectangle: {
-      rotation: { x: 0, y: 0 },
-      // TODO: add z rotation
+      rotation: { x: 0, y: 0, z: 0 },
       scale: { x: 1, y: 1 }
     },
     box: {
@@ -17399,6 +17473,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     orbitalVelocityData: void 0,
     lifetimeValues: {},
     creationTimes: [],
+    cpuDirtyParticleWatermark: -1,
     noise: {
       isActive: false,
       strength: 0,
@@ -17450,6 +17525,24 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
   const normalizedCollisionPlanes = normalizeCollisionPlanes(normalizedConfig.collisionPlanes);
   if (typeof renderer?.blending === "string")
     renderer.blending = blendingMap[renderer.blending];
+  const resolveModifierCurve = (value) => {
+    if (value === void 0 || typeof value === "number") return void 0;
+    if (!isLifeTimeCurve(value)) return void 0;
+    const fn = getCurveFunctionFromConfig(generalData.particleSystemId, value);
+    const scale = value.scale ?? 1;
+    return scale === 1 ? fn : (time) => fn(time) * scale;
+  };
+  const resolveModifierCurves = () => {
+    const cfg = normalizedConfig;
+    generalData.modifierCurves = {
+      size: cfg.sizeOverLifetime.isActive ? resolveModifierCurve(cfg.sizeOverLifetime.lifetimeCurve) : void 0,
+      opacity: cfg.opacityOverLifetime.isActive ? resolveModifierCurve(cfg.opacityOverLifetime.lifetimeCurve) : void 0,
+      colorR: cfg.colorOverLifetime.isActive ? resolveModifierCurve(cfg.colorOverLifetime.r) : void 0,
+      colorG: cfg.colorOverLifetime.isActive ? resolveModifierCurve(cfg.colorOverLifetime.g) : void 0,
+      colorB: cfg.colorOverLifetime.isActive ? resolveModifierCurve(cfg.colorOverLifetime.b) : void 0
+    };
+  };
+  resolveModifierCurves();
   const startPositions = Array.from(
     { length: maxParticles },
     () => new THREE5.Vector3()
@@ -17463,39 +17556,45 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     { length: maxParticles },
     (_, i) => maxParticles - 1 - i
   );
-  if (velocityOverLifetime.isActive) {
+  const initVelocityLifetimeData = () => {
+    const velocityOverLifetime2 = normalizedConfig.velocityOverLifetime;
+    if (!velocityOverLifetime2.isActive) {
+      generalData.linearVelocityData = void 0;
+      generalData.orbitalVelocityData = void 0;
+      return;
+    }
     generalData.linearVelocityData = Array.from(
       { length: maxParticles },
       () => ({
         speed: new THREE5.Vector3(
-          velocityOverLifetime.linear.x ? calculateValue(
+          velocityOverLifetime2.linear.x ? calculateValue(
             generalData.particleSystemId,
-            velocityOverLifetime.linear.x,
+            velocityOverLifetime2.linear.x,
             0
           ) : 0,
-          velocityOverLifetime.linear.y ? calculateValue(
+          velocityOverLifetime2.linear.y ? calculateValue(
             generalData.particleSystemId,
-            velocityOverLifetime.linear.y,
+            velocityOverLifetime2.linear.y,
             0
           ) : 0,
-          velocityOverLifetime.linear.z ? calculateValue(
+          velocityOverLifetime2.linear.z ? calculateValue(
             generalData.particleSystemId,
-            velocityOverLifetime.linear.z,
+            velocityOverLifetime2.linear.z,
             0
           ) : 0
         ),
         valueModifiers: {
-          x: isLifeTimeCurve(velocityOverLifetime.linear.x || 0) ? getCurveFunctionFromConfig(
+          x: isLifeTimeCurve(velocityOverLifetime2.linear.x || 0) ? getCurveFunctionFromConfig(
             generalData.particleSystemId,
-            velocityOverLifetime.linear.x
+            velocityOverLifetime2.linear.x
           ) : void 0,
-          y: isLifeTimeCurve(velocityOverLifetime.linear.y || 0) ? getCurveFunctionFromConfig(
+          y: isLifeTimeCurve(velocityOverLifetime2.linear.y || 0) ? getCurveFunctionFromConfig(
             generalData.particleSystemId,
-            velocityOverLifetime.linear.y
+            velocityOverLifetime2.linear.y
           ) : void 0,
-          z: isLifeTimeCurve(velocityOverLifetime.linear.z || 0) ? getCurveFunctionFromConfig(
+          z: isLifeTimeCurve(velocityOverLifetime2.linear.z || 0) ? getCurveFunctionFromConfig(
             generalData.particleSystemId,
-            velocityOverLifetime.linear.z
+            velocityOverLifetime2.linear.z
           ) : void 0
         }
       })
@@ -17504,40 +17603,41 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
       { length: maxParticles },
       () => ({
         speed: new THREE5.Vector3(
-          velocityOverLifetime.orbital.x ? calculateValue(
+          velocityOverLifetime2.orbital.x ? calculateValue(
             generalData.particleSystemId,
-            velocityOverLifetime.orbital.x,
+            velocityOverLifetime2.orbital.x,
             0
           ) : 0,
-          velocityOverLifetime.orbital.y ? calculateValue(
+          velocityOverLifetime2.orbital.y ? calculateValue(
             generalData.particleSystemId,
-            velocityOverLifetime.orbital.y,
+            velocityOverLifetime2.orbital.y,
             0
           ) : 0,
-          velocityOverLifetime.orbital.z ? calculateValue(
+          velocityOverLifetime2.orbital.z ? calculateValue(
             generalData.particleSystemId,
-            velocityOverLifetime.orbital.z,
+            velocityOverLifetime2.orbital.z,
             0
           ) : 0
         ),
         valueModifiers: {
-          x: isLifeTimeCurve(velocityOverLifetime.orbital.x || 0) ? getCurveFunctionFromConfig(
+          x: isLifeTimeCurve(velocityOverLifetime2.orbital.x || 0) ? getCurveFunctionFromConfig(
             generalData.particleSystemId,
-            velocityOverLifetime.orbital.x
+            velocityOverLifetime2.orbital.x
           ) : void 0,
-          y: isLifeTimeCurve(velocityOverLifetime.orbital.y || 0) ? getCurveFunctionFromConfig(
+          y: isLifeTimeCurve(velocityOverLifetime2.orbital.y || 0) ? getCurveFunctionFromConfig(
             generalData.particleSystemId,
-            velocityOverLifetime.orbital.y
+            velocityOverLifetime2.orbital.y
           ) : void 0,
-          z: isLifeTimeCurve(velocityOverLifetime.orbital.z || 0) ? getCurveFunctionFromConfig(
+          z: isLifeTimeCurve(velocityOverLifetime2.orbital.z || 0) ? getCurveFunctionFromConfig(
             generalData.particleSystemId,
-            velocityOverLifetime.orbital.z
+            velocityOverLifetime2.orbital.z
           ) : void 0
         },
         positionOffset: new THREE5.Vector3()
       })
     );
-  }
+  };
+  initVelocityLifetimeData();
   const startValueKeys = [
     "startSize",
     "startOpacity"
@@ -17564,17 +17664,18 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     { length: maxParticles },
     () => 0
   );
-  const lifetimeValueKeys = [
-    "rotationOverLifetime"
-  ];
-  lifetimeValueKeys.forEach((key) => {
-    const value = normalizedConfig[key];
-    if (value.isActive)
-      generalData.lifetimeValues[key] = Array.from(
+  const initRotationLifetimeValues = () => {
+    const value = normalizedConfig.rotationOverLifetime;
+    if (value.isActive) {
+      generalData.lifetimeValues.rotationOverLifetime = Array.from(
         { length: maxParticles },
         () => THREE5.MathUtils.randFloat(value.min, value.max)
       );
-  });
+    } else {
+      delete generalData.lifetimeValues.rotationOverLifetime;
+    }
+  };
+  initRotationLifetimeValues();
   const fbmMax = 2 - Math.pow(2, -noise.octaves);
   generalData.noise = {
     isActive: noise.isActive,
@@ -17638,6 +17739,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     );
     generalData.positionHistoryIndex = new Uint16Array(maxParticles);
     generalData.positionHistoryCount = new Uint16Array(maxParticles);
+    generalData.trailPrevFilledCount = new Uint16Array(maxParticles);
     if (trailConfig.minVertexDistance > 0) {
       generalData.trailLastSampledPosition = new Float32Array(maxParticles * 3);
     }
@@ -17666,7 +17768,9 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     useFPSForFrameIndex: {
       value: textureSheetAnimation.timeMode === "FPS" /* FPS */
     },
-    backgroundColor: { value: renderer.backgroundColor },
+    // backgroundColor is authored in sRGB; convert to linear so the
+    // fragment comparison against the (now linear) texture sample is valid.
+    backgroundColor: { value: rgbSRGBToLinear(renderer.backgroundColor) },
     discardBackgroundColor: { value: renderer.discardBackgroundColor },
     backgroundColorTolerance: { value: renderer.backgroundColorTolerance },
     ...useInstancing ? { viewportHeight: { value: 1 } } : {},
@@ -17794,12 +17898,19 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     scalarArray[base + S_SIZE] = generalData.startValues.startSize[i];
     scalarArray[base + S_ROTATION] = 0;
     const colorRandomRatio = Math.random();
-    scalarArray[base + S_COLOR_R] = startColor.min.r + colorRandomRatio * (startColor.max.r - startColor.min.r);
-    scalarArray[base + S_COLOR_G] = startColor.min.g + colorRandomRatio * (startColor.max.g - startColor.min.g);
-    scalarArray[base + S_COLOR_B] = startColor.min.b + colorRandomRatio * (startColor.max.b - startColor.min.b);
+    scalarArray[base + S_COLOR_R] = sRGBToLinear(
+      startColor.min.r + colorRandomRatio * (startColor.max.r - startColor.min.r)
+    );
+    scalarArray[base + S_COLOR_G] = sRGBToLinear(
+      startColor.min.g + colorRandomRatio * (startColor.max.g - startColor.min.g)
+    );
+    scalarArray[base + S_COLOR_B] = sRGBToLinear(
+      startColor.min.b + colorRandomRatio * (startColor.max.b - startColor.min.b)
+    );
     scalarArray[base + S_COLOR_A] = 0;
   }
   const scalarInterleavedBuffer = useInstancedAttributes ? new THREE5.InstancedInterleavedBuffer(scalarArray, SCALAR_STRIDE) : new THREE5.InterleavedBuffer(scalarArray, SCALAR_STRIDE);
+  scalarInterleavedBuffer.setUsage(THREE5.DynamicDrawUsage);
   if (useGPUCompute && gpuPipeline) {
     const gpuBuf = gpuPipeline.buffers;
     geometry.setAttribute(posAttr, gpuBuf.position);
@@ -17814,6 +17925,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
       positionArray[i * 3 + 2] = startPositions[i].z;
     }
     const positionAttribute = useInstancedAttributes ? new THREE5.InstancedBufferAttribute(positionArray, 3) : new THREE5.BufferAttribute(positionArray, 3);
+    positionAttribute.setUsage(THREE5.DynamicDrawUsage);
     geometry.setAttribute(posAttr, positionAttribute);
     geometry.setAttribute(
       attr("isActive"),
@@ -17898,6 +18010,8 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
         particleIndex
       );
     } else {
+      if (particleIndex > generalData.cpuDirtyParticleWatermark)
+        generalData.cpuDirtyParticleWatermark = particleIndex;
       scalarInterleavedBuffer.needsUpdate = true;
     }
     freeList.push(particleIndex);
@@ -17930,9 +18044,15 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
       generalData.noise.offsets[particleIndex] = Math.random() * 100;
     const colorRandomRatio = Math.random();
     const cfgStartColor = normalizedConfig.startColor;
-    scalarArray[base + S_COLOR_R] = cfgStartColor.min.r + colorRandomRatio * (cfgStartColor.max.r - cfgStartColor.min.r);
-    scalarArray[base + S_COLOR_G] = cfgStartColor.min.g + colorRandomRatio * (cfgStartColor.max.g - cfgStartColor.min.g);
-    scalarArray[base + S_COLOR_B] = cfgStartColor.min.b + colorRandomRatio * (cfgStartColor.max.b - cfgStartColor.min.b);
+    scalarArray[base + S_COLOR_R] = sRGBToLinear(
+      cfgStartColor.min.r + colorRandomRatio * (cfgStartColor.max.r - cfgStartColor.min.r)
+    );
+    scalarArray[base + S_COLOR_G] = sRGBToLinear(
+      cfgStartColor.min.g + colorRandomRatio * (cfgStartColor.max.g - cfgStartColor.min.g)
+    );
+    scalarArray[base + S_COLOR_B] = sRGBToLinear(
+      cfgStartColor.min.b + colorRandomRatio * (cfgStartColor.max.b - cfgStartColor.min.b)
+    );
     generalData.startValues.startColorR[particleIndex] = scalarArray[base + S_COLOR_R];
     generalData.startValues.startColorG[particleIndex] = scalarArray[base + S_COLOR_G];
     generalData.startValues.startColorB[particleIndex] = scalarArray[base + S_COLOR_B];
@@ -17973,7 +18093,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
       aQuat.array[qi + 3] = Math.cos(halfZ);
       aQuat.needsUpdate = true;
     }
-    if (normalizedConfig.rotationOverLifetime.isActive)
+    if (normalizedConfig.rotationOverLifetime.isActive && generalData.lifetimeValues.rotationOverLifetime)
       generalData.lifetimeValues.rotationOverLifetime[particleIndex] = THREE5.MathUtils.randFloat(
         normalizedConfig.rotationOverLifetime.min,
         normalizedConfig.rotationOverLifetime.max
@@ -18003,6 +18123,8 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
         aPosition.array[positionIndex + 2] = position.z + oz;
       }
       if (!useGPUCompute) {
+        if (particleIndex > generalData.cpuDirtyParticleWatermark)
+          generalData.cpuDirtyParticleWatermark = particleIndex;
         aPosition.needsUpdate = true;
       }
     }
@@ -18094,6 +18216,8 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
         }
       );
     } else {
+      if (particleIndex > generalData.cpuDirtyParticleWatermark)
+        generalData.cpuDirtyParticleWatermark = particleIndex;
       scalarInterleavedBuffer.needsUpdate = true;
       applyModifiers({
         delta: 0,
@@ -18120,18 +18244,23 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
   const cleanupCompletedInstances = (instances) => {
     for (let i = instances.length - 1; i >= 0; i--) {
       const sub = instances[i];
-      const geomAttrs = sub.instance.geometry?.attributes;
-      const isActiveAttr = geomAttrs ? geomAttrs.isActive ?? geomAttrs.instanceIsActive : void 0;
-      if (!isActiveAttr) {
-        sub.dispose();
-        instances.splice(i, 1);
-        continue;
-      }
-      let hasActive = false;
-      for (let j = 0; j < isActiveAttr.count; j++) {
-        if (isActiveAttr.getX(j)) {
-          hasActive = true;
-          break;
+      let hasActive;
+      if (sub.getActiveParticleCount) {
+        hasActive = sub.getActiveParticleCount() > 0;
+      } else {
+        const geomAttrs = sub.instance.geometry?.attributes;
+        const isActiveAttr = geomAttrs ? geomAttrs.isActive ?? geomAttrs.instanceIsActive : void 0;
+        if (!isActiveAttr) {
+          sub.dispose();
+          instances.splice(i, 1);
+          continue;
+        }
+        hasActive = false;
+        for (let j = 0; j < isActiveAttr.count; j++) {
+          if (isActiveAttr.getX(j)) {
+            hasActive = true;
+            break;
+          }
         }
       }
       if (!hasActive) {
@@ -18257,7 +18386,9 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
       map: { value: particleMap },
       useMap: { value: !!particleMap },
       discardBackgroundColor: { value: renderer.discardBackgroundColor },
-      backgroundColor: { value: renderer.backgroundColor },
+      // sRGB → linear so the trail fragment comparison matches the
+      // (now linear) texture sample and vertex color.
+      backgroundColor: { value: rgbSRGBToLinear(renderer.backgroundColor) },
       backgroundColorTolerance: { value: renderer.backgroundColorTolerance },
       softParticlesEnabled: { value: softParticlesEnabled },
       softParticlesIntensity: {
@@ -18321,7 +18452,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
   if (useInstancing || softParticlesEnabled || useGPUCompute) {
     particleSystem.onBeforeRender = (glRenderer, _scene, camera) => {
       if (useInstancing) {
-        const size = glRenderer.getSize(new THREE5.Vector2());
+        const size = glRenderer.getSize(_viewportSize);
         sharedUniforms.viewportHeight.value = size.y * glRenderer.getPixelRatio();
       }
       if (softParticlesEnabled && camera.isPerspectiveCamera) {
@@ -18396,6 +18527,16 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
       birthNow
     );
   } : void 0;
+  const killParticle = (particleIndex) => {
+    if (onParticleDeath)
+      onParticleDeath(
+        particleIndex,
+        mappedAttributes.position.array,
+        velocities[particleIndex],
+        _frameNow
+      );
+    deactivateParticle(particleIndex);
+  };
   const instanceData = {
     particleSystem,
     mappedAttributes,
@@ -18407,6 +18548,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     onComplete,
     creationTime: calculatedCreationTime,
     lastEmissionTime: calculatedCreationTime,
+    emissionAccumulator: 0,
     duration,
     looping,
     simulationSpace,
@@ -18419,6 +18561,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     velocities,
     freeList,
     deactivateParticle,
+    killParticle,
     activateParticle,
     onParticleDeath,
     onParticleBirth,
@@ -18476,8 +18619,21 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     if (partialConfig.duration !== void 0)
       instanceData.duration = cfg.duration;
     if (partialConfig.looping !== void 0) instanceData.looping = cfg.looping;
-    if (partialConfig.simulationSpace !== void 0)
+    if (partialConfig.simulationSpace !== void 0 && instanceData.simulationSpace !== cfg.simulationSpace) {
+      for (let i = 0; i < maxParticles; i++) {
+        if (scalarArray[i * SCALAR_STRIDE + S_IS_ACTIVE]) {
+          deactivateParticle(i);
+        }
+      }
+      generalData.lastWorldPosition.set(-99999, -99999, -99999);
+      if (cfg.simulationSpace === "WORLD" /* WORLD */) {
+        particleSystem.matrixWorldAutoUpdate = false;
+        particleSystem.matrixWorld.identity();
+      } else {
+        particleSystem.matrixWorldAutoUpdate = true;
+      }
       instanceData.simulationSpace = cfg.simulationSpace;
+    }
     if (partialConfig.emission !== void 0)
       instanceData.emission = cfg.emission;
     if (partialConfig.forceFields !== void 0) {
@@ -18509,6 +18665,50 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
         offsets: n.useRandomOffset ? generalData.noise.offsets ?? Array.from({ length: maxParticles }, () => Math.random() * 100) : void 0
       };
     }
+    if (partialConfig.sizeOverLifetime !== void 0 || partialConfig.opacityOverLifetime !== void 0 || partialConfig.colorOverLifetime !== void 0) {
+      resolveModifierCurves();
+    }
+    if (partialConfig.velocityOverLifetime !== void 0) {
+      initVelocityLifetimeData();
+    }
+    if (partialConfig.rotationOverLifetime !== void 0) {
+      initRotationLifetimeValues();
+    }
+    if (instanceData.useGPUCompute) {
+      const gpuBakedKeys = [
+        "sizeOverLifetime",
+        "opacityOverLifetime",
+        "colorOverLifetime",
+        "rotationOverLifetime",
+        "velocityOverLifetime"
+      ];
+      for (const key of gpuBakedKeys) {
+        if (partialConfig[key] !== void 0) {
+          console.warn(
+            `three-particles: updateConfig('${key}') has no effect on the GPU compute backend \u2014 modifier curves are baked into the compute kernel at creation. Recreate the system to change it.`
+          );
+        }
+      }
+      if (partialConfig.noise?.isActive !== void 0) {
+        console.warn(
+          "three-particles: updateConfig('noise.isActive') has no effect on the GPU compute backend \u2014 the noise toggle is baked into the compute kernel at creation. Recreate the system to change it."
+        );
+      }
+    }
+    const structuralKeys = [
+      "maxParticles",
+      "renderer",
+      "shape",
+      "map",
+      "simulationBackend"
+    ];
+    for (const key of structuralKeys) {
+      if (partialConfig[key] !== void 0) {
+        console.warn(
+          `three-particles: updateConfig('${key}') is a structural property set at creation time and has no runtime effect. Recreate the particle system to change it.`
+        );
+      }
+    }
   };
   return {
     instance: particleSystem,
@@ -18517,6 +18717,7 @@ var createParticleSystem = (config = DEFAULT_PARTICLE_SYSTEM_CONFIG, externalNow
     dispose,
     update,
     updateConfig,
+    getActiveParticleCount: () => maxParticles - freeList.length,
     computeNode: gpuPipeline?.computeNode ?? null
   };
 };
@@ -18537,6 +18738,7 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
     velocities,
     freeList,
     deactivateParticle,
+    killParticle,
     activateParticle,
     simulationSpace,
     gravity,
@@ -18548,6 +18750,7 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
     useGPUCompute,
     computePipeline
   } = props;
+  _frameNow = now;
   const hasForceFields = normalizedForceFields.length > 0;
   const hasCollisionPlanes = normalizedCollisionPlanes.length > 0;
   const lifetime = now - creationTime;
@@ -18725,8 +18928,12 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
         generalData.normalizedLifetimePercentage
       );
       const curveArr = cp.buffers.curveData.array;
-      curveArr.set(encodedFF, cp.forceFieldInfo.offset);
-      cp.buffers.curveData.needsUpdate = true;
+      const offset = cp.forceFieldInfo.offset;
+      if (!arraySlicesEqual(curveArr, offset, encodedFF, 0, encodedFF.length)) {
+        curveArr.set(encodedFF, offset);
+        cp.buffers.curveData.addUpdateRange(offset, encodedFF.length);
+        cp.buffers.curveData.needsUpdate = true;
+      }
       setUniformFloat(
         cp.forceFieldInfo.countUniform,
         normalizedForceFields.length
@@ -18737,8 +18944,12 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
         _localCollisionPlanes
       );
       const curveArr = cp.buffers.curveData.array;
-      curveArr.set(encodedCP, cp.collisionPlaneInfo.offset);
-      cp.buffers.curveData.needsUpdate = true;
+      const offset = cp.collisionPlaneInfo.offset;
+      if (!arraySlicesEqual(curveArr, offset, encodedCP, 0, encodedCP.length)) {
+        curveArr.set(encodedCP, offset);
+        cp.buffers.curveData.addUpdateRange(offset, encodedCP.length);
+        cp.buffers.curveData.needsUpdate = true;
+      }
       setUniformFloat(
         cp.collisionPlaneInfo.countUniform,
         normalizedCollisionPlanes.length
@@ -18748,6 +18959,19 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
       _tslMaterialFactory.flushEmitQueue(cp.buffers);
     }
     props.computeDispatchReady = true;
+    if (hasForceFields) {
+      _forceFieldParams.particleSystemId = generalData.particleSystemId;
+      _forceFieldParams.forceFields = _localForceFields;
+      _forceFieldParams.positionArr = positionArr;
+      _forceFieldParams.delta = delta;
+      _forceFieldParams.systemLifetimePercentage = generalData.normalizedLifetimePercentage;
+    }
+    if (hasCollisionPlanes) {
+      _collisionParams.collisionPlanes = _localCollisionPlanes;
+      _collisionParams.positionArr = positionArr;
+      _collisionParams.scalarArr = scalarArr;
+      _collisionParams.deactivateParticle = killParticle;
+    }
     for (let index = 0; index < creationTimesLength; index++) {
       const base = index * SCALAR_STRIDE;
       if (scalarArr[base + S_IS_ACTIVE]) {
@@ -18762,15 +18986,9 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
           velocity.y -= gravityVelocity.y * delta;
           velocity.z -= gravityVelocity.z * delta;
           if (hasForceFields) {
-            applyForceFields({
-              particleSystemId: generalData.particleSystemId,
-              forceFields: _localForceFields,
-              velocity,
-              positionArr,
-              positionIndex: index * 3,
-              delta,
-              systemLifetimePercentage: generalData.normalizedLifetimePercentage
-            });
+            _forceFieldParams.velocity = velocity;
+            _forceFieldParams.positionIndex = index * 3;
+            applyForceFields(_forceFieldParams);
           }
           const positionIndex = index * 3;
           positionArr[positionIndex] += velocity.x * delta;
@@ -18793,20 +19011,11 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
             positionArr[positionIndex + 2] += positionOffset.z;
           }
           if (hasCollisionPlanes) {
-            applyCollisionPlanes({
-              collisionPlanes: _localCollisionPlanes,
-              velocity,
-              positionArr,
-              positionIndex,
-              scalarArr,
-              scalarBase: base,
-              deactivateParticle: (pi) => {
-                if (onParticleDeath)
-                  onParticleDeath(pi, positionArr, velocities[pi], now);
-                deactivateParticle(pi);
-              },
-              particleIndex: index
-            });
+            _collisionParams.velocity = velocity;
+            _collisionParams.positionIndex = positionIndex;
+            _collisionParams.scalarBase = base;
+            _collisionParams.particleIndex = index;
+            applyCollisionPlanes(_collisionParams);
           }
         }
       }
@@ -18814,14 +19023,31 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
   } else {
     let positionNeedsUpdate = false;
     let scalarNeedsUpdate = false;
+    let maxTouchedIndex = -1;
+    _modifierUpdateFlags.position = false;
+    _modifierUpdateFlags.quat = false;
     _modifierParams.delta = delta;
     _modifierParams.generalData = generalData;
     _modifierParams.normalizedConfig = normalizedConfig;
     _modifierParams.attributes = ma;
     _modifierParams.scalarArray = scalarArr;
+    if (hasForceFields) {
+      _forceFieldParams.particleSystemId = generalData.particleSystemId;
+      _forceFieldParams.forceFields = _localForceFields;
+      _forceFieldParams.positionArr = positionArr;
+      _forceFieldParams.delta = delta;
+      _forceFieldParams.systemLifetimePercentage = generalData.normalizedLifetimePercentage;
+    }
+    if (hasCollisionPlanes) {
+      _collisionParams.collisionPlanes = _localCollisionPlanes;
+      _collisionParams.positionArr = positionArr;
+      _collisionParams.scalarArr = scalarArr;
+      _collisionParams.deactivateParticle = killParticle;
+    }
     for (let index = 0; index < creationTimesLength; index++) {
       const base = index * SCALAR_STRIDE;
       if (scalarArr[base + S_IS_ACTIVE]) {
+        maxTouchedIndex = index;
         const particleLifetime = now - creationTimes[index];
         if (particleLifetime > scalarArr[base + S_START_LIFETIME]) {
           if (onParticleDeath)
@@ -18833,15 +19059,9 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
           velocity.y -= gravityVelocity.y * delta;
           velocity.z -= gravityVelocity.z * delta;
           if (hasForceFields) {
-            applyForceFields({
-              particleSystemId: generalData.particleSystemId,
-              forceFields: _localForceFields,
-              velocity,
-              positionArr,
-              positionIndex: index * 3,
-              delta,
-              systemLifetimePercentage: generalData.normalizedLifetimePercentage
-            });
+            _forceFieldParams.velocity = velocity;
+            _forceFieldParams.positionIndex = index * 3;
+            applyForceFields(_forceFieldParams);
           }
           if (gravity !== 0 || velocity.x !== 0 || velocity.y !== 0 || velocity.z !== 0) {
             const positionIndex = index * 3;
@@ -18851,20 +19071,11 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
             positionNeedsUpdate = true;
           }
           if (hasCollisionPlanes) {
-            const killed = applyCollisionPlanes({
-              collisionPlanes: _localCollisionPlanes,
-              velocity,
-              positionArr,
-              positionIndex: index * 3,
-              scalarArr,
-              scalarBase: base,
-              deactivateParticle: (pi) => {
-                if (onParticleDeath)
-                  onParticleDeath(pi, positionArr, velocities[pi], now);
-                deactivateParticle(pi);
-              },
-              particleIndex: index
-            });
+            _collisionParams.velocity = velocity;
+            _collisionParams.positionIndex = index * 3;
+            _collisionParams.scalarBase = base;
+            _collisionParams.particleIndex = index;
+            const killed = applyCollisionPlanes(_collisionParams);
             if (killed) {
               positionNeedsUpdate = true;
               continue;
@@ -18878,18 +19089,29 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
         }
       }
     }
+    if (_modifierUpdateFlags.position) positionNeedsUpdate = true;
+    if (_modifierUpdateFlags.quat && ma.quat) ma.quat.needsUpdate = true;
+    if (maxTouchedIndex > generalData.cpuDirtyParticleWatermark)
+      generalData.cpuDirtyParticleWatermark = maxTouchedIndex;
     if (positionNeedsUpdate) ma.position.needsUpdate = true;
     if (scalarNeedsUpdate) props.scalarInterleavedBuffer.needsUpdate = true;
   }
   if (isEnabled && (looping || lifetime < duration * 1e3)) {
     const emissionDelta = now - lastEmissionTime;
-    const neededParticlesByTime = emission.rateOverTime ? Math.floor(
-      calculateValue(
-        generalData.particleSystemId,
-        emission.rateOverTime,
-        generalData.normalizedLifetimePercentage
-      ) * (emissionDelta / 1e3)
-    ) : 0;
+    let neededParticlesByTime = 0;
+    if (emissionDelta > 0) {
+      props.lastEmissionTime = now;
+      if (emission.rateOverTime) {
+        props.emissionAccumulator += calculateValue(
+          generalData.particleSystemId,
+          emission.rateOverTime,
+          generalData.normalizedLifetimePercentage
+        ) * (emissionDelta / 1e3);
+      }
+      neededParticlesByTime = Math.floor(props.emissionAccumulator);
+      if (neededParticlesByTime > 0)
+        props.emissionAccumulator -= neededParticlesByTime;
+    }
     const rateOverDistance = emission.rateOverDistance ? calculateValue(
       generalData.particleSystemId,
       emission.rateOverDistance,
@@ -18906,7 +19128,10 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
     }
     let neededParticles = neededParticlesByTime + neededParticlesByDistance;
     if (rateOverDistance > 0 && neededParticlesByDistance >= 1) {
-      generalData.distanceFromLastEmitByDistance = 0;
+      generalData.distanceFromLastEmitByDistance = Math.max(
+        generalData.distanceFromLastEmitByDistance - neededParticlesByDistance / rateOverDistance,
+        0
+      );
     }
     if (emission.bursts && generalData.burstStates) {
       const bursts = emission.bursts;
@@ -18971,7 +19196,6 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
             velocities[particleIndex],
             now
           );
-        props.lastEmissionTime = now;
       }
     }
     if (onUpdate)
@@ -18987,6 +19211,19 @@ var updateParticleSystemInstance = (props, { now, delta, elapsed }) => {
     onComplete({
       particleSystem
     });
+  if (!useGPUCompute) {
+    const watermark = generalData.cpuDirtyParticleWatermark;
+    if (watermark >= 0) {
+      const posAttr = ma.position;
+      posAttr.clearUpdateRanges();
+      posAttr.addUpdateRange(0, (watermark + 1) * 3);
+      props.scalarInterleavedBuffer.clearUpdateRanges();
+      props.scalarInterleavedBuffer.addUpdateRange(
+        0,
+        (watermark + 1) * SCALAR_STRIDE
+      );
+    }
+  }
   if (props.trailMesh) {
     updateTrailGeometry(props, now);
   }
@@ -19099,6 +19336,7 @@ var updateTrailGeometry = (props, now) => {
   const ribbonId = trailConfig.ribbonId;
   const trailScalarArr = props.scalarArray;
   const positionArr = ma.position.array;
+  const prevFilled = generalData.trailPrevFilledCount;
   const trailPosArr = trailPositionAttr.array;
   const trailAlphaArr = trailAlphaAttr.array;
   const trailColorArr = trailColorAttr.array;
@@ -19112,7 +19350,7 @@ var updateTrailGeometry = (props, now) => {
   let ribbonLeader = -1;
   if (useRibbon) {
     if (!_ribbonIndices || _ribbonIndicesSize < creationTimesLength) {
-      _ribbonIndices = new Uint16Array(creationTimesLength);
+      _ribbonIndices = new Uint32Array(creationTimesLength);
       _ribbonIndicesSize = creationTimesLength;
     }
     _ribbonCount = 0;
@@ -19284,12 +19522,15 @@ var updateTrailGeometry = (props, now) => {
           }
         }
       }
+      const prevFilledSlots = prevFilled ? prevFilled[index] : trailLength;
+      if (prevFilled) prevFilled[index] = finalCount;
       for (let s = 0; s < trailLength; s++) {
         const vIdx = (vertBase + s * 2) * 3;
         const cIdx = (vertBase + s * 2) * 4;
         const aIdx = vertBase + s * 2;
         const uvIdxBase = (vertBase + s * 2) * 2;
         if (s >= finalCount) {
+          if (s >= prevFilledSlots) break;
           clearTrailVertex(
             vIdx,
             cIdx,
@@ -19451,11 +19692,13 @@ var updateTrailGeometry = (props, now) => {
           prevNormal[nIdx + 2] = cnz;
         }
       }
-    } else if (historyCount[index] > 0) {
+    } else if (historyCount[index] > 0 || prevFilled && prevFilled[index] > 0) {
       hasUpdates = true;
       historyCount[index] = 0;
       historyIndex[index] = 0;
-      for (let s = 0; s < trailLength; s++) {
+      const clearSlots = prevFilled ? prevFilled[index] : trailLength;
+      if (prevFilled) prevFilled[index] = 0;
+      for (let s = 0; s < clearSlots; s++) {
         const vIdx = (vertBase + s * 2) * 3;
         const cIdx = (vertBase + s * 2) * 4;
         const aIdx = vertBase + s * 2;
@@ -19549,12 +19792,15 @@ var updateTrailGeometry = (props, now) => {
     const leaderCg = trailScalarArr[leaderBase + S_COLOR_G];
     const leaderCb = trailScalarArr[leaderBase + S_COLOR_B];
     const leaderCa = trailScalarArr[leaderBase + S_COLOR_A];
+    const leaderPrevFilled = prevFilled ? prevFilled[leader] : trailLength;
+    if (prevFilled) prevFilled[leader] = filledCount;
     for (let s = 0; s < trailLength; s++) {
       const vIdx = (leaderVertBase + s * 2) * 3;
       const cIdx = (leaderVertBase + s * 2) * 4;
       const aIdx = leaderVertBase + s * 2;
       const uvIdxBase = (leaderVertBase + s * 2) * 2;
       if (s >= filledCount) {
+        if (s >= leaderPrevFilled) break;
         clearTrailVertex(
           vIdx,
           cIdx,
@@ -19710,7 +19956,9 @@ var updateTrailGeometry = (props, now) => {
     for (let ri = 1; ri < _ribbonCount; ri++) {
       const pIdx = _ribbonIndices[ri];
       const pVertBase = pIdx * verticesPerParticle;
-      for (let s = 0; s < trailLength; s++) {
+      const pClearSlots = prevFilled ? prevFilled[pIdx] : trailLength;
+      if (prevFilled) prevFilled[pIdx] = 0;
+      for (let s = 0; s < pClearSlots; s++) {
         const vIdx = (pVertBase + s * 2) * 3;
         const cIdx = (pVertBase + s * 2) * 4;
         const aIdx = pVertBase + s * 2;
@@ -19766,6 +20014,7 @@ function serializeAny(value, key) {
     return { x: value.x, y: value.y, z: value.z };
   if (value instanceof THREE5.Vector2) return { x: value.x, y: value.y };
   if (value instanceof THREE5.Texture) return void 0;
+  if (value instanceof THREE5.BufferGeometry) return void 0;
   if (typeof value === "function") return void 0;
   if (Array.isArray(value)) return value.map((item) => serializeAny(item));
   if (typeof value === "object") {
@@ -20081,15 +20330,13 @@ function createCollisionPlaneTSL(sCurveData, collisionPlaneOffset, collisionPlan
         __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(signedDist.lessThan(0), () => {
           __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(mode.lessThan(0.5), () => {
             ps.x.assign(startLife.add(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(1)));
-          });
-          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(mode.greaterThanEqual(0.5).and(mode.lessThan(1.5)), () => {
+          }).ElseIf(mode.lessThan(1.5), () => {
             pos.assign(pos.sub(planeNormal.mul(signedDist)));
             const velDotN = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_dot__(vel, planeNormal);
             __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(velDotN.lessThan(0), () => {
               vel.assign(vel.sub(planeNormal.mul(velDotN)));
             });
-          });
-          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(mode.greaterThanEqual(1.5), () => {
+          }).Else(() => {
             pos.assign(pos.sub(planeNormal.mul(signedDist)));
             const vDotN = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_dot__(vel, planeNormal);
             const reflected = vel.sub(planeNormal.mul(vDotN.mul(2)));
@@ -20133,12 +20380,14 @@ var webgpu_createBezierCurveFunction = (particleSystemId, bezierPoints) => {
       if (percentage > 1) return bezierPoints[bezierPoints.length - 1].y;
       let start = 0;
       let stop = bezierPoints.length - 1;
-      bezierPoints.find((point, index) => {
-        const result = percentage < (point.percentage ?? 0);
-        if (result) stop = index;
-        else if (point.percentage !== void 0) start = index;
-        return result;
-      });
+      for (let i = 0; i < bezierPoints.length; i++) {
+        const point = bezierPoints[i];
+        if (percentage < (point.percentage ?? 0)) {
+          stop = i;
+          break;
+        }
+        if (point.percentage !== void 0) start = i;
+      }
       const n = stop - start;
       const calculatedPercentage = (percentage - (bezierPoints[start].percentage ?? 0)) / ((bezierPoints[stop].percentage ?? 1) - (bezierPoints[start].percentage ?? 0));
       let value = 0;
@@ -20663,9 +20912,17 @@ function flushEmitQueue(buffers) {
         const flagOffset = curveLen + p * INIT_STRIDE + 3;
         if (arr[flagOffset] > 0.5) {
           arr[flagOffset] = 0;
+          buffers.curveData.addUpdateRange(flagOffset, 1);
           clearedAny = true;
         }
       }
+    }
+  }
+  if (current && current.length > 0) {
+    for (let i = 0; i < current.length; i++) {
+      const p = current[i];
+      const slotStart = curveLen + p * INIT_STRIDE;
+      buffers.curveData.addUpdateRange(slotStart, INIT_STRIDE);
     }
   }
   if (count > 0 || clearedAny) {
@@ -20690,7 +20947,21 @@ function flushEmitQueue(buffers) {
   _emitCounts.set(buffers.curveData, 0);
   return count;
 }
-function deactivateParticleInModifierBuffers(_buffers, _index) {
+function deactivateParticleInModifierBuffers(buffers, index) {
+  const oiaArr = buffers.orbitalIsActive.array;
+  const oiaWOffset = index * 4 + 3;
+  if (oiaArr[oiaWOffset] !== 0) {
+    oiaArr[oiaWOffset] = 0;
+    buffers.orbitalIsActive.addUpdateRange(oiaWOffset, 1);
+    buffers.orbitalIsActive.needsUpdate = true;
+  }
+  const colorArr = buffers.color.array;
+  const colorAOffset = index * 4 + 3;
+  if (colorArr[colorAOffset] !== 0) {
+    colorArr[colorAOffset] = 0;
+    buffers.color.addUpdateRange(colorAOffset, 1);
+    buffers.color.needsUpdate = true;
+  }
 }
 function createCurveLookup(sCurveData) {
   return __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Fn__(
@@ -20750,225 +21021,229 @@ function createModifierComputeUpdate(buffers, maxParticles, curveMap, flags, for
   ) : null;
   const computeKernel = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Fn__(() => {
     const i = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_instanceIndex__;
-    const initBase = i.mul(INIT_STRIDE).add(curveLen);
-    const initFlag = sCurveData.element(initBase.add(3));
-    __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(initFlag.greaterThan(0.5), () => {
-      sPosition.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase),
-          sCurveData.element(initBase.add(1)),
-          sCurveData.element(initBase.add(2)),
-          0
-        )
-      );
-      sVelocity.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase.add(4)),
-          sCurveData.element(initBase.add(5)),
-          sCurveData.element(initBase.add(6)),
-          0
-        )
-      );
-      sColor.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase.add(8)),
-          sCurveData.element(initBase.add(9)),
-          sCurveData.element(initBase.add(10)),
-          sCurveData.element(initBase.add(11))
-        )
-      );
-      sParticleState.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase.add(12)),
-          sCurveData.element(initBase.add(13)),
-          sCurveData.element(initBase.add(14)),
-          sCurveData.element(initBase.add(15))
-        )
-      );
-      sOrbitalIsActive.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase.add(16)),
-          sCurveData.element(initBase.add(17)),
-          sCurveData.element(initBase.add(18)),
-          sCurveData.element(initBase.add(19))
-        )
-      );
-      sStartValues.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase.add(20)),
-          sCurveData.element(initBase.add(21)),
-          sCurveData.element(initBase.add(22)),
-          sCurveData.element(initBase.add(23))
-        )
-      );
-      sStartColorsExt.element(i).assign(
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
-          sCurveData.element(initBase.add(24)),
-          sCurveData.element(initBase.add(25)),
-          sCurveData.element(initBase.add(26)),
-          sCurveData.element(initBase.add(27))
-        )
-      );
-      sCurveData.element(initBase.add(3)).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0));
-    });
-    const oiaVec = sOrbitalIsActive.element(i).toVar();
-    __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(oiaVec.w.greaterThanEqual(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0.5)), () => {
-      const pos = sPosition.element(i).xyz.toVar();
-      const vel = sVelocity.element(i).xyz.toVar();
-      const ps = sParticleState.element(i).toVar();
-      const sv = sStartValues.element(i);
-      ps.x;
-      const startLife = sv.x;
-      vel.assign(vel.sub(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(uGravityVelocity).mul(uDelta)));
-      if (forceFieldNodes) {
-        forceFieldNodes.apply({ pos, vel, delta: uDelta });
-      }
-      pos.assign(pos.add(vel.mul(uDelta)));
-      if (collisionPlaneNodes) {
-        collisionPlaneNodes.apply({
-          pos,
-          vel,
-          oiaVec,
-          sColorNode: sColor,
-          ps,
-          startLife,
-          particleIdx: i,
-          sOrbitalIsActiveNode: sOrbitalIsActive
-        });
-      }
-      const lifePct = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_min__(ps.x.div(startLife), __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(1));
-      ps.x.assign(ps.x.add(uDeltaMs));
-      if (flags.linearVelocity) {
-        const lvx = curveMap.linearVelX >= 0 ? lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.linearVelX),
-          t: lifePct
-        }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
-        const lvy = curveMap.linearVelY >= 0 ? lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.linearVelY),
-          t: lifePct
-        }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
-        const lvz = curveMap.linearVelZ >= 0 ? lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.linearVelZ),
-          t: lifePct
-        }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
-        pos.assign(pos.add(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(lvx, lvy, lvz).mul(uDelta)));
-      }
-      if (flags.orbitalVelocity) {
-        const offset = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(oiaVec.x, oiaVec.y, oiaVec.z).toVar();
-        pos.assign(pos.sub(offset));
-        const ovx = curveMap.orbitalVelX >= 0 ? lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.orbitalVelX),
-          t: lifePct
-        }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
-        const ovy = curveMap.orbitalVelY >= 0 ? lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.orbitalVelY),
-          t: lifePct
-        }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
-        const ovz = curveMap.orbitalVelZ >= 0 ? lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.orbitalVelZ),
-          t: lifePct
-        }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
-        const ax = ovx.mul(uDelta);
-        const ay = ovz.mul(uDelta);
-        const az = ovy.mul(uDelta);
-        const cosAz = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__(az);
-        const sinAz = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__(az);
-        const zx = offset.x.mul(cosAz).sub(offset.y.mul(sinAz));
-        const zy = offset.x.mul(sinAz).add(offset.y.mul(cosAz));
-        const zz = offset.z;
-        const cosAy = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__(ay);
-        const sinAy = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__(ay);
-        const yx = zx.mul(cosAy).add(zz.mul(sinAy));
-        const yy = zy;
-        const yz = zx.negate().mul(sinAy).add(zz.mul(cosAy));
-        const cosAx = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__(ax);
-        const sinAx = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__(ax);
-        const fx = yx;
-        const fy = yy.mul(cosAx).sub(yz.mul(sinAx));
-        const fz = yy.mul(sinAx).add(yz.mul(cosAx));
-        offset.assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(fx, fy, fz));
-        oiaVec.x.assign(offset.x);
-        oiaVec.y.assign(offset.y);
-        oiaVec.z.assign(offset.z);
-        pos.assign(pos.add(offset));
-      }
-      if (flags.sizeOverLifetime && curveMap.sizeOverLifetime >= 0) {
-        const multiplier = lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.sizeOverLifetime),
-          t: lifePct
-        });
-        ps.y.assign(sv.y.mul(multiplier));
-      }
-      if (flags.opacityOverLifetime && curveMap.opacityOverLifetime >= 0) {
-        const multiplier = lookupCurve({
-          curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.opacityOverLifetime),
-          t: lifePct
-        });
-        const col = sColor.element(i).toVar();
-        col.w.assign(sv.z.mul(multiplier));
-        sColor.element(i).assign(col);
-      }
-      if (flags.colorOverLifetime) {
-        const col = sColor.element(i).toVar();
-        const sce = sStartColorsExt.element(i);
-        if (curveMap.colorR >= 0) {
-          const rMul = lookupCurve({
-            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.colorR),
-            t: lifePct
-          });
-          col.x.assign(sv.w.mul(rMul));
-        }
-        if (curveMap.colorG >= 0) {
-          const gMul = lookupCurve({
-            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.colorG),
-            t: lifePct
-          });
-          col.y.assign(sce.x.mul(gMul));
-        }
-        if (curveMap.colorB >= 0) {
-          const bMul = lookupCurve({
-            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.colorB),
-            t: lifePct
-          });
-          col.z.assign(sce.y.mul(bMul));
-        }
-        sColor.element(i).assign(col);
-      }
-      if (flags.rotationOverLifetime) {
-        const sce = sStartColorsExt.element(i);
-        ps.z.assign(ps.z.add(sce.z.mul(uDelta).mul(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0.02))));
-      }
-      if (flags.noise) {
-        const sce = sStartColorsExt.element(i);
-        const noisePos = lifePct.add(sce.w).mul(10).mul(uNoiseStrength).mul(uNoiseFrequency);
-        const noiseX = snoise3D({ v: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noisePos, __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0), __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0)) });
-        const noiseY = snoise3D({
-          v: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noisePos, noisePos, __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0))
-        });
-        const noiseZ = snoise3D({
-          v: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noisePos, noisePos, noisePos)
-        });
-        pos.assign(
-          pos.add(
-            __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noiseX, noiseY, noiseZ).mul(uNoisePower).mul(uNoisePosAmount)
+    __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(i.lessThan(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(maxParticles)), () => {
+      const initBase = i.mul(INIT_STRIDE).add(curveLen);
+      const initFlag = sCurveData.element(initBase.add(3));
+      __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(initFlag.greaterThan(0.5), () => {
+        sPosition.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase),
+            sCurveData.element(initBase.add(1)),
+            sCurveData.element(initBase.add(2)),
+            0
           )
         );
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(uNoiseRotAmount.greaterThan(1e-3), () => {
-          ps.z.assign(ps.z.add(noiseX.mul(uNoisePower).mul(uNoiseRotAmount)));
+        sVelocity.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase.add(4)),
+            sCurveData.element(initBase.add(5)),
+            sCurveData.element(initBase.add(6)),
+            0
+          )
+        );
+        sColor.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase.add(8)),
+            sCurveData.element(initBase.add(9)),
+            sCurveData.element(initBase.add(10)),
+            sCurveData.element(initBase.add(11))
+          )
+        );
+        sParticleState.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase.add(12)),
+            sCurveData.element(initBase.add(13)),
+            sCurveData.element(initBase.add(14)),
+            sCurveData.element(initBase.add(15))
+          )
+        );
+        sOrbitalIsActive.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase.add(16)),
+            sCurveData.element(initBase.add(17)),
+            sCurveData.element(initBase.add(18)),
+            sCurveData.element(initBase.add(19))
+          )
+        );
+        sStartValues.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase.add(20)),
+            sCurveData.element(initBase.add(21)),
+            sCurveData.element(initBase.add(22)),
+            sCurveData.element(initBase.add(23))
+          )
+        );
+        sStartColorsExt.element(i).assign(
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(
+            sCurveData.element(initBase.add(24)),
+            sCurveData.element(initBase.add(25)),
+            sCurveData.element(initBase.add(26)),
+            sCurveData.element(initBase.add(27))
+          )
+        );
+        sCurveData.element(initBase.add(3)).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0));
+      });
+      const oiaVec = sOrbitalIsActive.element(i).toVar();
+      __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(oiaVec.w.greaterThanEqual(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0.5)), () => {
+        const pos = sPosition.element(i).xyz.toVar();
+        const vel = sVelocity.element(i).xyz.toVar();
+        const ps = sParticleState.element(i).toVar();
+        const sv = sStartValues.element(i);
+        ps.x;
+        const startLife = sv.x;
+        vel.assign(vel.sub(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(uGravityVelocity).mul(uDelta)));
+        if (forceFieldNodes) {
+          forceFieldNodes.apply({ pos, vel, delta: uDelta });
+        }
+        pos.assign(pos.add(vel.mul(uDelta)));
+        if (collisionPlaneNodes) {
+          collisionPlaneNodes.apply({
+            pos,
+            vel,
+            oiaVec,
+            sColorNode: sColor,
+            ps,
+            startLife,
+            particleIdx: i,
+            sOrbitalIsActiveNode: sOrbitalIsActive
+          });
+        }
+        const lifePct = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_min__(ps.x.div(startLife), __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(1));
+        ps.x.assign(ps.x.add(uDeltaMs));
+        if (flags.linearVelocity) {
+          const lvx = curveMap.linearVelX >= 0 ? lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.linearVelX),
+            t: lifePct
+          }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
+          const lvy = curveMap.linearVelY >= 0 ? lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.linearVelY),
+            t: lifePct
+          }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
+          const lvz = curveMap.linearVelZ >= 0 ? lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.linearVelZ),
+            t: lifePct
+          }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
+          pos.assign(pos.add(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(lvx, lvy, lvz).mul(uDelta)));
+        }
+        if (flags.orbitalVelocity) {
+          const offset = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(oiaVec.x, oiaVec.y, oiaVec.z).toVar();
+          pos.assign(pos.sub(offset));
+          const ovx = curveMap.orbitalVelX >= 0 ? lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.orbitalVelX),
+            t: lifePct
+          }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
+          const ovy = curveMap.orbitalVelY >= 0 ? lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.orbitalVelY),
+            t: lifePct
+          }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
+          const ovz = curveMap.orbitalVelZ >= 0 ? lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.orbitalVelZ),
+            t: lifePct
+          }) : __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0);
+          const ax = ovx.mul(uDelta);
+          const ay = ovz.mul(uDelta);
+          const az = ovy.mul(uDelta);
+          const cosAz = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__(az);
+          const sinAz = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__(az);
+          const zx = offset.x.mul(cosAz).sub(offset.y.mul(sinAz));
+          const zy = offset.x.mul(sinAz).add(offset.y.mul(cosAz));
+          const zz = offset.z;
+          const cosAy = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__(ay);
+          const sinAy = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__(ay);
+          const yx = zx.mul(cosAy).add(zz.mul(sinAy));
+          const yy = zy;
+          const yz = zx.negate().mul(sinAy).add(zz.mul(cosAy));
+          const cosAx = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_cos__(ax);
+          const sinAx = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_sin__(ax);
+          const fx = yx;
+          const fy = yy.mul(cosAx).sub(yz.mul(sinAx));
+          const fz = yy.mul(sinAx).add(yz.mul(cosAx));
+          offset.assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(fx, fy, fz));
+          oiaVec.x.assign(offset.x);
+          oiaVec.y.assign(offset.y);
+          oiaVec.z.assign(offset.z);
+          pos.assign(pos.add(offset));
+        }
+        if (flags.sizeOverLifetime && curveMap.sizeOverLifetime >= 0) {
+          const multiplier = lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.sizeOverLifetime),
+            t: lifePct
+          });
+          ps.y.assign(sv.y.mul(multiplier));
+        }
+        if (flags.opacityOverLifetime && curveMap.opacityOverLifetime >= 0) {
+          const multiplier = lookupCurve({
+            curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.opacityOverLifetime),
+            t: lifePct
+          });
+          const col = sColor.element(i).toVar();
+          col.w.assign(sv.z.mul(multiplier));
+          sColor.element(i).assign(col);
+        }
+        if (flags.colorOverLifetime) {
+          const col = sColor.element(i).toVar();
+          const sce = sStartColorsExt.element(i);
+          if (curveMap.colorR >= 0) {
+            const rMul = lookupCurve({
+              curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.colorR),
+              t: lifePct
+            });
+            col.x.assign(sv.w.mul(rMul));
+          }
+          if (curveMap.colorG >= 0) {
+            const gMul = lookupCurve({
+              curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.colorG),
+              t: lifePct
+            });
+            col.y.assign(sce.x.mul(gMul));
+          }
+          if (curveMap.colorB >= 0) {
+            const bMul = lookupCurve({
+              curveIndex: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(curveMap.colorB),
+              t: lifePct
+            });
+            col.z.assign(sce.y.mul(bMul));
+          }
+          sColor.element(i).assign(col);
+        }
+        if (flags.rotationOverLifetime) {
+          const sce = sStartColorsExt.element(i);
+          ps.z.assign(ps.z.add(sce.z.mul(uDelta).mul(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0.02))));
+        }
+        if (flags.noise) {
+          const sce = sStartColorsExt.element(i);
+          const noisePos = lifePct.add(sce.w).mul(10).mul(uNoiseStrength).mul(uNoiseFrequency);
+          const noiseX = snoise3D({ v: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noisePos, __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0), __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0)) });
+          const noiseY = snoise3D({
+            v: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noisePos, noisePos, __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0))
+          });
+          const noiseZ = snoise3D({
+            v: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noisePos, noisePos, noisePos)
+          });
+          pos.assign(
+            pos.add(
+              __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec3__(noiseX, noiseY, noiseZ).mul(uNoisePower).mul(uNoisePosAmount)
+            )
+          );
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(uNoiseRotAmount.greaterThan(1e-3), () => {
+            ps.z.assign(ps.z.add(noiseX.mul(uNoisePower).mul(uNoiseRotAmount)));
+          });
+          __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(uNoiseSizeAmount.greaterThan(1e-3), () => {
+            ps.y.assign(
+              ps.y.add(noiseX.mul(uNoisePower).mul(uNoiseSizeAmount))
+            );
+          });
+        }
+        sPosition.element(i).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(pos, 0));
+        sVelocity.element(i).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(vel, 0));
+        sParticleState.element(i).assign(ps);
+        sOrbitalIsActive.element(i).assign(oiaVec);
+        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(ps.x.greaterThan(startLife), () => {
+          const deadOia = sOrbitalIsActive.element(i).toVar();
+          deadOia.w.assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0));
+          sOrbitalIsActive.element(i).assign(deadOia);
+          sColor.element(i).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(0));
         });
-        __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(uNoiseSizeAmount.greaterThan(1e-3), () => {
-          ps.y.assign(ps.y.add(noiseX.mul(uNoisePower).mul(uNoiseSizeAmount)));
-        });
-      }
-      sPosition.element(i).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(pos, 0));
-      sVelocity.element(i).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(vel, 0));
-      sParticleState.element(i).assign(ps);
-      sOrbitalIsActive.element(i).assign(oiaVec);
-      __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(ps.x.greaterThan(startLife), () => {
-        const deadOia = sOrbitalIsActive.element(i).toVar();
-        deadOia.w.assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(0));
-        sOrbitalIsActive.element(i).assign(deadOia);
-        sColor.element(i).assign(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(0));
       });
     });
   });
@@ -21015,7 +21290,6 @@ function getDummyTexture() {
 function createParticleUniforms(sharedUniforms) {
   const dummy = getDummyTexture();
   const map = sharedUniforms.map.value ?? dummy;
-  if (map) map.colorSpace = __WEBPACK_EXTERNAL_MODULE_three_NoColorSpace__;
   return {
     uMap: map,
     uElapsed: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_uniform__(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(sharedUniforms.elapsed.value)),
@@ -21142,7 +21416,7 @@ function createInstancedBillboardTSLMaterial(sharedUniforms, rendererConfig, gpu
   const vUv = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_varyingProperty__("vec2", "vUv");
   const vViewZ = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_varyingProperty__("float", "vViewZ");
   const vertexNode = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Fn__(() => {
-    const clipPos = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(0, 0, 0, 0).toVar();
+    const clipPos = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(0, 0, 0, -1).toVar();
     __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(aColor.w.greaterThan(0), () => {
       vColor.assign(aColor.toVar());
       if (gpuCompute) {
@@ -21256,7 +21530,7 @@ function createMeshParticleTSLMaterial(sharedUniforms, rendererConfig, gpuComput
   const vNormal = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_varyingProperty__("vec3", "vNormal");
   const vViewZ = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_varyingProperty__("float", "vViewZ");
   const vertexSetup = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_Fn__(() => {
-    const clipPos = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(0, 0, 0, 0).toVar();
+    const clipPos = __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_vec4__(0, 0, 0, -1).toVar();
     __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_If__(aColor.w.greaterThan(0), () => {
       vColor.assign(aColor.toVar());
       if (gpuCompute) {
@@ -21446,7 +21720,6 @@ function createPointSpriteTSLMaterial(sharedUniforms, rendererConfig, gpuCompute
 function createTrailUniforms(trailUniforms) {
   const dummy = getDummyTexture();
   const map = trailUniforms.map.value ?? dummy;
-  if (map) map.colorSpace = __WEBPACK_EXTERNAL_MODULE_three_NoColorSpace__;
   return {
     uMap: map,
     uUseMap: __WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_uniform__(__WEBPACK_EXTERNAL_MODULE_three_tsl_3a8d0cc7_float__(trailUniforms.useMap.value ? 1 : 0)),
@@ -21633,7 +21906,7 @@ function createComputePipeline(maxParticles, instanced, normalizedConfig, partic
 }
 
 // src/webgpu.ts
-function enableWebGPU() {
+function enableWebGPU(renderer) {
   const factory = {
     createTSLParticleMaterial,
     createTSLTrailMaterial,
@@ -21645,7 +21918,10 @@ function enableWebGPU() {
     encodeForceFieldsForGPU,
     encodeCollisionPlanesForGPU
   };
-  registerTSLMaterialFactory(factory);
+  return registerTSLMaterialFactory(
+    factory,
+    renderer !== void 0 ? { renderer } : void 0
+  );
 }
 
 
