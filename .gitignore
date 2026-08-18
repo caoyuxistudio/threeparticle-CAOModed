@@ -1,0 +1,8 @@
+node_modules/
+dist/
+packages/editor/public/build/
+coverage/
+.DS_Store
+*.log
+.vscode/
+.idea/
