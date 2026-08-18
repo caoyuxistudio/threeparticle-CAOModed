@@ -23,6 +23,11 @@ export const createNoiseEntries = ({
     .listen();
 
   folder
+    .add(particleSystemConfig.noise, "curl")
+    .onChange(recreateParticleSystem)
+    .listen();
+
+  folder
     .add(particleSystemConfig.noise, "strength", 0.0, 2.0, 0.01)
     .onChange(recreateParticleSystem)
     .listen();
@@ -39,6 +44,20 @@ export const createNoiseEntries = ({
 
   folder
     .add(particleSystemConfig.noise, "positionAmount", -5.0, 5.0, 0.001)
+    .onChange(recreateParticleSystem)
+    .listen();
+
+  const influenceFolder = folder.addFolder("influence");
+  influenceFolder
+    .add(particleSystemConfig.noise.influence, "x", 0.0, 1.0, 0.01)
+    .onChange(recreateParticleSystem)
+    .listen();
+  influenceFolder
+    .add(particleSystemConfig.noise.influence, "y", 0.0, 1.0, 0.01)
+    .onChange(recreateParticleSystem)
+    .listen();
+  influenceFolder
+    .add(particleSystemConfig.noise.influence, "z", 0.0, 1.0, 0.01)
     .onChange(recreateParticleSystem)
     .listen();
 

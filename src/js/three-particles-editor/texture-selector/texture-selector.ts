@@ -147,18 +147,38 @@ const renderTextureGrid = (): void => {
 
   grid.innerHTML = '';
 
-  // Get custom assets from localStorage
-  const customAssetList =
-    JSON.parse(localStorage.getItem('particle-system-editor/library') || '[]') || [];
+  // Get custom assets from localStorage. Uploads live under two keys — the
+  // sprite Library tab and the Texture tab — and both register into the same
+  // texture registry, so both must be offered here; reading only the Library
+  // key made Texture-tab uploads unselectable.
+  const readList = (key: string) => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
 
-  // Custom textures (newest first - reverse order)
+  const customAssetList = [
+    ...readList('particle-system-editor/library'),
+    ...readList('particle-system-editor/image-textures'),
+  ];
+
+  // Custom textures (newest first - reverse order), de-duplicated by name.
+  const seenCustom = new Set<string>();
   const customTextures = customAssetList
     .map(({ name }: { name: string }) => ({
       id: name,
       name: name,
       isCustom: true,
     }))
-    .reverse();
+    .reverse()
+    .filter(({ name }) => {
+      if (!name || seenCustom.has(name)) return false;
+      seenCustom.add(name);
+      return true;
+    });
 
   // Built-in textures sorted by date (newest first)
   const builtInTextures = [

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Tab, { Icon, Label } from '@smui/tab';
-  import TabBar from '@smui/tab-bar';
+  import { Icon } from '@smui/common';
   import Examples from '../examples/examples.svelte';
   import Library from '../library/library.svelte';
+  import Textures from '../textures/textures.svelte';
   import { onMount } from 'svelte';
 
   const STORAGE_KEY = 'leftPanelCollapsed';
@@ -15,6 +15,10 @@
     {
       icon: 'collections',
       label: 'Library',
+    },
+    {
+      icon: 'texture',
+      label: 'Texture',
     },
   ].map((entry, index) => ({ ...entry, index }));
   let active = $state(tabs[0]);
@@ -53,17 +57,30 @@
 <div class="wrapper" class:collapsed={isCollapsed}>
   <!-- Full panel content - visible when expanded -->
   <div class="panel-content">
-    <TabBar {tabs} let:tab bind:active>
-      <Tab {tab}>
-        <Icon class="material-icons">{tab.icon}</Icon>
-        <Label>{tab.label}</Label>
-      </Tab>
-    </TabBar>
+    <!-- Plain tab row instead of SMUI TabBar: three tabs exceeded the 310px
+         panel width and turned it into a clipped, hard-to-click scroller. -->
+    <div class="tab-row" role="tablist">
+      {#each tabs as tab (tab.index)}
+        <button
+          type="button"
+          role="tab"
+          class="tab-button"
+          class:active={active.index === tab.index}
+          aria-selected={active.index === tab.index}
+          onclick={() => (active = tab)}
+        >
+          <Icon class="material-icons">{tab.icon}</Icon>
+          <span class="tab-label">{tab.label}</span>
+        </button>
+      {/each}
+    </div>
 
     {#if active.index === 0}
       <Examples />
     {:else if active.index === 1}
       <Library />
+    {:else if active.index === 2}
+      <Textures />
     {/if}
   </div>
 
@@ -140,6 +157,63 @@
       height: 100%;
       opacity: 1;
       transition: opacity 0.2s ease;
+    }
+
+    .tab-row {
+      display: flex;
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+
+      .tab-button {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        height: 48px;
+        padding: 0 2px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: inherit;
+        opacity: 0.7;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        outline: none;
+
+        .tab-label {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        :global(.material-icons) {
+          font-size: 16px;
+          /* The icon font is loaded from Google Fonts; if it is unavailable the
+             ligature falls back to its literal name and would blow up the tab
+             width, so keep it clipped to the glyph box. */
+          width: 18px;
+          overflow: hidden;
+          flex: 0 0 auto;
+        }
+
+        &:hover,
+        &:focus-visible {
+          opacity: 1;
+          background-color: rgba(255, 255, 255, 0.06);
+        }
+
+        &.active {
+          opacity: 1;
+          color: var(--mdc-theme-primary);
+          border-bottom-color: var(--mdc-theme-primary);
+        }
+      }
     }
 
     .collapsed-tabs {

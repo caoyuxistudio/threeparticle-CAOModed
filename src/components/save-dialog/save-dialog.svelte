@@ -6,6 +6,12 @@
   import { getObjectDiff } from '../../js/three-particles-editor/save-and-load';
   import { getDefaultParticleSystemConfig } from '@newkrok/three-particles';
   import { generateDefaultName } from '../../js/utils/name-utils';
+  import {
+    createConfigId,
+    readSavedConfigs,
+    writeSavedConfigs,
+    type SavedConfig,
+  } from '../../js/utils/saved-configs';
   import { showSuccessSnackbar, showErrorSnackbar } from '../../js/stores/snackbar-store';
   import Prism from 'prismjs';
   import 'prismjs/themes/prism.css';
@@ -51,14 +57,6 @@
   /**
    * Recently saved configurations
    */
-  type SavedConfig = {
-    id: string;
-    name: string;
-    config: any;
-    createdAt: number;
-    updatedAt: number;
-    editorVersion?: string;
-  };
 
   let recentConfigs: SavedConfig[] = $state([]);
 
@@ -67,8 +65,7 @@
    */
   const loadSavedConfigs = (): void => {
     try {
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      const allConfigs: SavedConfig[] = savedConfigsStr ? JSON.parse(savedConfigsStr) : [];
+      const allConfigs = readSavedConfigs();
       // Sort by updatedAt (newest first) and take the last 5
       recentConfigs = allConfigs.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
     } catch (error) {
@@ -95,7 +92,7 @@
       // Get updated metadata
       const metadata = window.editor.getConfigMetadata();
 
-      const configId = `config-${metadata.createdAt}`;
+      const configId = createConfigId(metadata.createdAt);
       const newConfig: SavedConfig = {
         id: configId,
         name: nameToUse,
@@ -106,14 +103,13 @@
       };
 
       // Get existing configs or initialize empty array
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      const savedConfigs: SavedConfig[] = savedConfigsStr ? JSON.parse(savedConfigsStr) : [];
+      const savedConfigs = readSavedConfigs();
 
       // Add new config
       savedConfigs.push(newConfig);
 
       // Save back to localStorage
-      localStorage.setItem('three-particles-saved-configs', JSON.stringify(savedConfigs));
+      writeSavedConfigs(savedConfigs);
 
       // Refresh the list
       loadSavedConfigs();
@@ -159,8 +155,7 @@
       };
 
       // Get existing configs
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      let savedConfigs: SavedConfig[] = savedConfigsStr ? JSON.parse(savedConfigsStr) : [];
+      let savedConfigs = readSavedConfigs();
 
       // Replace the config with the updated one
       savedConfigs = savedConfigs.map((config) =>
@@ -168,7 +163,7 @@
       );
 
       // Save back to localStorage
-      localStorage.setItem('three-particles-saved-configs', JSON.stringify(savedConfigs));
+      writeSavedConfigs(savedConfigs);
 
       // Refresh the list
       loadSavedConfigs();
@@ -191,14 +186,13 @@
   const deleteConfig = (configId: string): void => {
     try {
       // Get existing configs
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      const savedConfigs: SavedConfig[] = savedConfigsStr ? JSON.parse(savedConfigsStr) : [];
+      const savedConfigs = readSavedConfigs();
 
       // Filter out the config to delete
       const updatedConfigs = savedConfigs.filter((config) => config.id !== configId);
 
       // Save back to localStorage
-      localStorage.setItem('three-particles-saved-configs', JSON.stringify(updatedConfigs));
+      writeSavedConfigs(updatedConfigs);
 
       // Refresh the list
       loadSavedConfigs();
@@ -233,8 +227,7 @@
       const updatedMetadata = window.editor.getConfigMetadata();
 
       // Check if this is an existing config that should be updated
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      const savedConfigs: SavedConfig[] = savedConfigsStr ? JSON.parse(savedConfigsStr) : [];
+      const savedConfigs = readSavedConfigs();
 
       // Look for an existing config with the same name
       const existingConfigIndex = savedConfigs.findIndex((config) => config.name === nameToUse);
@@ -250,12 +243,12 @@
         };
 
         // Save back to localStorage
-        localStorage.setItem('three-particles-saved-configs', JSON.stringify(savedConfigs));
+        writeSavedConfigs(savedConfigs);
 
         showSuccessSnackbar(`Configuration "${nameToUse}" updated successfully`);
       } else {
         // Create a new config
-        const configId = `config-${updatedMetadata.createdAt}`;
+        const configId = createConfigId(updatedMetadata.createdAt);
         const newConfig: SavedConfig = {
           id: configId,
           name: nameToUse,
@@ -269,7 +262,7 @@
         savedConfigs.push(newConfig);
 
         // Save back to localStorage
-        localStorage.setItem('three-particles-saved-configs', JSON.stringify(savedConfigs));
+        writeSavedConfigs(savedConfigs);
 
         showSuccessSnackbar(`Configuration "${nameToUse}" saved successfully`);
       }

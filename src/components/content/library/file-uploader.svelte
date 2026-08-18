@@ -1,5 +1,7 @@
 <script>
   import Button, { Label, Icon } from '@smui/button';
+  import { shrinkImageDataUrl } from '../../../js/utils/image-utils';
+  import { showErrorSnackbar } from '../../../js/stores/snackbar-store';
 
   let { add } = $props();
 
@@ -13,9 +15,20 @@
       reader.onerror = (error) => reject(error);
     });
 
-  const onFileSelected = (e) => {
-    let image = e.target.files[0];
-    toBase64(image).then(add);
+  const onFileSelected = async (e) => {
+    const image = e.target.files[0];
+    if (!image) return;
+    try {
+      const dataUrl = await toBase64(image);
+      // Bound the stored size — camera-sized images blow past the localStorage
+      // quota on their own and the upload would not survive a reload.
+      add(await shrinkImageDataUrl(dataUrl));
+    } catch (error) {
+      showErrorSnackbar('Failed to read the image file');
+    } finally {
+      // Allow re-selecting the same file after a failure.
+      e.target.value = '';
+    }
   };
 </script>
 

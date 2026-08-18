@@ -7,6 +7,7 @@
   import { Icon } from '@smui/common';
   import LibraryItem from './library-item.svelte';
   import { textureConfigs, TextureId } from './../../../js/three-particles-editor/texture-config';
+  import { showErrorSnackbar } from './../../../js/stores/snackbar-store';
 
   const defaultList = Object.keys(TextureId)
     .filter((key) => textureConfigs.find(({ id }) => id === TextureId[key])?.isParticleTexture)
@@ -22,8 +23,16 @@
   let filter = '';
 
   const save = () => {
-    localStorage.setItem('particle-system-editor/library', JSON.stringify(rawList));
+    try {
+      localStorage.setItem('particle-system-editor/library', JSON.stringify(rawList));
+    } catch (error) {
+      showErrorSnackbar(
+        'Not enough browser storage left — delete some textures and try again.'
+      );
+      return false;
+    }
     window.editor.updateAssets();
+    return true;
   };
 
   const handleKeyUp = () => {
@@ -42,9 +51,16 @@
     };
     rawList.unshift(entry);
     list = rawList.concat(defaultList);
+    // Persist first — see textures.svelte: waiting for the texture load meant a
+    // failed decode silently dropped the upload.
+    if (!save()) {
+      rawList.shift();
+      list = rawList.concat(defaultList);
+      return;
+    }
     loadCustomAssets({
       textures: [{ ...entry, id: entry.name }],
-      onComplete: save,
+      onComplete: () => {},
     });
   };
 

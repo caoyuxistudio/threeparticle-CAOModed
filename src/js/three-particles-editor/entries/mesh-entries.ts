@@ -62,6 +62,8 @@ const ensureMeshConfig = (particleSystemConfig: any): void => {
 
   const mesh = particleSystemConfig.renderer.mesh;
   if (!mesh.geometryType) mesh.geometryType = MeshGeometryType.BOX;
+  if (!mesh.scale) mesh.scale = { x: 1, y: 1, z: 1 };
+  if (mesh.alignToVelocity === undefined) mesh.alignToVelocity = false;
   mesh.geometry = createGeometry(mesh.geometryType);
 };
 
@@ -104,6 +106,44 @@ export const createMeshEntries = ({
         })
         .listen()
     );
+
+    // Master size: drives all three axes at once. Kept as editor-only state
+    // (derived from scale.x) so the saved config stays a plain per-axis scale.
+    const uniformScale = { size: mesh.scale.x };
+
+    controllers.push(
+      folder
+        .add(uniformScale, 'size', 0.01, 5, 0.01)
+        .name('Size (all axes)')
+        .onChange((value: number) => {
+          mesh.scale.x = value;
+          mesh.scale.y = value;
+          mesh.scale.z = value;
+          recreateParticleSystem();
+        })
+    );
+
+    controllers.push(
+      folder
+        .add(mesh, 'alignToVelocity')
+        .name('align to velocity (+Z = heading)')
+        .onChange(recreateParticleSystem)
+        .listen()
+    );
+
+    const scaleFolder = folder.addFolder('scale');
+    (['x', 'y', 'z'] as const).forEach((axis) => {
+      controllers.push(
+        scaleFolder
+          .add(mesh.scale, axis, 0.01, 5, 0.01)
+          .onChange(() => {
+            uniformScale.size = mesh.scale.x;
+            recreateParticleSystem();
+          })
+          .listen()
+      );
+    });
+    controllers.push(scaleFolder);
   };
 
   rebuild();

@@ -143,9 +143,10 @@ export default {
     // the bundle has been generated
     !production && serve(),
 
-    // Watch the `public` directory and refresh the
-    // browser on changes when not in production
-    !production && livereload('public'),
+    // Livereload disabled: it auto-refreshed the page on any file event under
+    // `public/` (including iCloud/Finder touches), wiping unsaved editor state.
+    // Re-enable by restoring: !production && livereload('public'),
+    false && livereload('public'),
 
     // If we're building for production (npm run build
     // instead of npm run dev), minify

@@ -76,6 +76,9 @@ export const particleExamples = [
   //   name: 'Ethereal Wisps',
   // },
   {
+    name: 'temp-1',
+  },
+  {
     name: 'Sparkler Trail',
   },
   {

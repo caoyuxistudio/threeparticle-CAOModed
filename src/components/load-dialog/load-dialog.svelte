@@ -5,6 +5,11 @@
   import { showSuccessSnackbar, showErrorSnackbar } from '../../js/stores/snackbar-store';
   import { onMount } from 'svelte';
   import ConfigCard from '../config-card/config-card.svelte';
+  import {
+    readSavedConfigs,
+    writeSavedConfigs,
+    type SavedConfig,
+  } from '../../js/utils/saved-configs';
 
   /**
    * Whether the load dialog is open
@@ -29,15 +34,6 @@
   /**
    * Saved configurations
    */
-  type SavedConfig = {
-    id: string;
-    name: string;
-    config: any;
-    createdAt: number;
-    updatedAt: number;
-    editorVersion?: string;
-  };
-
   let savedConfigs: SavedConfig[] = $state([]);
 
   /**
@@ -45,8 +41,7 @@
    */
   const loadSavedConfigs = (): void => {
     try {
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      const allConfigs: SavedConfig[] = savedConfigsStr ? JSON.parse(savedConfigsStr) : [];
+      const allConfigs = readSavedConfigs();
       // Sort by updatedAt (newest first)
       savedConfigs = allConfigs.sort((a, b) => b.updatedAt - a.updatedAt);
     } catch (error) {
@@ -90,16 +85,12 @@
    */
   const deleteConfig = (configId: string): void => {
     try {
-      // Get existing configs
-      const savedConfigsStr = localStorage.getItem('three-particles-saved-configs');
-      if (!savedConfigsStr) return;
-
-      // Parse and filter out the config to delete
-      const allConfigs: SavedConfig[] = JSON.parse(savedConfigsStr);
+      // Get existing configs and filter out the config to delete
+      const allConfigs = readSavedConfigs();
       const updatedConfigs = allConfigs.filter((config) => config.id !== configId);
 
       // Save back to localStorage
-      localStorage.setItem('three-particles-saved-configs', JSON.stringify(updatedConfigs));
+      writeSavedConfigs(updatedConfigs);
 
       // Refresh the list
       loadSavedConfigs();

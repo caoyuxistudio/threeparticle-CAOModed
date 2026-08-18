@@ -38,6 +38,7 @@ import {
 } from './three-particles-editor/entries/emission-entries';
 import { createGeneralEntries } from './three-particles-editor/entries/general-entries';
 import { createNoiseEntries } from './three-particles-editor/entries/noise-entries';
+import { createParticleColorInstanceEntries } from './three-particles-editor/entries/particle-color-instance-entries';
 import { createRendererEntries } from './three-particles-editor/entries/renderer-entries';
 import { createRotationOverLifeTimeEntries } from './three-particles-editor/entries/rotation-over-lifetime-entries';
 import { createShapeEntries } from './three-particles-editor/entries/shape-entries';
@@ -375,11 +376,15 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
   initAssets(() => {
     const customTextures =
       JSON.parse(localStorage.getItem('particle-system-editor/library') || '[]') || [];
+    const imageTextures =
+      JSON.parse(localStorage.getItem('particle-system-editor/image-textures') || '[]') || [];
     loadCustomAssets({
-      textures: customTextures.map(({ name, url }: { name: string; url: string }) => ({
-        id: name,
-        url,
-      })),
+      textures: [...customTextures, ...imageTextures].map(
+        ({ name, url }: { name: string; url: string }) => ({
+          id: name,
+          url,
+        })
+      ),
       onComplete: () => {
         isInitializing = true;
         createPanel();
@@ -566,6 +571,8 @@ const doFullRecreate = (activeConfig: any, markAsDirty: boolean): void => {
 
   // Restore non-serializable THREE.js objects lost during deep clone
   if (activeConfig.map) convertedConfig.map = activeConfig.map;
+  if (activeConfig.particleColorInstance?.map && convertedConfig.particleColorInstance)
+    convertedConfig.particleColorInstance.map = activeConfig.particleColorInstance.map;
   if (activeConfig.renderer?.softParticles?.depthTexture)
     convertedConfig.renderer.softParticles.depthTexture =
       activeConfig.renderer.softParticles.depthTexture;
@@ -923,6 +930,13 @@ const createPanel = (config: any = particleSystemConfig): void => {
     })
   );
   configEntries.push(
+    createParticleColorInstanceEntries({
+      parentFolder: panel,
+      particleSystemConfig: config,
+      recreateParticleSystem,
+    })
+  );
+  configEntries.push(
     createGradientEditorEntries({
       parentFolder: panel,
       particleSystemConfig: config,
@@ -1015,6 +1029,7 @@ interface EditorInterface {
   play: () => void;
   pause: () => void;
   updateAssets: () => void;
+  setColorInstanceTexture: (textureId?: string) => void;
   getCurrentParticleSystemConfig: () => ParticleSystemConfig;
   updateConfigMetadata: (name?: string) => ConfigMetadata;
   getConfigMetadata: () => ConfigMetadata;
@@ -1077,6 +1092,21 @@ window.editor = {
   pause: pauseTime,
   updateAssets: () =>
     configEntries.forEach(({ onAssetUpdate }) => onAssetUpdate && onAssetUpdate()),
+  setColorInstanceTexture: (textureId?: string) => {
+    particleSystemConfig._editorData.colorInstanceTextureId = textureId;
+    if (!particleSystemConfig.particleColorInstance) {
+      particleSystemConfig.particleColorInstance = {
+        isActive: false,
+        area: { x: 0, z: 0 },
+        useAlphaForOpacity: false,
+      };
+    }
+    const texture = textureId ? getTexture(textureId) : null;
+    particleSystemConfig.particleColorInstance.map = texture ? (texture as any).map : undefined;
+    if (texture) particleSystemConfig.particleColorInstance.isActive = true;
+    recreateParticleSystem();
+    configEntries.forEach(({ onAssetUpdate }) => onAssetUpdate && onAssetUpdate());
+  },
   getCurrentParticleSystemConfig: () => particleSystemConfig,
   updateConfigMetadata: (name?: string) => {
     // Ensure metadata exists
