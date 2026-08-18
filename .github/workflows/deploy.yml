@@ -1,0 +1,66 @@
+name: Deploy editor to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the Pages deployment to claim the environment.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; queue instead of cancelling so a finished
+# build always lands.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # `prepare: husky` runs on install and has nothing to do in CI.
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # The editor resolves `@newkrok/three-particles` to ../three-particles
+      # through its package.json `main`, which points at dist/ — so the library
+      # has to be built before the editor is installed, not just present.
+      - name: Build the particle library
+        working-directory: packages/three-particles
+        run: |
+          npm install
+          npm run build
+
+      - name: Build the editor
+        working-directory: packages/editor
+        run: |
+          npm install
+          npm run build
+
+      # Source maps are 7.5MB and are not needed by visitors.
+      - name: Drop source maps
+        run: rm -f packages/editor/public/build/*.map
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/editor/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
