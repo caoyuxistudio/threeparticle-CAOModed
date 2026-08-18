@@ -1,0 +1,29 @@
+coverage/
+
+.vscode/
+.idea/
+*.swp
+
+dist/
+node_modules/
+build/
+out/
+docs/
+
+# Generated examples bundle
+examples/three-particles.esm.js
+
+*.log
+
+.jest/
+.jest-cache/
+.jest-test-results.json
+
+.prettier-cache/
+.eslintcache
+
+tmp/
+
+# Local tool configs
+.claude/settings.local.json
+.serena/

@@ -1,0 +1,339 @@
+# @newkrok/three-particles
+
+> Three.js-based high-performance particle system library for creating visually stunning particle effects. Perfect for game developers and 3D applications.
+
+## Quick Start
+
+```bash
+npm install @newkrok/three-particles three
+```
+
+```typescript
+import * as THREE from "three";
+import { createParticleSystem, updateParticleSystems } from "@newkrok/three-particles";
+
+const scene = new THREE.Scene();
+
+const { instance } = createParticleSystem({
+  duration: 5,
+  looping: true,
+  maxParticles: 100,
+  startLifetime: 2,
+  startSpeed: 3,
+  startSize: 0.5,
+  startColor: { min: { r: 1, g: 0.5, b: 0 }, max: { r: 1, g: 1, b: 0 } },
+  emission: { rateOverTime: 20 },
+  shape: { shape: Shape.CONE, cone: { angle: 0.4, radius: 0.5 } },
+});
+
+scene.add(instance);
+
+// In your animation loop:
+function animate() {
+  updateParticleSystems({
+    now: performance.now(),
+    delta: clock.getDelta(),
+    elapsed: clock.getElapsedTime(),
+  });
+}
+```
+
+## Main API
+
+- `createParticleSystem(config: ParticleSystemConfig): ParticleSystem` — Create a particle system
+- `updateParticleSystems(cycleData: CycleData)` — Update all active particle systems
+
+### ParticleSystem Methods
+
+- `instance` — The Three.js Points or Mesh object (add to scene)
+- `pauseEmitter()` — Pause particle emission
+- `resumeEmitter()` — Resume particle emission
+- `dispose()` — Clean up and free resources
+- `update(cycleData)` — Update this specific system only
+- `updateConfig(config)` — Update configuration at runtime without recreating the system
+- `getActiveParticleCount()` — Number of currently alive particles (O(1))
+
+## Key Configuration Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| duration | number | 5.0 | Duration in seconds |
+| looping | boolean | true | Whether to loop |
+| maxParticles | number | 100 | Maximum active particles |
+| startLifetime | number / {min,max} / Curve | 5.0 | Particle lifetime |
+| startSpeed | number / {min,max} / Curve | 1.0 | Initial speed |
+| startSize | number / {min,max} / Curve | 1.0 | Initial size |
+| startOpacity | number / {min,max} / Curve | 1.0 | Initial opacity |
+| startRotation | number / {min,max} / Curve | 0.0 | Initial rotation (degrees) |
+| startColor | MinMaxColor | white | Color range |
+| gravity | number | 0.0 | Gravity strength |
+| simulationSpace | LOCAL / WORLD | LOCAL | Coordinate space |
+| simulationBackend | AUTO / CPU / GPU | AUTO | Simulation backend (AUTO: GPU if WebGPU, else CPU) |
+| emission | Emission | rateOverTime: 10 | Emission config |
+| shape | ShapeConfig | — | Emitter shape |
+| map | THREE.Texture | undefined | Particle texture |
+| renderer | Renderer | — | Renderer settings (blending, rendererType, etc.) |
+
+## Renderer Types
+
+- `RendererType.POINTS` (default) — Classic point sprites via `THREE.Points`
+- `RendererType.INSTANCED` — Camera-facing quads via `InstancedBufferGeometry`, removes `gl_PointSize` hardware limit
+- `RendererType.TRAIL` — Ribbon trails behind particles with configurable width, opacity, and color tapering
+- `RendererType.MESH` — Render each particle as a 3D mesh (cubes, spheres, custom geometry) via GPU instancing with quaternion-based 3D rotation and directional lighting. Uses solid white default texture (not circle) to preserve mesh shape. Sub-emitters do not inherit MESH or TRAIL rendererType from parent
+
+## Mesh Particle Renderer
+
+Configure via `renderer.mesh`:
+
+```typescript
+renderer: {
+  rendererType: RendererType.MESH,
+  blending: THREE.NormalBlending,
+  transparent: true,
+  depthTest: true,
+  depthWrite: true,
+  mesh: {
+    geometry: new THREE.BoxGeometry(1, 1, 1), // Any THREE.BufferGeometry
+  },
+}
+```
+
+Mesh particles use GPU instancing (`InstancedBufferGeometry`). Each particle is a full 3D mesh with quaternion rotation, normals, and UVs preserved. All modifiers (sizeOverLifetime, colorOverLifetime, noise, force fields, sub-emitters) work with mesh particles.
+
+## Trail / Ribbon Renderer
+
+Configure via `renderer.trail`:
+
+```typescript
+renderer: {
+  rendererType: RendererType.TRAIL,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  trail: {
+    length: 40,           // History samples per particle (default: 20)
+    width: 0.5,           // Ribbon width in world units (default: 1.0)
+    widthOverTrail: { ... },    // LifetimeCurve: width taper (0=head, 1=tail)
+    opacityOverTrail: { ... },  // LifetimeCurve: opacity taper
+    colorOverTrail: {           // Optional per-channel color multipliers
+      isActive: true,
+      r: { type: LifeTimeCurve.BEZIER, bezierPoints: [...] },
+      g: { type: LifeTimeCurve.BEZIER, bezierPoints: [...] },
+      b: { type: LifeTimeCurve.BEZIER, bezierPoints: [...] },
+    },
+  },
+}
+```
+
+Trails use GPU billboard rendering (vertex shader). Supports optional textures and soft-edge fade.
+
+## Emitter Shapes
+
+- `Shape.SPHERE` — Spherical emission (radius, arc, radiusThickness)
+- `Shape.CONE` — Conical emission (angle, radius, arc)
+- `Shape.CIRCLE` — Circular flat emission (radius, arc)
+- `Shape.RECTANGLE` — Rectangular flat emission (scale, rotation)
+- `Shape.BOX` — Box volume emission (scale, emitFrom: VOLUME/SHELL/EDGE)
+
+## Lifetime Modifiers
+
+- `velocityOverLifetime` — Linear & orbital velocity changes
+- `sizeOverLifetime` — Size curve over lifetime
+- `opacityOverLifetime` — Opacity curve over lifetime
+- `colorOverLifetime` — RGB curves (multipliers on startColor)
+- `rotationOverLifetime` — Rotation speed range
+- `noise` — FBM noise affecting position, rotation, size
+
+## Burst Emission
+
+```typescript
+emission: {
+  rateOverTime: 0,
+  bursts: [
+    { time: 0, count: 50 },
+    { time: 1, count: { min: 10, max: 30 }, probability: 0.8 },
+    { time: 0.5, count: 10, cycles: 3, interval: 0.2 },
+  ],
+}
+```
+
+## Curves
+
+Values support: constant `number`, random `{ min, max }`, or curves:
+
+```typescript
+// Bezier curve
+{ type: LifeTimeCurve.BEZIER, bezierPoints: [...], scale: 1 }
+
+// Easing function
+{ type: LifeTimeCurve.EASING, curveFunction: (t) => t * t, scale: 1 }
+```
+
+## Sub-Emitters
+
+Trigger child particle systems on particle birth or death:
+
+```typescript
+subEmitters: [
+  { trigger: SubEmitterTrigger.BIRTH, config: sparkConfig },
+  { trigger: SubEmitterTrigger.DEATH, config: explosionConfig },
+]
+```
+
+## Force Fields
+
+Point attractors/repulsors and directional wind forces:
+
+```typescript
+forceFields: [
+  {
+    type: ForceFieldType.POINT,
+    position: { x: 0, y: 2, z: 0 },
+    strength: 5,
+    radius: 3,
+    falloff: ForceFieldFalloff.LINEAR,
+  },
+  {
+    type: ForceFieldType.DIRECTIONAL,
+    direction: { x: 1, y: 0, z: 0 },
+    strength: 2,
+  },
+]
+```
+
+## Collision Planes
+
+Infinite planes that constrain particles with three response modes: kill, clamp, or bounce.
+
+```typescript
+collisionPlanes: [
+  { position: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 }, mode: CollisionPlaneMode.BOUNCE, dampen: 0.6 },
+  { position: { x: 0, y: 5, z: 0 }, normal: { x: 0, y: -1, z: 0 }, mode: CollisionPlaneMode.KILL },
+]
+```
+
+## WebGPU Compute Support
+
+Optional GPU-accelerated particle simulation via Three.js WebGPU renderer and TSL (Three Shading Language). Enables **50K-350K+ particles** with full physics on the GPU.
+
+**Requirements:** Three.js r182+ with WebGPU build (`three/webgpu`), browser with WebGPU support (Chrome 113+, Edge 113+). No breaking changes — all existing WebGL code works unchanged.
+
+### Setup
+
+```typescript
+// 1. Enable WebGPU support (once, before creating any particle system)
+import { enableWebGPU } from "@newkrok/three-particles/webgpu";
+enableWebGPU();
+
+// 2. Create a WebGPU renderer
+import * as THREE from "three/webgpu";
+const renderer = new THREE.WebGPURenderer({ antialias: true });
+await renderer.init();
+// No outputColorSpace override needed — the library uses the standard
+// three.js linear workflow and works with the default (SRGBColorSpace).
+
+// 3. Create a GPU-accelerated particle system
+import { createParticleSystem, SimulationBackend } from "@newkrok/three-particles";
+const system = createParticleSystem({
+  simulationBackend: SimulationBackend.AUTO, // GPU if WebGPU available, else CPU
+  maxParticles: 100000,
+  // ... rest of config (same API as CPU)
+});
+
+scene.add(system.instance);
+
+// 4. In your render loop — dispatch compute before rendering
+system.update({ now: performance.now(), delta, elapsed });
+if (system.computeNode) {
+  renderer.compute(system.computeNode);
+}
+renderer.render(scene, camera);
+```
+
+For fine-grained control, you can also use `registerTSLMaterialFactory()` to selectively register individual WebGPU functions — see the full API reference.
+
+### SimulationBackend
+
+| Value | WebGPU path registered (`enableWebGPU()`) | Not registered |
+|-------|------------------------------------------|----------------|
+| `AUTO` (default) | GPU compute | CPU (JavaScript) |
+| `CPU` | CPU (JavaScript) | CPU (JavaScript) |
+| `GPU` | GPU compute | CPU (JavaScript) |
+
+Note: the library never inspects the renderer on its own — the decision is
+based on whether `enableWebGPU()` registered the WebGPU path. Call
+`enableWebGPU(renderer)` (returns boolean) to skip registration automatically
+when the renderer cannot dispatch compute shaders (e.g. `WebGLRenderer`).
+
+### What runs on GPU
+
+- Core physics: gravity, velocity integration, position update, lifetime tracking
+- All 7 modifiers: size/opacity/color over lifetime, rotation, linear/orbital velocity, noise (3D simplex FBM)
+- Force fields: point/directional with falloff (up to 16 per system)
+- Collision planes: kill/clamp/bounce with dampen and lifetime loss
+- Curves: baked into 256-sample Float32Array lookup tables (<0.4% error)
+
+### What stays on CPU
+
+- Emission (particle activation, burst scheduling, rate-over-distance)
+- Sub-emitter spawning (birth/death triggers; sub-emitters are forced to CPU backend)
+- Configuration changes (`updateConfig`) — note: on the GPU backend, modifier
+  flags and lifetime curves (sizeOverLifetime, opacityOverLifetime,
+  colorOverLifetime, rotationOverLifetime, velocityOverLifetime,
+  noise.isActive) are baked into the compute kernel at creation and cannot be
+  changed live (a console warning is logged); recreate the system instead.
+  On the CPU backend all of these update live.
+- Trail renderer (`RendererType.TRAIL` always uses CPU simulation)
+
+### Compute dispatch
+
+The returned `ParticleSystem` exposes `computeNode` (non-null when GPU compute is active). This must be dispatched every frame **before** `renderer.render()`:
+
+```typescript
+if (system.computeNode) {
+  renderer.compute(system.computeNode);
+}
+```
+
+### Fallback behavior
+
+- If `enableWebGPU()` not called (or no TSL factory registered): uses GLSL shaders (WebGL path) and CPU simulation
+- If `enableWebGPU(renderer)` is called with a renderer that lacks compute support: registration is skipped with a console warning; everything stays on the CPU/GLSL path
+- Same `ParticleSystemConfig` works on both backends — but see the `updateConfig` GPU limitation above
+
+## Usage with React Three Fiber
+
+No wrapper package needed — use hooks directly:
+
+```tsx
+import { useRef, useEffect } from "react";
+import { useFrame } from "@react-three/fiber";
+import { createParticleSystem, type ParticleSystem } from "@newkrok/three-particles";
+
+function ParticleEffect({ config }) {
+  const groupRef = useRef(null);
+  const systemRef = useRef(null);
+
+  useEffect(() => {
+    const system = createParticleSystem(config);
+    systemRef.current = system;
+    groupRef.current?.add(system.instance);
+    return () => system.dispose();
+  }, [config]);
+
+  useFrame((_, delta) => {
+    systemRef.current?.update({ now: performance.now(), delta, elapsed: 0 });
+  });
+
+  return <group ref={groupRef} />;
+}
+```
+
+Key: `useEffect` for create/dispose, `useFrame` for per-frame updates, `system.update()` for individual system control.
+
+## Links
+
+- Repository: https://github.com/NewKrok/three-particles
+- API Docs: https://newkrok.github.io/three-particles/api/
+- Visual Editor: https://github.com/NewKrok/three-particles-editor
+- Editor Demo: https://newkrok.com/three-particles-editor/index.html
+- Full LLM Reference: https://github.com/NewKrok/three-particles/blob/master/llms-full.txt

@@ -1,0 +1,1005 @@
+# @newkrok/three-particles — Full API Reference
+
+> Three.js-based high-performance particle system library
+> License: MIT | Author: Istvan Krisztian Somoracz
+> Repository: https://github.com/NewKrok/three-particles
+
+---
+
+## Installation
+
+```bash
+npm install @newkrok/three-particles three
+```
+
+Peer dependency: `three` ^0.182.0
+
+---
+
+## Main API
+
+### createParticleSystem(config: ParticleSystemConfig): ParticleSystem
+
+Creates a new particle system and registers it for global updates.
+
+```typescript
+import { createParticleSystem } from "@newkrok/three-particles";
+
+const system = createParticleSystem({
+  duration: 5,
+  looping: true,
+  maxParticles: 200,
+  startLifetime: 3,
+  startSpeed: 2,
+  startSize: 0.5,
+  emission: { rateOverTime: 30 },
+  shape: { shape: Shape.CONE, cone: { angle: 0.5, radius: 1 } },
+});
+
+scene.add(system.instance);
+```
+
+### updateParticleSystems(cycleData: CycleData): void
+
+Updates all registered particle systems. Call this in your animation loop.
+
+```typescript
+import { updateParticleSystems } from "@newkrok/three-particles";
+
+function animate() {
+  updateParticleSystems({
+    now: performance.now(),
+    delta: clock.getDelta(),
+    elapsed: clock.getElapsedTime(),
+  });
+  requestAnimationFrame(animate);
+}
+```
+
+---
+
+## ParticleSystem (returned object)
+
+| Property/Method | Type | Description |
+|-----------------|------|-------------|
+| `instance` | `THREE.Points \| THREE.Mesh` | The renderable object — add to scene (Mesh when using RendererType.INSTANCED or RendererType.MESH) |
+| `pauseEmitter()` | `() => void` | Stop emitting new particles |
+| `resumeEmitter()` | `() => void` | Resume emitting particles |
+| `dispose()` | `() => void` | Destroy system, free resources |
+| `update(cycleData)` | `(CycleData) => void` | Update this system individually |
+| `updateConfig(config)` | `(Partial<ParticleSystemConfig>) => void` | Update configuration at runtime without recreating the system. System-level properties (gravity, force fields, noise, emission, color/size/opacity/rotation/velocity over lifetime) take effect immediately on the CPU backend. Per-particle spawn properties (startColor, startSize, etc.) affect only newly emitted particles. GPU backend limitation: modifier flags/curves are baked at creation and cannot change live. |
+| `getActiveParticleCount()` | `() => number` | Number of currently alive particles. O(1) — derived from the internal free list. |
+| `computeNode` | `unknown \| null` | GPU compute node for WebGPU dispatch. Non-null when GPU compute is active. Must be dispatched via `renderer.compute(system.computeNode)` every frame before `renderer.render()`. Null when CPU simulation is used. |
+
+---
+
+## CycleData
+
+```typescript
+type CycleData = {
+  now: number;     // Current timestamp in milliseconds (performance.now())
+  delta: number;   // Time since last frame in seconds
+  elapsed: number; // Total elapsed time in seconds
+};
+```
+
+---
+
+## ParticleSystemConfig — Complete Reference
+
+### General Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `transform` | `Transform` | origin | Position, rotation, scale of emitter |
+| `duration` | `number` | 5.0 | System duration in seconds |
+| `looping` | `boolean` | true | Loop after duration ends |
+| `startDelay` | `number \| {min,max}` | 0.0 | Delay before first emission |
+| `maxParticles` | `number` | 100 | Maximum concurrent particles |
+| `gravity` | `number` | 0.0 | Downward acceleration |
+| `simulationSpace` | `SimulationSpace` | LOCAL | LOCAL or WORLD coordinate space |
+| `simulationBackend` | `SimulationBackend` | AUTO | Simulation backend: AUTO (GPU if WebGPU available, else CPU), CPU, or GPU |
+
+### Start Properties
+
+All start properties support three value types:
+- **Constant**: `number` — fixed value
+- **Random range**: `{ min: number, max: number }` — random between min and max
+- **Curve**: `BezierCurve | EasingCurve` — value based on system lifetime
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `startLifetime` | 5.0 | Particle lifetime in seconds |
+| `startSpeed` | 1.0 | Initial particle speed |
+| `startSize` | 1.0 | Initial particle size |
+| `startOpacity` | 1.0 | Initial particle opacity (0-1) |
+| `startRotation` | 0.0 | Initial rotation in degrees |
+| `startColor` | white | `MinMaxColor` — color range for randomization |
+
+### startColor — MinMaxColor
+
+```typescript
+type MinMaxColor = {
+  min?: Rgb;  // { r?: number, g?: number, b?: number } — values 0.0 to 1.0
+  max?: Rgb;
+};
+
+// Example: random orange-to-yellow
+startColor: {
+  min: { r: 1.0, g: 0.3, b: 0.0 },
+  max: { r: 1.0, g: 1.0, b: 0.0 },
+}
+```
+
+---
+
+## Transform
+
+```typescript
+type Transform = {
+  position?: THREE.Vector3;
+  rotation?: THREE.Vector3;  // Radians per axis
+  scale?: THREE.Vector3;
+};
+```
+
+---
+
+## Emission
+
+```typescript
+type Emission = {
+  rateOverTime?: number | { min, max } | LifetimeCurve;    // Particles per second (default: 10)
+  rateOverDistance?: number | { min, max } | LifetimeCurve; // Particles per unit moved (default: 0)
+  bursts?: Burst[];                                         // Instantaneous emissions
+};
+```
+
+### Burst
+
+```typescript
+type Burst = {
+  time: number;                               // Trigger time in seconds
+  count: number | { min: number, max: number }; // Particle count
+  cycles?: number;                            // Repeat count (default: 1)
+  interval?: number;                          // Seconds between cycles
+  probability?: number;                       // 0-1 chance of firing (default: 1)
+};
+```
+
+**Example — explosion with aftershocks:**
+```typescript
+emission: {
+  rateOverTime: 0,
+  bursts: [
+    { time: 0, count: 100 },                            // Main explosion
+    { time: 0.3, count: { min: 20, max: 40 } },         // First aftershock
+    { time: 0.5, count: 15, cycles: 4, interval: 0.1 }, // Debris pulses
+  ],
+}
+```
+
+---
+
+## Shape Configuration
+
+```typescript
+type ShapeConfig = {
+  shape?: Shape;         // SPHERE | CONE | CIRCLE | RECTANGLE | BOX
+  sphere?: Sphere;
+  cone?: Cone;
+  circle?: Circle;
+  rectangle?: Rectangle;
+  box?: Box;
+};
+```
+
+### Shape.SPHERE
+
+```typescript
+type Sphere = {
+  radius?: number;          // Default: 1
+  radiusThickness?: number; // 0-1, where 1 = solid sphere (default: 1)
+  arc?: number;             // Radians, partial sphere (default: 2π)
+};
+```
+
+### Shape.CONE
+
+```typescript
+type Cone = {
+  angle?: number;           // Cone angle in radians (default: ~0.44)
+  radius?: number;          // Base radius (default: 1)
+  radiusThickness?: number; // 0-1 (default: 1)
+  arc?: number;             // Radians (default: 2π)
+};
+```
+
+### Shape.CIRCLE
+
+```typescript
+type Circle = {
+  radius?: number;          // Default: 1
+  radiusThickness?: number; // 0-1 (default: 1)
+  arc?: number;             // Radians (default: 2π)
+};
+```
+
+### Shape.RECTANGLE
+
+```typescript
+type Rectangle = {
+  rotation?: Point3D;  // { x?, y?, z? } in radians
+  scale?: Point3D;     // { x?, y?, z? } dimensions
+};
+```
+
+### Shape.BOX
+
+```typescript
+type Box = {
+  scale?: Point3D;     // { x?, y?, z? } dimensions
+  emitFrom?: EmitFrom; // VOLUME | SHELL | EDGE
+};
+```
+
+---
+
+## Lifetime Modifiers
+
+### velocityOverLifetime
+
+Modifies particle velocity over its lifetime. Supports linear (directional) and orbital (rotational) velocity.
+
+```typescript
+type VelocityOverLifetime = {
+  isActive: boolean;
+  linear: {
+    x?: number | { min, max } | LifetimeCurve;
+    y?: number | { min, max } | LifetimeCurve;
+    z?: number | { min, max } | LifetimeCurve;
+  };
+  orbital: {  // Values in degrees
+    x?: number | { min, max } | LifetimeCurve;
+    y?: number | { min, max } | LifetimeCurve;
+    z?: number | { min, max } | LifetimeCurve;
+  };
+};
+```
+
+### sizeOverLifetime
+
+```typescript
+sizeOverLifetime: {
+  isActive: boolean;
+  lifetimeCurve: LifetimeCurve;  // Multiplier on startSize
+}
+```
+
+### opacityOverLifetime
+
+```typescript
+opacityOverLifetime: {
+  isActive: boolean;
+  lifetimeCurve: LifetimeCurve;  // Multiplier on startOpacity
+}
+```
+
+### colorOverLifetime
+
+Each RGB channel is a separate curve acting as a multiplier (0-1) on startColor.
+**Important**: Set startColor to white `{ r:1, g:1, b:1 }` for full color transitions.
+
+```typescript
+colorOverLifetime: {
+  isActive: boolean;
+  r: LifetimeCurve;
+  g: LifetimeCurve;
+  b: LifetimeCurve;
+}
+```
+
+### rotationOverLifetime
+
+```typescript
+rotationOverLifetime: {
+  isActive: boolean;
+  min?: number;  // Minimum rotation speed
+  max?: number;  // Maximum rotation speed
+}
+```
+
+---
+
+## Noise
+
+FBM (Fractal Brownian Motion) noise affecting particles dynamically.
+
+```typescript
+type NoiseConfig = {
+  isActive: boolean;
+  useRandomOffset: boolean; // Randomize noise per particle
+  strength: number;         // Overall noise strength (default: 1)
+  frequency: number;        // Noise frequency (default: 0.5)
+  octaves: number;          // FBM octaves (default: 1)
+  positionAmount: number;   // Position displacement (default: 1)
+  rotationAmount: number;   // Rotation displacement (default: 0)
+  sizeAmount: number;       // Size displacement (default: 0)
+};
+```
+
+---
+
+## Renderer
+
+```typescript
+type Renderer = {
+  blending: THREE.Blending;             // Default: NormalBlending
+  discardBackgroundColor: boolean;      // Default: false
+  backgroundColorTolerance: number;     // Default: 1.0
+  backgroundColor: Rgb;                 // Default: { r:0, g:0, b:0 }
+  transparent: boolean;                 // Default: true
+  depthTest: boolean;                   // Default: true
+  depthWrite: boolean;                  // Default: false
+  rendererType?: RendererType;          // Default: RendererType.POINTS
+  trail?: TrailConfig;                  // Only for RendererType.TRAIL
+  mesh?: MeshConfig;                    // Only for RendererType.MESH
+};
+
+enum RendererType {
+  POINTS = 'POINTS',       // Classic point sprites (THREE.Points). Default.
+  INSTANCED = 'INSTANCED', // Camera-facing quads via InstancedBufferGeometry.
+                            // Removes gl_PointSize hardware limit, supports large particles.
+                            // Recommended for 10 000+ particles or large on-screen sizes.
+  TRAIL = 'TRAIL',         // Ribbon trails behind particles. Each particle records a position
+                            // history and the renderer builds a camera-facing triangle-strip
+                            // ribbon through those samples.
+  MESH = 'MESH',           // 3D mesh particles via GPU instancing. Each particle is rendered
+                            // as a full 3D mesh with quaternion-based rotation, normals, and
+                            // directional lighting. Any THREE.BufferGeometry can be used.
+}
+
+type MeshConfig = {
+  geometry: THREE.BufferGeometry;  // The geometry to render for each particle
+};
+```
+
+Common blending modes: `THREE.NormalBlending`, `THREE.AdditiveBlending`, `THREE.SubtractiveBlending`
+
+### Mesh Particle Configuration
+
+When using `RendererType.MESH`, configure mesh-specific properties via `renderer.mesh`:
+
+```typescript
+renderer: {
+  rendererType: RendererType.MESH,
+  blending: THREE.NormalBlending,
+  transparent: true,
+  depthTest: true,
+  depthWrite: true,
+  mesh: {
+    geometry: new THREE.BoxGeometry(1, 1, 1),
+  },
+}
+```
+
+Mesh particle features:
+- GPU instancing (`InstancedBufferGeometry`) — one draw call for all particles
+- Quaternion-based 3D rotation (particles rotate in all 3 axes)
+- Normals preserved from the source geometry, simple directional lighting from camera
+- Any `THREE.BufferGeometry` works: `BoxGeometry`, `SphereGeometry`, `IcosahedronGeometry`, custom meshes, etc.
+- All modifiers work: sizeOverLifetime, colorOverLifetime, opacityOverLifetime, rotationOverLifetime, noise, force fields, sub-emitters
+- Default texture: solid white 1×1 (preserves mesh shape); point/billboard renderers default to a circle texture
+- Sub-emitter note: sub-emitters do not inherit `RendererType.MESH` or `RendererType.TRAIL` from the parent because mesh geometry and trail config cannot be passed through; sub-emitters fall back to their own `rendererType` or `POINTS` by default
+- Note: `mesh.geometry` is a runtime object (not serializable to JSON); provide it programmatically
+
+### Trail / Ribbon Configuration
+
+When using `RendererType.TRAIL`, configure trail-specific properties via `renderer.trail`:
+
+```typescript
+type TrailConfig = {
+  length?: number;              // Position history samples per particle. Default: 20
+  width?: number;               // Base ribbon width in world units. Default: 1.0
+  widthOverTrail?: LifetimeCurve;   // Width taper from head (0) to tail (1)
+  opacityOverTrail?: LifetimeCurve; // Opacity taper from head (0) to tail (1)
+  colorOverTrail?: {            // Optional per-channel color multiplier curves
+    isActive: boolean;
+    r: LifetimeCurve;           // Red channel multiplier (0=head, 1=tail)
+    g: LifetimeCurve;           // Green channel multiplier
+    b: LifetimeCurve;           // Blue channel multiplier
+  };
+};
+```
+
+Trail features:
+- GPU billboard rendering (vertex shader computes perpendicular offset from camera direction)
+- Soft-edge fade on ribbon borders (no hard edges)
+- Optional texture mapping (texture modulates brightness via luminance)
+- `colorOverTrail` multiplies the particle's current color at each trail position — use white `startColor` for full color transitions
+- Works with all particle features: colorOverLifetime, noise, gravity, force fields
+
+Example — comet trail with color shift:
+
+```typescript
+renderer: {
+  rendererType: RendererType.TRAIL,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  depthWrite: false,
+  trail: {
+    length: 60,
+    width: 0.5,
+    widthOverTrail: {
+      type: LifeTimeCurve.BEZIER,
+      bezierPoints: [
+        { x: 0, y: 1, percentage: 0 },
+        { x: 0.5, y: 0.4 },
+        { x: 1, y: 0, percentage: 1 },
+      ],
+    },
+    colorOverTrail: {
+      isActive: true,
+      r: { type: LifeTimeCurve.BEZIER, bezierPoints: [{ x: 0, y: 0.2, percentage: 0 }, { x: 0.5, y: 0.5 }, { x: 1, y: 0.8, percentage: 1 }] },
+      g: { type: LifeTimeCurve.BEZIER, bezierPoints: [{ x: 0, y: 1.0, percentage: 0 }, { x: 0.5, y: 0.5 }, { x: 1, y: 0.1, percentage: 1 }] },
+      b: { type: LifeTimeCurve.BEZIER, bezierPoints: [{ x: 0, y: 0.4, percentage: 0 }, { x: 0.5, y: 0.9 }, { x: 1, y: 1.0, percentage: 1 }] },
+    },
+  },
+}
+```
+
+---
+
+## Texture Sheet Animation
+
+Animate sprite sheets over particle lifetime.
+
+```typescript
+type TextureSheetAnimation = {
+  tiles?: THREE.Vector2;                        // Grid dimensions (default: 1x1)
+  timeMode?: TimeMode;                          // LIFETIME or FPS (default: LIFETIME)
+  fps?: number;                                 // Frames per second (default: 30)
+  startFrame?: number | { min, max };           // Starting frame (default: 0)
+};
+```
+
+---
+
+## Texture (map)
+
+```typescript
+const texture = new THREE.TextureLoader().load("particle.png");
+const system = createParticleSystem({
+  map: texture,
+  // ...
+});
+```
+
+---
+
+## Curve Types
+
+### BezierCurve
+
+```typescript
+{
+  type: LifeTimeCurve.BEZIER,
+  scale: 1,  // Optional multiplier
+  bezierPoints: [
+    { x: 0, y: 0, percentage: 0 },       // Start point
+    { x: 0.3, y: 0.8 },                   // Control point
+    { x: 0.7, y: 0.2 },                   // Control point
+    { x: 1, y: 1, percentage: 1 },        // End point
+  ],
+}
+```
+
+### EasingCurve
+
+```typescript
+{
+  type: LifeTimeCurve.EASING,
+  scale: 1,  // Optional multiplier
+  curveFunction: (time: number) => number, // 0→1 input, any output
+}
+```
+
+---
+
+## Enums
+
+### Shape
+`SPHERE` | `CONE` | `CIRCLE` | `RECTANGLE` | `BOX`
+
+### EmitFrom
+`VOLUME` | `SHELL` | `EDGE`
+
+### SimulationSpace
+`LOCAL` | `WORLD`
+
+- **`LOCAL`** (default): particles are children of the emitter in the scene
+  graph and move/rotate with it. The buffer stores positions in the
+  emitter's local frame.
+- **`WORLD`**: particles are decoupled from the emitter once spawned. The
+  buffer stores world coordinates directly and `instance.matrixWorld` is
+  held at identity. New particles spawn from the emitter's current world
+  pose (parent chain + `instance.position` / `instance.rotation`), so
+  moving the emitter only affects future emissions, not existing
+  particles. The shape-emission offset is scaled by the emitter's world
+  scale at spawn time (matching Unity's Shape module with `Scaling Mode =
+  Local/Hierarchy`); live particles are unaffected by later scale
+  changes. Matches Unity's world simulation space.
+
+### TimeMode
+`LIFETIME` | `FPS`
+
+### LifeTimeCurve
+`BEZIER` | `EASING`
+
+### RendererType
+`POINTS` (default — classic point sprites) | `INSTANCED` (GPU instanced quads, no gl_PointSize limit) | `TRAIL` (ribbon trails behind particles) | `MESH` (3D mesh particles via GPU instancing)
+
+### CollisionPlaneMode
+`KILL` (deactivate particle immediately) | `CLAMP` (stop particle at the plane surface) | `BOUNCE` (reflect velocity with optional dampen)
+
+### SimulationBackend
+`AUTO` (default — GPU compute when the WebGPU path is registered via `enableWebGPU()`, else CPU) | `CPU` (always JavaScript update loop) | `GPU` (same as AUTO — GPU compute requires the registered WebGPU path)
+
+---
+
+## Callbacks
+
+```typescript
+createParticleSystem({
+  // Called every frame
+  onUpdate: ({ particleSystem, delta, elapsed, lifetime, iterationCount }) => {
+    // particleSystem: THREE.Points or THREE.Mesh instance
+    // delta: seconds since last frame
+    // elapsed: total seconds
+    // lifetime: system duration
+    // iterationCount: number of completed loops
+  },
+
+  // Called when a non-looping system completes, or each loop iteration ends
+  onComplete: () => {
+    console.log("Particle system iteration complete");
+  },
+});
+```
+
+---
+
+## Complete Example — Fire Effect
+
+```typescript
+import * as THREE from "three";
+import {
+  createParticleSystem,
+  updateParticleSystems,
+  Shape,
+  LifeTimeCurve,
+  SimulationSpace,
+} from "@newkrok/three-particles";
+
+const fireTexture = new THREE.TextureLoader().load("fire-particle.png");
+
+const fire = createParticleSystem({
+  duration: 5,
+  looping: true,
+  maxParticles: 200,
+  startLifetime: { min: 0.5, max: 1.5 },
+  startSpeed: { min: 1, max: 3 },
+  startSize: { min: 0.3, max: 0.8 },
+  startColor: {
+    min: { r: 1.0, g: 0.2, b: 0.0 },
+    max: { r: 1.0, g: 0.8, b: 0.0 },
+  },
+  gravity: -1,
+  simulationSpace: SimulationSpace.WORLD,
+  emission: { rateOverTime: 50 },
+  shape: {
+    shape: Shape.CONE,
+    cone: { angle: 0.2, radius: 0.3, radiusThickness: 1 },
+  },
+  map: fireTexture,
+  renderer: {
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    discardBackgroundColor: false,
+    backgroundColorTolerance: 1,
+    backgroundColor: { r: 0, g: 0, b: 0 },
+  },
+  sizeOverLifetime: {
+    isActive: true,
+    lifetimeCurve: {
+      type: LifeTimeCurve.BEZIER,
+      scale: 1,
+      bezierPoints: [
+        { x: 0, y: 1, percentage: 0 },
+        { x: 0.5, y: 0.5 },
+        { x: 1, y: 0, percentage: 1 },
+      ],
+    },
+  },
+  opacityOverLifetime: {
+    isActive: true,
+    lifetimeCurve: {
+      type: LifeTimeCurve.BEZIER,
+      scale: 1,
+      bezierPoints: [
+        { x: 0, y: 1, percentage: 0 },
+        { x: 0.7, y: 0.8 },
+        { x: 1, y: 0, percentage: 1 },
+      ],
+    },
+  },
+});
+
+scene.add(fire.instance);
+```
+
+---
+
+## Sub-Emitters
+
+Trigger child particle systems when particles are born or die.
+
+```typescript
+type SubEmitter = {
+  trigger: SubEmitterTrigger;  // BIRTH or DEATH
+  config: ParticleSystemConfig; // The child particle system config
+};
+
+// Usage
+createParticleSystem({
+  // ... main system config
+  subEmitters: [
+    { trigger: SubEmitterTrigger.BIRTH, config: sparkConfig },
+    { trigger: SubEmitterTrigger.DEATH, config: explosionConfig },
+  ],
+});
+```
+
+### SubEmitterTrigger
+- `BIRTH` — Spawns child system at the position of each newly created particle
+- `DEATH` — Spawns child system at the position of each dying particle
+
+---
+
+## Force Fields
+
+Apply forces to particles dynamically. Supports point attraction/repulsion and directional wind.
+
+```typescript
+type ForceField = {
+  type: ForceFieldType;         // POINT or DIRECTIONAL
+  position?: Point3D;           // For POINT type — center of force
+  direction?: Point3D;          // For DIRECTIONAL type — force direction
+  strength: number;             // Force strength (negative = repulsion for POINT)
+  radius?: number;              // For POINT type — area of effect
+  falloff?: ForceFieldFalloff;  // NONE, LINEAR, or QUADRATIC
+};
+```
+
+### ForceFieldType
+- `POINT` — Attracts (positive strength) or repels (negative strength) particles toward/from a point
+- `DIRECTIONAL` — Applies a constant force in a direction (e.g., wind)
+
+### ForceFieldFalloff
+- `NONE` — Constant force regardless of distance
+- `LINEAR` — Force decreases linearly with distance
+- `QUADRATIC` — Force decreases with the square of distance (realistic gravity-like falloff)
+
+**Example — Vortex with wind:**
+```typescript
+createParticleSystem({
+  // ... particle config
+  forceFields: [
+    {
+      type: ForceFieldType.POINT,
+      position: { x: 0, y: 2, z: 0 },
+      strength: 5,
+      radius: 3,
+      falloff: ForceFieldFalloff.LINEAR,
+    },
+    {
+      type: ForceFieldType.DIRECTIONAL,
+      direction: { x: 1, y: 0, z: 0 },
+      strength: 2,
+    },
+  ],
+});
+```
+
+---
+
+## Collision Planes
+
+Infinite planes that constrain particle positions. When a particle crosses from the front side (positive normal direction) to the back side, the configured response mode is triggered.
+
+```typescript
+type CollisionPlaneConfig = {
+  isActive?: boolean;         // Whether this plane is active (default: true)
+  position?: Point3D;         // A point on the plane surface (default: {x:0, y:0, z:0})
+  normal?: Point3D;           // Plane normal vector, defines the "front" side (default: {x:0, y:1, z:0})
+  mode?: CollisionPlaneMode;  // Response mode (default: KILL)
+  dampen?: number;            // Velocity dampen factor for BOUNCE mode, 0-1 (default: 0)
+  lifetimeLoss?: number;      // Fraction of start lifetime to subtract on collision, 0-1 (default: 0)
+};
+```
+
+### CollisionPlaneMode
+- `KILL` — Deactivate the particle immediately when it crosses the plane
+- `CLAMP` — Stop the particle at the plane surface (zero velocity toward plane)
+- `BOUNCE` — Reflect the velocity vector off the plane normal with optional dampen
+
+**Example — Bouncy floor and kill ceiling:**
+```typescript
+createParticleSystem({
+  // ... particle config
+  collisionPlanes: [
+    {
+      position: { x: 0, y: 0, z: 0 },
+      normal: { x: 0, y: 1, z: 0 },
+      mode: CollisionPlaneMode.BOUNCE,
+      dampen: 0.6,
+    },
+    {
+      position: { x: 0, y: 10, z: 0 },
+      normal: { x: 0, y: -1, z: 0 },
+      mode: CollisionPlaneMode.KILL,
+    },
+  ],
+});
+```
+
+---
+
+## Serialization
+
+Save and load particle system configurations as JSON.
+
+```typescript
+import {
+  serializeParticleSystemConfig,
+  deserializeParticleSystemConfig,
+} from "@newkrok/three-particles";
+
+// Serialize (config → JSON-safe object)
+const json = serializeParticleSystemConfig(config);
+const jsonString = JSON.stringify(json);
+
+// Deserialize (JSON-safe object → config)
+const restored = deserializeParticleSystemConfig(JSON.parse(jsonString));
+const system = createParticleSystem(restored);
+```
+
+---
+
+## Usage with React Three Fiber
+
+The library works with [React Three Fiber](https://github.com/pmndrs/react-three-fiber) without any additional wrapper package. Use `createParticleSystem` directly with React hooks:
+
+```tsx
+import { useRef, useEffect } from "react";
+import { useFrame } from "@react-three/fiber";
+import {
+  createParticleSystem,
+  Shape,
+  type ParticleSystem,
+} from "@newkrok/three-particles";
+import * as THREE from "three";
+
+function FireEffect({ config }: { config?: Record<string, unknown> }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const systemRef = useRef<ParticleSystem | null>(null);
+
+  useEffect(() => {
+    const system = createParticleSystem({
+      duration: 5,
+      looping: true,
+      maxParticles: 200,
+      startLifetime: { min: 0.5, max: 1.5 },
+      startSpeed: { min: 1, max: 3 },
+      startSize: { min: 0.3, max: 0.8 },
+      startColor: {
+        min: { r: 1, g: 0.2, b: 0 },
+        max: { r: 1, g: 0.8, b: 0 },
+      },
+      gravity: -1,
+      emission: { rateOverTime: 50 },
+      shape: { shape: Shape.CONE, cone: { angle: 0.2, radius: 0.3 } },
+      renderer: {
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      },
+      ...config,
+    });
+
+    systemRef.current = system;
+    groupRef.current?.add(system.instance);
+
+    return () => {
+      system.dispose();
+    };
+  }, [config]);
+
+  useFrame((_, delta) => {
+    systemRef.current?.update({
+      now: performance.now(),
+      delta,
+      elapsed: 0,
+    });
+  });
+
+  return <group ref={groupRef} />;
+}
+```
+
+### Key Integration Points
+
+- **`useEffect`** — Create the particle system on mount, dispose on unmount
+- **`useFrame`** — Drive per-frame updates using R3F's render loop (use `system.update()` for individual system control instead of the global `updateParticleSystems()`)
+- **`<group ref>`** — Attach `system.instance` to a group so R3F manages the scene graph
+- **Config changes** — Pass `config` as a dependency to `useEffect` to recreate on changes
+- **No wrapper package needed** — The imperative API integrates naturally with React hooks
+
+---
+
+## WebGPU Compute Support
+
+Optional GPU-accelerated particle simulation via Three.js WebGPU renderer and TSL (Three Shading Language). Offloads all per-particle physics and modifiers to GPU compute shaders, enabling **50K-350K+ particles** at interactive frame rates.
+
+**Requirements:** Three.js r182+ with WebGPU build (`three/webgpu`), browser with WebGPU support (Chrome 113+, Edge 113+, Firefox Nightly). No breaking changes — all existing WebGL code works unchanged.
+
+### Setup
+
+```typescript
+// 1. Create a WebGPU renderer
+import * as THREE from "three/webgpu";
+const renderer = new THREE.WebGPURenderer({ antialias: true });
+await renderer.init();
+
+// 2. Enable WebGPU support (once, before creating any particle system).
+// Passing the renderer enables capability detection — with a renderer that
+// cannot run compute shaders, registration is skipped with a warning.
+import { enableWebGPU } from "@newkrok/three-particles/webgpu";
+const gpuEnabled = enableWebGPU(renderer); // returns boolean
+// No outputColorSpace override needed — the library uses the standard
+// three.js linear workflow and works with the default (SRGBColorSpace).
+
+// 3. Create a GPU-accelerated particle system
+import { createParticleSystem, SimulationBackend } from "@newkrok/three-particles";
+const system = createParticleSystem({
+  simulationBackend: SimulationBackend.AUTO, // GPU if WebGPU available, else CPU
+  maxParticles: 100000,
+  // ... rest of config (same API as CPU)
+});
+
+scene.add(system.instance);
+
+// 4. In your render loop — dispatch compute before rendering
+function animate() {
+  system.update({ now: performance.now(), delta, elapsed });
+
+  if (system.computeNode) {
+    renderer.compute(system.computeNode);
+  }
+  renderer.render(scene, camera);
+}
+```
+
+For fine-grained control (e.g., selective registration of individual WebGPU functions), you can also use `registerTSLMaterialFactory()` directly — see the API reference below.
+
+### SimulationBackend
+
+```typescript
+enum SimulationBackend {
+  AUTO = 'AUTO',  // GPU compute when the WebGPU path is registered, else CPU (default)
+  CPU = 'CPU',    // Always JavaScript update loop (works with any renderer)
+  GPU = 'GPU',    // Same as AUTO — GPU compute requires the registered WebGPU path
+}
+```
+
+| Value | WebGPU path registered (`enableWebGPU()`) | Not registered |
+|-------|------------------------------------------|----------------|
+| `AUTO` | GPU compute | CPU (JavaScript) |
+| `CPU` | CPU (JavaScript) | CPU (JavaScript) |
+| `GPU` | GPU compute | CPU (JavaScript) |
+
+Note: the library never inspects the renderer on its own — call
+`enableWebGPU(renderer)` (returns boolean) to skip registration automatically
+when the renderer cannot dispatch compute shaders (e.g. `WebGLRenderer`).
+
+### What Runs on GPU
+
+- **Core physics:** gravity, velocity integration, position update, lifetime tracking, death detection
+- **All 7 modifiers:** size over lifetime, opacity over lifetime, color over lifetime (per-channel RGB curves), rotation over lifetime, linear velocity over lifetime (per-axis X/Y/Z curves), orbital velocity, noise (3D simplex FBM)
+- **Force fields:** point attractors/repulsors and directional forces with all falloff modes (NONE, LINEAR, QUADRATIC), up to 16 per system
+- **Collision planes:** kill/clamp/bounce modes with dampen and lifetime loss, encoded as packed uniform buffer
+- **Curves:** baked into 256-sample Float32Array lookup tables at system creation for fast GPU evaluation (<0.4% interpolation error)
+
+### What Stays on CPU
+
+- **Emission:** particle activation, burst scheduling, rate-over-time, rate-over-distance
+- **Sub-emitters:** birth/death trigger spawning (sub-emitters are always forced to `SimulationBackend.CPU`)
+- **Configuration changes:** `updateConfig()` applies on the next frame
+- **Trail renderer:** `RendererType.TRAIL` always uses CPU simulation (POINTS, INSTANCED, and MESH work with GPU compute)
+
+### ParticleSystem.computeNode
+
+When GPU compute is active, the returned `ParticleSystem` object exposes a `computeNode` property. This must be dispatched every frame **before** `renderer.render()`:
+
+```typescript
+const system = createParticleSystem({ simulationBackend: SimulationBackend.GPU, ... });
+
+// In render loop:
+if (system.computeNode) {
+  renderer.compute(system.computeNode); // Dispatch GPU compute
+}
+renderer.render(scene, camera);
+```
+
+When CPU simulation is active (no WebGPU, or `simulationBackend: 'CPU'`), `computeNode` is `null`.
+
+### Fallback Behavior
+
+WebGPU is fully opt-in and non-breaking:
+- If `enableWebGPU()` not called (or no TSL factory registered via `registerTSLMaterialFactory()`), the library uses GLSL shaders (existing WebGL path) and CPU simulation
+- If `enableWebGPU(renderer)` is called with a renderer that lacks compute support, registration is skipped with a console warning and everything stays on the CPU/GLSL path
+- The same `ParticleSystemConfig` produces the same visuals on both backends. GPU limitation: modifier flags and lifetime curves (sizeOverLifetime, opacityOverLifetime, colorOverLifetime, rotationOverLifetime, velocityOverLifetime, noise.isActive) are baked into the compute kernel at creation — `updateConfig()` cannot change them live (a console warning is logged); recreate the system instead. On the CPU backend these update live.
+- Renderer detection is duck-typed (checks for `.compute()` and `.hasFeature()` methods), not class-based
+
+### WebGPU with React Three Fiber
+
+```tsx
+import { useRef, useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { createParticleSystem, SimulationBackend } from "@newkrok/three-particles";
+import { enableWebGPU } from "@newkrok/three-particles/webgpu";
+
+// Enable once at module level
+enableWebGPU();
+
+function GPUParticleEffect({ config }) {
+  const groupRef = useRef(null);
+  const systemRef = useRef(null);
+  const { gl: renderer } = useThree();
+
+  useEffect(() => {
+    const system = createParticleSystem({
+      simulationBackend: SimulationBackend.AUTO,
+      ...config,
+    });
+    systemRef.current = system;
+    groupRef.current?.add(system.instance);
+    return () => system.dispose();
+  }, [config]);
+
+  useFrame((_, delta) => {
+    const system = systemRef.current;
+    if (!system) return;
+    system.update({ now: performance.now(), delta, elapsed: 0 });
+    if (system.computeNode) {
+      renderer.compute(system.computeNode);
+    }
+  });
+
+  return <group ref={groupRef} />;
+}
+```
+
+**Important:** R3F must be configured to use `WebGPURenderer` (via the `gl` prop on `<Canvas>`) for GPU compute to activate.
+
+---
+
+## Links
+
+- Repository: https://github.com/NewKrok/three-particles
+- API Docs: https://newkrok.github.io/three-particles/api/
+- Visual Editor: https://github.com/NewKrok/three-particles-editor
+- Editor Demo: https://newkrok.com/three-particles-editor/index.html
+- npm: https://www.npmjs.com/package/@newkrok/three-particles

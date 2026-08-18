@@ -1,0 +1,2091 @@
+import * as THREE from 'three';
+import { FBM } from 'three-noise/build/three-noise.module.js';
+import {
+  CollisionPlaneMode,
+  EmitFrom,
+  ForceFieldFalloff,
+  ForceFieldType,
+  LifeTimeCurve,
+  RendererType,
+  Shape,
+  SimulationBackend,
+  SimulationSpace,
+  SubEmitterTrigger,
+  TimeMode,
+} from './three-particles-enums.js';
+
+/**
+ * A fixed numerical value.
+ * Used for properties that require a constant value.
+ *
+ * @example
+ * const delay: Constant = 2; // Fixed delay of 2 seconds.
+ */
+export type Constant = number;
+
+/**
+ * An object that defines a range for random number generation.
+ * Contains `min` and `max` properties.
+ *
+ * @property min - The minimum value for the random range.
+ * @property max - The maximum value for the random range.
+ *
+ * @example
+ * const randomDelay: RandomBetweenTwoConstants = { min: 0.5, max: 2 }; // Random delay between 0.5 and 2 seconds.
+ */
+export type RandomBetweenTwoConstants = {
+  min?: number;
+  max?: number;
+};
+
+/**
+ * Base type for curves, containing common properties.
+ * @property scale - A scaling factor for the curve.
+ */
+export type CurveBase = {
+  scale?: number;
+};
+
+/**
+ * A function that defines how the value changes over time.
+ * @param time - A normalized value between 0 and 1 representing the progress of the curve.
+ * @returns The corresponding value based on the curve function.
+ */
+export type CurveFunction = (time: number) => number;
+
+/**
+ * A Bézier curve point representing a control point.
+ * @property x - The time (normalized between 0 and 1).
+ * @property y - The value at that point.
+ * @property percentage - (Optional) Normalized position within the curve (for additional flexibility).
+ */
+export type BezierPoint = {
+  x: number; // Time (0 to 1)
+  y: number; // Value
+  percentage?: number; // Optional normalized position
+};
+
+/**
+ * A Bézier curve representation for controlling particle properties.
+ * @property type - Specifies that this curve is of type `bezier`.
+ * @property bezierPoints - An array of control points defining the Bézier curve.
+ * @example
+ * {
+ *   type: LifeTimeCurve.BEZIER,
+ *   bezierPoints: [
+ *     { x: 0, y: 0.275, percentage: 0 },
+ *     { x: 0.1666, y: 0.4416 },
+ *     { x: 0.5066, y: 0.495, percentage: 0.5066 },
+ *     { x: 1, y: 1, percentage: 1 }
+ *   ]
+ * }
+ */
+export type BezierCurve = CurveBase & {
+  type: LifeTimeCurve.BEZIER;
+  bezierPoints: Array<BezierPoint>;
+};
+
+/**
+ * An easing curve representation using a custom function.
+ * @property type - Specifies that this curve is of type `easing`.
+ * @property curveFunction - A function defining how the value changes over time.
+ * @example
+ * {
+ *   type: LifeTimeCurve.EASING,
+ *   curveFunction: (time) => Math.sin(time * Math.PI) // Simple easing function
+ * }
+ */
+export type EasingCurve = CurveBase & {
+  type: LifeTimeCurve.EASING;
+  curveFunction: CurveFunction;
+};
+
+/**
+ * A flexible curve representation that supports Bézier curves and easing functions.
+ */
+export type LifetimeCurve = BezierCurve | EasingCurve;
+
+/**
+ * Represents a point in 3D space with optional x, y, and z coordinates.
+ * Each coordinate is a number and is optional, allowing for partial definitions.
+ *
+ * @example
+ * // A point with all coordinates defined
+ * const point: Point3D = { x: 10, y: 20, z: 30 };
+ *
+ * @example
+ * // A point with only one coordinate defined
+ * const point: Point3D = { x: 10 };
+ *
+ * @default
+ * // Default values are undefined for all coordinates.
+ * const point: Point3D = {};
+ */
+export type Point3D = {
+  x?: number;
+  y?: number;
+  z?: number;
+};
+
+/**
+ * Represents a transform in 3D space, including position, rotation, and scale.
+ * Each property is optional and represented as a THREE.Vector3 instance.
+ *
+ * - `position`: Defines the translation of an object in 3D space.
+ * - `rotation`: Defines the rotation of an object in radians for each axis (x, y, z).
+ * - `scale`: Defines the scale of an object along each axis.
+ *
+ * @example
+ * // A transform with all properties defined
+ * const transform: Transform = {
+ *   position: new THREE.Vector3(10, 20, 30),
+ *   rotation: new THREE.Vector3(Math.PI / 2, 0, 0),
+ *   scale: new THREE.Vector3(1, 1, 1),
+ * };
+ *
+ * @example
+ * // A transform with only position defined
+ * const transform: Transform = {
+ *   position: new THREE.Vector3(5, 5, 5),
+ * };
+ *
+ * @default
+ * // Default values are undefined for all properties.
+ * const transform: Transform = {};
+ */
+export type Transform = {
+  position?: THREE.Vector3;
+  rotation?: THREE.Vector3;
+  scale?: THREE.Vector3;
+};
+
+/**
+ * Represents an RGB color with normalized values (0.0 to 1.0).
+ *
+ * @example
+ * ```typescript
+ * // Pure red
+ * const red: Rgb = { r: 1.0, g: 0.0, b: 0.0 };
+ *
+ * // Pure white
+ * const white: Rgb = { r: 1.0, g: 1.0, b: 1.0 };
+ *
+ * // Orange
+ * const orange: Rgb = { r: 1.0, g: 0.5, b: 0.0 };
+ * ```
+ */
+export type Rgb = {
+  /** Red channel (0.0 to 1.0) */
+  r?: number;
+  /** Green channel (0.0 to 1.0) */
+  g?: number;
+  /** Blue channel (0.0 to 1.0) */
+  b?: number;
+};
+
+/**
+ * Defines a color range for random particle colors.
+ * Each particle will receive a random color between min and max on emission.
+ *
+ * @example
+ * ```typescript
+ * // Random colors between red and yellow
+ * const fireColors: MinMaxColor = {
+ *   min: { r: 1.0, g: 0.0, b: 0.0 }, // Red
+ *   max: { r: 1.0, g: 1.0, b: 0.0 }  // Yellow
+ * };
+ *
+ * // Fixed white color (no randomness)
+ * const white: MinMaxColor = {
+ *   min: { r: 1.0, g: 1.0, b: 1.0 },
+ *   max: { r: 1.0, g: 1.0, b: 1.0 }
+ * };
+ * ```
+ */
+export type MinMaxColor = {
+  /** Minimum color values (lower bound for random selection) */
+  min?: Rgb;
+  /** Maximum color values (upper bound for random selection) */
+  max?: Rgb;
+};
+
+/**
+ * Defines a burst emission event that emits a specific number of particles at a given time.
+ * Bursts are useful for explosions, impacts, fireworks, and other instantaneous particle effects.
+ *
+ * @property time - The time (in seconds) after the particle system starts when this burst should occur.
+ * @property count - The number of particles to emit. Can be a constant or a random range.
+ * @property cycles - The number of times this burst should repeat. Defaults to 1 (single burst).
+ * @property interval - The time interval (in seconds) between burst cycles. Only used when cycles > 1.
+ * @property probability - The probability (0.0 to 1.0) that this burst will occur. Defaults to 1.0.
+ *
+ * @example
+ * // Simple burst at start
+ * { time: 0, count: 50 }
+ *
+ * // Random count burst at 1 second
+ * { time: 1, count: { min: 20, max: 30 } }
+ *
+ * // Repeating burst with interval
+ * { time: 0.5, count: 10, cycles: 3, interval: 0.2 }
+ * // Emits at 0.5s, 0.7s, 0.9s
+ *
+ * // Probabilistic burst (50% chance)
+ * { time: 2, count: 100, probability: 0.5 }
+ */
+export type Burst = {
+  /** Time in seconds when the burst should occur */
+  time: number;
+  /** Number of particles to emit (constant or random range) */
+  count: Constant | RandomBetweenTwoConstants;
+  /** Number of times to repeat this burst. Defaults to 1. */
+  cycles?: number;
+  /** Time interval in seconds between burst cycles. Defaults to 0. */
+  interval?: number;
+  /** Probability (0-1) that this burst will occur. Defaults to 1. */
+  probability?: number;
+};
+
+/**
+ * Defines the emission behavior of the particles.
+ * Supports rates defined over time or distance using constant values, random ranges, or curves (Bézier or easing).
+ * Also supports burst emissions for instantaneous particle effects.
+ *
+ * @default
+ * rateOverTime: 10.0
+ * rateOverDistance: 0.0
+ * bursts: []
+ *
+ * @example
+ * // Rate over time as a constant value
+ * rateOverTime: 10;
+ *
+ * // Rate over time as a random range
+ * rateOverTime: { min: 5, max: 15 };
+ *
+ * // Rate over time using a Bézier curve
+ * rateOverTime: {
+ *   type: 'bezier',
+ *   bezierPoints: [
+ *     { x: 0, y: 0, percentage: 0 },
+ *     { x: 0.5, y: 50 },
+ *     { x: 1, y: 100, percentage: 1 }
+ *   ],
+ *   scale: 1
+ * };
+ *
+ * // Rate over distance as a constant value
+ * rateOverDistance: 2;
+ *
+ * // Rate over distance as a random range
+ * rateOverDistance: { min: 1, max: 3 };
+ *
+ * // Rate over distance using an easing curve
+ * rateOverDistance: {
+ *   type: 'easing',
+ *   curveFunction: (distance) => Math.sin(distance),
+ *   scale: 0.5
+ * };
+ *
+ * // Burst emissions for explosions
+ * bursts: [
+ *   { time: 0, count: 50 },
+ *   { time: 1, count: { min: 20, max: 30 }, probability: 0.8 },
+ *   { time: 0.5, count: 10, cycles: 3, interval: 0.2 }
+ * ];
+ */
+export type Emission = {
+  rateOverTime?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+  rateOverDistance?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+  /** Array of burst configurations for instantaneous particle emissions */
+  bursts?: Array<Burst>;
+};
+
+/**
+ * Configuration for a sphere shape used in particle systems.
+ *
+ * @property radius - The radius of the sphere.
+ * @property radiusThickness - The thickness of the sphere's shell (0 to 1, where 1 is solid).
+ * @property arc - The angular arc of the sphere (in radians).
+ *
+ * @example
+ * const sphere: Sphere = {
+ *   radius: 5,
+ *   radiusThickness: 0.8,
+ *   arc: Math.PI,
+ * };
+ */
+export type Sphere = {
+  radius?: number;
+  radiusThickness?: number;
+  arc?: number;
+};
+
+/**
+ * Configuration for a cone shape used in particle systems.
+ *
+ * @property angle - The angle of the cone (in radians).
+ * @property radius - The radius of the cone's base.
+ * @property radiusThickness - The thickness of the cone's base (0 to 1, where 1 is solid).
+ * @property arc - The angular arc of the cone's base (in radians).
+ *
+ * @example
+ * const cone: Cone = {
+ *   angle: Math.PI / 4,
+ *   radius: 10,
+ *   radiusThickness: 0.5,
+ *   arc: Math.PI * 2,
+ * };
+ */
+export type Cone = {
+  angle?: number;
+  radius?: number;
+  radiusThickness?: number;
+  arc?: number;
+};
+
+/**
+ * Configuration for a circle shape used in particle systems.
+ *
+ * @property radius - The radius of the circle.
+ * @property radiusThickness - The thickness of the circle's shell (0 to 1, where 1 is solid).
+ * @property arc - The angular arc of the circle (in radians).
+ *
+ * @example
+ * const circle: Circle = {
+ *   radius: 10,
+ *   radiusThickness: 0.5,
+ *   arc: Math.PI,
+ * };
+ */
+export type Circle = {
+  radius?: number;
+  radiusThickness?: number;
+  arc?: number;
+};
+
+/**
+ * Configuration for a rectangle shape used in particle systems.
+ *
+ * @property rotation - The rotation of the rectangle as a 3D point (in radians for each axis).
+ * @property scale - The scale of the rectangle as a 3D point.
+ *
+ * @example
+ * const rectangle: Rectangle = {
+ *   rotation: { x: Math.PI / 4, y: 0, z: 0 },
+ *   scale: { x: 10, y: 5, z: 1 },
+ * };
+ */
+export type Rectangle = {
+  rotation?: Point3D;
+  scale?: Point3D;
+};
+
+/**
+ * Configuration for a box shape used in particle systems.
+ *
+ * @property scale - The scale of the box as a 3D point.
+ * @property emitFrom - Specifies where particles are emitted from within the box.
+ *
+ * @example
+ * const box: Box = {
+ *   scale: { x: 10, y: 10, z: 10 },
+ *   emitFrom: EmitFrom.EDGE,
+ * };
+ */
+export type Box = {
+  scale?: Point3D;
+  emitFrom?: EmitFrom;
+};
+
+/**
+ * Configuration for defining a 3D shape used in particle systems.
+ * Specifies the shape type and its parameters, including spheres, cones, circles, rectangles, and boxes.
+ *
+ * @property shape - The type of the shape to be used.
+ * @property sphere - Configuration for a sphere shape.
+ * @property cone - Configuration for a cone shape.
+ * @property circle - Configuration for a circle shape.
+ * @property rectangle - Configuration for a rectangle shape.
+ * @property box - Configuration for a box shape.
+ *
+ * @example
+ * const shapeConfig: ShapeConfig = {
+ *   shape: Shape.SPHERE,
+ *   sphere: {
+ *     radius: 5,
+ *     radiusThickness: 0.8,
+ *     arc: Math.PI,
+ *   },
+ * };
+ */
+export type ShapeConfig = {
+  shape?: Shape;
+  sphere?: Sphere;
+  cone?: Cone;
+  circle?: Circle;
+  rectangle?: Rectangle;
+  box?: Box;
+};
+
+/**
+ * Defines the texture sheet animation settings for particles.
+ * Allows configuring the animation frames, timing mode, frames per second, and the starting frame.
+ *
+ * @default
+ * tiles: new THREE.Vector2(1.0, 1.0)
+ * timeMode: TimeMode.LIFETIME
+ * fps: 30.0
+ * startFrame: 0
+ *
+ * @example
+ * // Basic configuration with default values
+ * textureSheetAnimation: {
+ *   tiles: new THREE.Vector2(1.0, 1.0),
+ *   timeMode: TimeMode.LIFETIME,
+ *   fps: 30.0,
+ *   startFrame: 0
+ * };
+ *
+ * // Custom configuration
+ * textureSheetAnimation: {
+ *   tiles: new THREE.Vector2(4, 4), // 4x4 grid of animation tiles
+ *   timeMode: TimeMode.SPEED,
+ *   fps: 60.0,
+ *   startFrame: { min: 0, max: 15 } // Random start frame between 0 and 15
+ * };
+ */
+export type TextureSheetAnimation = {
+  tiles?: THREE.Vector2;
+  timeMode?: TimeMode;
+  fps?: number;
+  startFrame?: Constant | RandomBetweenTwoConstants;
+};
+
+/**
+ * Configuration for the trail/ribbon renderer.
+ * Controls how particle trails are drawn when using `RendererType.TRAIL`.
+ *
+ * @property length - Number of position history samples per particle (trail segments).
+ *   Higher values produce longer, smoother trails but cost more memory.
+ *   @default 20
+ * @property widthOverTrail - Lifetime curve that controls the ribbon width along its length.
+ *   At 0 the trail head (current position), at 1 the trail tail (oldest position).
+ *   @default constant 1.0
+ * @property opacityOverTrail - Lifetime curve that controls opacity along the trail length.
+ *   @default linear fade from 1 (head) to 0 (tail)
+ *
+ * @example
+ * ```typescript
+ * // Long comet-style trail tapering to nothing
+ * trail: {
+ *   length: 40,
+ *   widthOverTrail: {
+ *     type: LifeTimeCurve.BEZIER,
+ *     scale: 1,
+ *     bezierPoints: [
+ *       { x: 0, y: 1, percentage: 0 },
+ *       { x: 0.5, y: 0.4 },
+ *       { x: 1, y: 0, percentage: 1 },
+ *     ],
+ *   },
+ * }
+ * ```
+ */
+export type TrailConfig = {
+  /** Number of position history samples per particle. @default 20 */
+  length?: number;
+  /** Base ribbon width in world units. @default 1.0 */
+  width?: number;
+  /** Curve controlling ribbon width from head (0) to tail (1). */
+  widthOverTrail?: LifetimeCurve;
+  /** Curve controlling opacity from head (0) to tail (1). */
+  opacityOverTrail?: LifetimeCurve;
+  /**
+   * Per-channel color multiplier curves along the trail (head=0, tail=1).
+   * Works as multipliers on the particle's current color, same as colorOverLifetime.
+   * To achieve full color transitions, use white startColor.
+   */
+  colorOverTrail?: {
+    isActive: boolean;
+    r: LifetimeCurve;
+    g: LifetimeCurve;
+    b: LifetimeCurve;
+  };
+
+  /**
+   * Minimum distance (in world units) a particle must travel before a new
+   * trail sample is recorded. When set, the trail becomes frame-rate
+   * independent — at high FPS the samples are spread further apart in time,
+   * at low FPS they cluster around sharp turns.
+   *
+   * When `0` or `undefined`, a sample is recorded every frame (legacy behavior).
+   * @default 0
+   */
+  minVertexDistance?: number;
+
+  /**
+   * Maximum trail duration in seconds. Trail segments older than this value
+   * are faded out and expired, regardless of the ring-buffer `length`.
+   * This enables time-based trail length (e.g. "2-second trails") in addition
+   * to the segment-count cap.
+   *
+   * When `0` or `undefined`, trail length is governed only by `length`.
+   * @default 0
+   */
+  maxTime?: number;
+
+  /**
+   * Enable Catmull-Rom spline interpolation between history samples.
+   * Inserts additional subdivided points between raw samples, eliminating
+   * sharp kinks at trail bends. The `smoothingSubdivisions` property controls
+   * how many extra points are inserted per segment.
+   *
+   * @default false
+   */
+  smoothing?: boolean;
+
+  /**
+   * Number of Catmull-Rom subdivisions inserted between each pair of raw
+   * history samples when `smoothing` is enabled. Higher values produce
+   * smoother curves at the cost of more vertices.
+   *
+   * @default 3
+   */
+  smoothingSubdivisions?: number;
+
+  /**
+   * Enable twist prevention for the ribbon. Uses frame tracking to maintain
+   * consistent ribbon orientation during rapid direction changes, preventing
+   * self-intersecting or flipped ribbon quads.
+   *
+   * @default false
+   */
+  twistPrevention?: boolean;
+
+  /**
+   * Connect multiple particles into a single continuous ribbon.
+   * All particles that share the same `ribbonId` are sorted by age and
+   * their positions are chained into one continuous strip.
+   *
+   * When `undefined`, each particle has its own independent trail (default behavior).
+   */
+  ribbonId?: number;
+};
+
+/**
+ * Configuration for the mesh particle renderer.
+ * Controls which 3D geometry is used when `rendererType` is `RendererType.MESH`.
+ *
+ * @property geometry - A `THREE.BufferGeometry` to render for each particle.
+ *   Built-in Three.js primitives like `BoxGeometry`, `SphereGeometry`, `TorusGeometry`
+ *   all work. The geometry's own normals and UVs are preserved.
+ *
+ * @example
+ * ```typescript
+ * // Cube mesh particles
+ * mesh: {
+ *   geometry: new THREE.BoxGeometry(1, 1, 1),
+ * }
+ *
+ * // Icosahedron mesh particles
+ * mesh: {
+ *   geometry: new THREE.IcosahedronGeometry(0.5, 0),
+ * }
+ * ```
+ */
+export type MeshConfig = {
+  /** The geometry to render for each particle. */
+  geometry: THREE.BufferGeometry;
+  /**
+   * Per-axis scale multiplier applied to the mesh in its local frame, on top
+   * of the per-particle size. Applied before the particle's rotation, so a
+   * non-uniform scale stretches the shape itself instead of shearing it as the
+   * particle spins. Defaults to `{ x: 1, y: 1, z: 1 }`.
+   */
+  scale?: Point3D;
+  /**
+   * Orient each particle along its direction of travel — the mesh's local +Z
+   * axis points where the particle is heading, so an elongated shape reads as
+   * a fish or a dart rather than a tumbling block. The rotation value
+   * (`rotationOverLifetime` and the noise `rotationAmount`) then acts as roll
+   * around that heading, which gives a natural banking wobble.
+   *
+   * GPU (WebGPU compute) backend only.
+   */
+  alignToVelocity?: boolean;
+};
+
+/**
+ * Configuration for the particle system renderer, controlling blending, transparency, depth, and background color behavior.
+ *
+ * @property blending - Defines the blending mode for the particle system (e.g., additive blending).
+ * @property discardBackgroundColor - Whether to discard particles that match the background color.
+ * @property backgroundColorTolerance - The tolerance for matching the background color when `discardBackgroundColor` is true.
+ * @property backgroundColor - The background color as an RGB value, used when `discardBackgroundColor` is enabled.
+ * @property transparent - Whether the particle system uses transparency.
+ * @property depthTest - Whether to enable depth testing for particles (determines if particles are rendered behind or in front of other objects).
+ * @property depthWrite - Whether to write depth information for the particles (affects sorting and rendering order).
+ *
+ * @example
+ * // A renderer configuration with additive blending and transparent particles
+ * const renderer: Renderer = {
+ *   blending: THREE.AdditiveBlending,
+ *   discardBackgroundColor: true,
+ *   backgroundColorTolerance: 0.1,
+ *   backgroundColor: { r: 0, g: 0, b: 0 },
+ *   transparent: true,
+ *   depthTest: true,
+ *   depthWrite: false,
+ * };
+ *
+ * @default
+ * // Default values for the renderer configuration
+ * const renderer: Renderer = {
+ *   blending: THREE.NormalBlending,
+ *   discardBackgroundColor: false,
+ *   backgroundColorTolerance: 1.0,
+ *   backgroundColor: { r: 0, g: 0, b: 0 },
+ *   transparent: false,
+ *   depthTest: true,
+ *   depthWrite: true,
+ * };
+ */
+export type Renderer = {
+  blending: THREE.Blending;
+  discardBackgroundColor: boolean;
+  backgroundColorTolerance: number;
+  backgroundColor: Rgb;
+  transparent: boolean;
+  depthTest: boolean;
+  depthWrite: boolean;
+  /**
+   * Selects the rendering technique for particles.
+   *
+   * - `RendererType.POINTS` (default) — classic point-sprite renderer using `THREE.Points`.
+   * - `RendererType.INSTANCED` — camera-facing quads via `InstancedBufferGeometry`,
+   *   removing the `gl_PointSize` hardware limit and enabling stretched billboards.
+   *
+   * @default RendererType.POINTS
+   */
+  rendererType?: RendererType;
+
+  /**
+   * Trail/ribbon renderer configuration.
+   * Only used when `rendererType` is `RendererType.TRAIL`.
+   *
+   * @see TrailConfig
+   */
+  trail?: TrailConfig;
+
+  /**
+   * Mesh particle renderer configuration.
+   * Only used when `rendererType` is `RendererType.MESH`.
+   *
+   * @see MeshConfig
+   */
+  mesh?: MeshConfig;
+
+  /**
+   * Soft particles configuration.
+   * When enabled, particles fade smoothly near opaque geometry instead of
+   * producing a hard intersection line. Requires a depth texture from a
+   * `WebGLRenderTarget`.
+   *
+   * @see SoftParticlesConfig
+   */
+  softParticles?: SoftParticlesConfig;
+};
+
+/**
+ * Configuration for soft (depth-faded) particles.
+ * When enabled, particles fade out smoothly near opaque geometry instead
+ * of producing a hard intersection line.
+ *
+ * Requires a depth texture from a `WebGLRenderTarget` with `DepthTexture`.
+ * If `depthTexture` is not provided, soft particles are automatically disabled
+ * regardless of the `enabled` flag.
+ *
+ * @property enabled - Whether soft particle fading is active. @default false
+ * @property intensity - Controls the fade distance in world units. Higher values
+ *   produce a wider fade zone. Typical range: 0.1 to 5.0. @default 1.0
+ * @property depthTexture - A `THREE.DepthTexture` attached to the render target
+ *   that contains the scene's depth pass. Must be updated every frame before
+ *   the particle system renders.
+ *
+ * @example
+ * // Create a render target with a depth texture
+ * const rt = new THREE.WebGLRenderTarget(width, height, {
+ *   depthTexture: new THREE.DepthTexture(width, height),
+ * });
+ *
+ * // Pass it to the particle system config
+ * const config = {
+ *   renderer: {
+ *     softParticles: {
+ *       enabled: true,
+ *       intensity: 1.5,
+ *       depthTexture: rt.depthTexture,
+ *     },
+ *   },
+ * };
+ */
+export type SoftParticlesConfig = {
+  enabled?: boolean;
+  intensity?: number;
+  depthTexture?: THREE.DepthTexture;
+};
+
+/**
+ * Configuration for noise effects applied to particles in a particle system.
+ * Noise can affect particle position, rotation, and size dynamically.
+ *
+ * @property isActive - Whether noise is enabled for the particle system.
+ * @property strength - The overall strength of the noise effect.
+ * @property positionAmount - The amount of noise applied to particle positions.
+ * @property rotationAmount - The amount of noise applied to particle rotations.
+ * @property sizeAmount - The amount of noise applied to particle sizes.
+ * @property sampler - An optional noise sampler (e.g., FBM for fractal Brownian motion) to generate noise values.
+ * @property offsets - An optional array of offsets to randomize noise generation per particle.
+ *
+ * @example
+ * // A noise configuration with position and rotation noise
+ * const noise: Noise = {
+ *   isActive: true,
+ *   strength: 0.5,
+ *   positionAmount: 1.0,
+ *   rotationAmount: 0.3,
+ *   sizeAmount: 0.0,
+ *   sampler: new FBM(),
+ *   offsets: [0.1, 0.2, 0.3],
+ * };
+ *
+ * @default
+ * // Default values for noise configuration
+ * const noise: Noise = {
+ *   isActive: false,
+ *   strength: 1.0,
+ *   positionAmount: 0.0,
+ *   rotationAmount: 0.0,
+ *   sizeAmount: 0.0,
+ *   sampler: undefined,
+ *   offsets: undefined,
+ * };
+ */
+export type Noise = {
+  isActive: boolean;
+  strength: number;
+  noisePower: number;
+  frequency: number;
+  positionAmount: number;
+  rotationAmount: number;
+  sizeAmount: number;
+  /** Pre-computed FBM normalisation divisor: `2 - 2^(-octaves)`. */
+  fbmMax: number;
+  curl: boolean;
+  influence: { x: number; y: number; z: number };
+  sampler?: FBM;
+  offsets?: Array<number>;
+};
+
+/**
+ * Configuration for image-based per-particle start colors.
+ * The image is mapped onto the emitter's X/Z plane (centered on the emitter);
+ * each particle samples the pixel under its spawn position as its start color.
+ */
+export type ParticleColorInstanceConfig = {
+  isActive: boolean;
+  /**
+   * The image texture to sample. Not serialized — reassign after loading a
+   * saved config.
+   */
+  map?: THREE.Texture;
+  /**
+   * World-space size of the mapped area along X and Z, centered on the
+   * emitter. A value of 0 (default) auto-fits the rectangle shape's scale.
+   */
+  area?: { x?: number; z?: number };
+  /** Multiply the image's alpha channel into startOpacity. */
+  useAlphaForOpacity?: boolean;
+  /**
+   * Modulate curl-noise strength by the brightness of the sampled pixel, so the
+   * image drives *motion* as well as color. Requires `noise.curl`; the legacy
+   * (non-curl) noise mode ignores it.
+   */
+  useLuminanceForNoise?: boolean;
+  /**
+   * How strongly luminance modulates the curl noise, in the range -1..1.
+   * Positive: bright areas move at full strength, dark areas are damped.
+   * Negative: inverted — dark areas move, bright areas are damped.
+   * At 0 the modulation is a no-op. Luminance is Rec.709 luma of the sRGB
+   * pixel (`0.2126R + 0.7152G + 0.0722B`).
+   */
+  luminanceNoiseAmount?: number;
+};
+
+/**
+ * Runtime sampler state for {@link ParticleColorInstanceConfig}. Pixel data is
+ * extracted lazily on first emission once the texture image has loaded.
+ */
+export type ColorInstanceData = {
+  isActive: boolean;
+  map?: THREE.Texture;
+  areaX: number;
+  areaZ: number;
+  useAlphaForOpacity: boolean;
+  useLuminanceForNoise: boolean;
+  luminanceNoiseAmount: number;
+  /** sRGB byte pixels (RGBA), lazily extracted from `map`. */
+  pixels?: Uint8ClampedArray;
+  width?: number;
+  height?: number;
+  /** Set when pixel extraction failed permanently (e.g. CORS taint). */
+  failed?: boolean;
+};
+
+export type NoiseConfig = {
+  isActive: boolean;
+  useRandomOffset: boolean;
+  strength: number;
+  frequency: number;
+  octaves: number;
+  positionAmount: number;
+  rotationAmount: number;
+  sizeAmount: number;
+  /**
+   * When true the position noise becomes a spatially-coherent curl-noise flow
+   * field sampled at the particle's world/local position instead of an
+   * independent per-particle curve over lifetime. Nearby particles follow
+   * similar paths (divergence-free flow). GPU backend only — the CPU backend
+   * ignores this flag. `useRandomOffset` has no effect in curl mode; the field
+   * is animated over time instead. `strength` acts as flow speed and
+   * `frequency` as the spatial scale of the field.
+   */
+  curl?: boolean;
+  /** Per-axis multiplier (0–1) applied to the position noise displacement. */
+  influence?: { x?: number; y?: number; z?: number };
+};
+
+/**
+ * Defines the velocity of particles over their lifetime, allowing for linear and orbital velocity (in degrees) adjustments.
+ * Supports constant values, random ranges, or curves (Bézier or easing) for each axis.
+ *
+ * @default
+ * isActive: false
+ * linear: { x: 0.0, y: 0.0, z: 0.0 }
+ * orbital: { x: 0.0, y: 0.0, z: 0.0 }
+ *
+ * @example
+ * // Linear velocity with a constant value
+ * linear: { x: 1, y: 0, z: -0.5 };
+ *
+ * // Linear velocity with random ranges
+ * linear: {
+ *   x: { min: -1, max: 1 },
+ *   y: { min: 0, max: 2 }
+ * };
+ *
+ * // Linear velocity using a Bézier curve
+ * linear: {
+ *   z: {
+ *     type: 'bezier',
+ *     bezierPoints: [
+ *       { x: 0, y: 0, percentage: 0 },
+ *       { x: 0.5, y: 2 },
+ *       { x: 1, y: 10, percentage: 1 }
+ *     ],
+ *     scale: 2
+ *   }
+ * };
+ *
+ * // Orbital velocity with a constant value
+ * orbital: { x: 3, y: 5, z: 0 };
+ *
+ * // Orbital velocity using an easing curve
+ * orbital: {
+ *   x: {
+ *     type: 'easing',
+ *     curveFunction: (time) => Math.sin(time * Math.PI),
+ *     scale: 1.5
+ *   }
+ * };
+ */
+export type VelocityOverLifetime = {
+  isActive: boolean;
+  linear: {
+    x?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+    y?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+    z?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+  };
+  orbital: {
+    x?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+    y?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+    z?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+  };
+};
+
+/**
+ * Configuration for a sub-emitter that spawns child particle systems
+ * based on parent particle lifecycle events.
+ *
+ * @example
+ * ```typescript
+ * const subEmitter: SubEmitterConfig = {
+ *   trigger: SubEmitterTrigger.DEATH,
+ *   config: { startLifeTime: 0.5, startSpeed: 2, emission: { rateOverTime: 20 } },
+ *   inheritVelocity: 0.5,
+ *   maxInstances: 16,
+ * };
+ * ```
+ */
+export type SubEmitterConfig = {
+  /** The particle system configuration used when spawning the sub-emitter. */
+  config: ParticleSystemConfig;
+  /**
+   * When to trigger the sub-emitter.
+   * @default SubEmitterTrigger.DEATH
+   */
+  trigger?: SubEmitterTrigger;
+  /**
+   * Multiplier (0–1) for inheriting the parent particle's velocity.
+   * 0 = no inheritance, 1 = full velocity inheritance.
+   * @default 0
+   */
+  inheritVelocity?: number;
+  /**
+   * Maximum number of concurrent sub-emitter instances for this configuration.
+   * Older completed instances are cleaned up to make room for new ones.
+   * @default 32
+   */
+  maxInstances?: number;
+};
+
+/**
+ * Configuration for a force field that affects particle velocities.
+ * Force fields can attract, repel, or push particles in a direction.
+ *
+ * @example
+ * ```typescript
+ * // Point attractor at origin
+ * const attractor: ForceFieldConfig = {
+ *   type: ForceFieldType.POINT,
+ *   position: new THREE.Vector3(0, 0, 0),
+ *   strength: 5.0,
+ *   range: 10,
+ *   falloff: ForceFieldFalloff.QUADRATIC,
+ * };
+ *
+ * // Repulsion shield
+ * const shield: ForceFieldConfig = {
+ *   type: ForceFieldType.POINT,
+ *   position: new THREE.Vector3(0, 0, 0),
+ *   strength: -3.0,
+ *   range: 5,
+ *   falloff: ForceFieldFalloff.LINEAR,
+ * };
+ *
+ * // Wind effect
+ * const wind: ForceFieldConfig = {
+ *   type: ForceFieldType.DIRECTIONAL,
+ *   direction: new THREE.Vector3(1, 0, 0),
+ *   strength: 2.0,
+ * };
+ * ```
+ */
+export type ForceFieldConfig = {
+  /** Whether this force field is active. @default true */
+  isActive?: boolean;
+  /** Type of the force field. @default ForceFieldType.POINT */
+  type?: ForceFieldType;
+  /** Position in 3D space for POINT type force fields. @default (0,0,0) */
+  position?: THREE.Vector3;
+  /** Direction vector for DIRECTIONAL type force fields. @default (0,1,0) */
+  direction?: THREE.Vector3;
+  /**
+   * Force strength. Positive = attract (POINT) or push along direction (DIRECTIONAL).
+   * Negative = repel (POINT) or push against direction (DIRECTIONAL).
+   * Supports constant, random range, or lifetime curve (evaluated against system lifetime).
+   * @default 1
+   */
+  strength?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+  /**
+   * Maximum effective range for POINT type. Particles beyond this distance are unaffected.
+   * @default Infinity
+   */
+  range?: number;
+  /**
+   * How force diminishes with distance for POINT type.
+   * @default ForceFieldFalloff.LINEAR
+   */
+  falloff?: ForceFieldFalloff;
+};
+
+/**
+ * Internal normalized force field configuration where all properties are required.
+ * Created during particle system initialization from user-provided {@link ForceFieldConfig}.
+ */
+export type NormalizedForceFieldConfig = {
+  isActive: boolean;
+  type: ForceFieldType;
+  position: THREE.Vector3;
+  direction: THREE.Vector3;
+  strength: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+  range: number;
+  falloff: ForceFieldFalloff;
+};
+
+/**
+ * Configuration for a collision plane that constrains particle positions.
+ * Collision planes define infinite planes in 3D space. When a particle crosses
+ * from the front side (positive normal direction) to the back side, the
+ * configured response mode is triggered.
+ *
+ * @example
+ * ```typescript
+ * // Water surface — kill bubbles when they reach y=5
+ * const waterSurface: CollisionPlaneConfig = {
+ *   position: { x: 0, y: 5, z: 0 },
+ *   normal: { x: 0, y: -1, z: 0 },
+ *   mode: CollisionPlaneMode.KILL,
+ * };
+ *
+ * // Bouncy floor
+ * const floor: CollisionPlaneConfig = {
+ *   position: { x: 0, y: 0, z: 0 },
+ *   normal: { x: 0, y: 1, z: 0 },
+ *   mode: CollisionPlaneMode.BOUNCE,
+ *   dampen: 0.6,
+ * };
+ *
+ * // Invisible wall clamp
+ * const wall: CollisionPlaneConfig = {
+ *   position: { x: 5, y: 0, z: 0 },
+ *   normal: { x: -1, y: 0, z: 0 },
+ *   mode: CollisionPlaneMode.CLAMP,
+ * };
+ * ```
+ */
+export type CollisionPlaneConfig = {
+  /** Whether this collision plane is active. @default true */
+  isActive?: boolean;
+  /** A point on the plane surface. @default (0,0,0) */
+  position?: Point3D;
+  /**
+   * The plane normal vector (will be normalized internally).
+   * Defines the "front" side of the plane. Particles crossing from front
+   * to back trigger the collision response.
+   * @default (0,1,0)
+   */
+  normal?: Point3D;
+  /** The collision response mode. @default CollisionPlaneMode.KILL */
+  mode?: CollisionPlaneMode;
+  /**
+   * Energy retention factor for BOUNCE mode (0–1).
+   * 0 = no bounce (all energy absorbed), 1 = perfect bounce (no energy loss).
+   * @default 0.5
+   */
+  dampen?: number;
+  /**
+   * Fraction of the particle's start lifetime to subtract on collision (0–1).
+   * Applied on each collision for BOUNCE mode; ignored for KILL and CLAMP.
+   * @default 0
+   */
+  lifetimeLoss?: number;
+};
+
+/**
+ * Internal normalized collision plane configuration where all properties are required.
+ * Created during particle system initialization from user-provided {@link CollisionPlaneConfig}.
+ */
+export type NormalizedCollisionPlaneConfig = {
+  isActive: boolean;
+  position: THREE.Vector3;
+  normal: THREE.Vector3;
+  mode: CollisionPlaneMode;
+  dampen: number;
+  lifetimeLoss: number;
+};
+
+/**
+ * Configuration object for the particle system.
+ * Defines all aspects of the particle system, including its appearance, behavior, and runtime events.
+ */
+export type ParticleSystemConfig = {
+  /**
+   * Defines the position, rotation, and scale of the particle system.
+   *
+   * @see Transform
+   * @default
+   * transform: {
+   *   position: new THREE.Vector3(),
+   *   rotation: new THREE.Vector3(),
+   *   scale: new THREE.Vector3(1, 1, 1),
+   * }
+   */
+  transform?: Transform;
+
+  /**
+   * Duration of the particle system in seconds.
+   * Must be a positive value.
+   * @default 5.0
+   * @example
+   * const duration: number = 5; // System runs for 5 seconds.
+   */
+  duration?: number;
+
+  /**
+   * Indicates whether the system should loop after finishing.
+   * @default true
+   * @example
+   * looping: true; // System loops continuously.
+   */
+  looping?: boolean;
+
+  /**
+   * Delay before the particle system starts emitting particles.
+   * Supports a fixed value (`Constant`) or a random range (`RandomBetweenTwoConstants`).
+   * @default 0.0
+   * @example
+   * startDelay: 2; // Fixed 2-second delay.
+   * startDelay: { min: 0.5, max: 2 }; // Random delay between 0.5 and 2 seconds.
+   */
+  startDelay?: Constant | RandomBetweenTwoConstants;
+
+  /**
+   * Initial lifetime of the particles.
+   * Supports constant value, random range, or curves (Bézier or easing).
+   * @default 5.0
+   * @example
+   * // Constant 3 seconds.
+   * startLifetime: 3;
+   *
+   * // Random range between 1 and 4 seconds.
+   * startLifetime: { min: 1, max: 4 };
+   *
+   * // Bézier curve example with scaling.
+   * startLifetime: {
+   *   type: LifeTimeCurve.BEZIER,
+   *   bezierPoints: [
+   *     { x: 0, y: 0.275, percentage: 0 },
+   *     { x: 0.5, y: 0.5 },
+   *     { x: 1, y: 1, percentage: 1 }
+   *   ],
+   *   scale: 2
+   * };
+   *
+   * // Easing curve example with scaling.
+   * startLifetime: {
+   *   type: LifeTimeCurve.EASING,
+   *   curveFunction: (time) => Math.sin(time * Math.PI),
+   *   scale: 0.5
+   * };
+   */
+  startLifetime?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+
+  /**
+   * Defines the initial speed of the particles.
+   * Supports constant values, random ranges, or curves (Bézier or easing).
+   * @default 1.0
+   * @example
+   * // Constant value
+   * startSpeed: 3;
+   *
+   * // Random range
+   * startSpeed: { min: 1, max: 4 };
+   *
+   * // Bézier curve example with scaling.
+   * startSpeed: {
+   *   type: 'bezier',
+   *   bezierPoints: [
+   *     { x: 0, y: 0.275, percentage: 0 },
+   *     { x: 0.5, y: 0.5 },
+   *     { x: 1, y: 1, percentage: 1 }
+   *   ],
+   *   scale: 2
+   * };
+   *
+   * // Easing curve example with scaling.
+   * startSpeed: {
+   *   type: 'easing',
+   *   curveFunction: (time) => Math.sin(time * Math.PI),
+   *   scale: 1.5
+   * };
+   */
+  startSpeed?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+
+  /**
+   * Defines the initial size of the particles.
+   * Supports constant values, random ranges, or curves (Bézier or easing).
+   * @default 1.0
+   * @example
+   * // Constant value
+   * startSize: 3;
+   *
+   * // Random range
+   * startSize: { min: 1, max: 4 };
+   *
+   * // Bézier curve example with scaling.
+   * startSize: {
+   *   type: 'bezier',
+   *   bezierPoints: [
+   *     { x: 0, y: 0.275, percentage: 0 },
+   *     { x: 0.5, y: 0.5 },
+   *     { x: 1, y: 1, percentage: 1 }
+   *   ],
+   *   scale: 2
+   * };
+   *
+   * // Easing curve example with scaling.
+   * startSize: {
+   *   type: 'easing',
+   *   curveFunction: (time) => Math.sin(time * Math.PI),
+   *   scale: 1.5
+   * };
+   */
+  startSize?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+
+  /**
+   * Defines the initial opacity of the particles.
+   * Supports constant values, random ranges, or curves (Bézier or easing).
+   * @default 1.0
+   * @example
+   * // Constant value
+   * startOpacity: 3;
+   *
+   * // Random range
+   * startOpacity: { min: 1, max: 4 };
+   *
+   * // Bézier curve example with scaling.
+   * startOpacity: {
+   *   type: 'bezier',
+   *   bezierPoints: [
+   *     { x: 0, y: 0.275, percentage: 0 },
+   *     { x: 0.5, y: 0.5 },
+   *     { x: 1, y: 1, percentage: 1 }
+   *   ],
+   *   scale: 2
+   * };
+   *
+   * // Easing curve example with scaling.
+   * startOpacity: {
+   *   type: 'easing',
+   *   curveFunction: (time) => Math.sin(time * Math.PI),
+   *   scale: 1.5
+   * };
+   */
+  startOpacity?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+
+  /**
+   * Defines the initial rotation of the particles in degrees.
+   * Supports constant values, random ranges, or curves (Bézier or easing).
+   * @default 0.0
+   * @example
+   * // Constant value
+   * startRotation: 3;
+   *
+   * // Random range
+   * startRotation: { min: 1, max: 4 };
+   *
+   * // Bézier curve example with scaling.
+   * startRotation: {
+   *   type: 'bezier',
+   *   bezierPoints: [
+   *     { x: 0, y: 0.275, percentage: 0 },
+   *     { x: 0.5, y: 0.5 },
+   *     { x: 1, y: 1, percentage: 1 }
+   *   ],
+   *   scale: 2
+   * };
+   *
+   * // Easing curve example with scaling.
+   * startRotation: {
+   *   type: 'easing',
+   *   curveFunction: (time) => Math.sin(time * Math.PI),
+   *   scale: 1.5
+   * };
+   */
+  startRotation?: Constant | RandomBetweenTwoConstants | LifetimeCurve;
+
+  /**
+   * Initial color of the particles.
+   * Supports a min-max range for color interpolation.
+   *
+   * @default
+   * startColor: {
+   *   min: { r: 1.0, g: 1.0, b: 1.0 },
+   *   max: { r: 1.0, g: 1.0, b: 1.0 },
+   * }
+   */
+  startColor?: MinMaxColor;
+
+  /**
+   * Defines the gravity strength applied to particles.
+   * This value affects the downward acceleration of particles over time.
+   *
+   * @default 0.0
+   *
+   * @example
+   * // No gravity
+   * gravity: 0;
+   *
+   * // Moderate gravity
+   * gravity: 9.8; // Similar to Earth's gravity
+   *
+   * // Strong gravity
+   * gravity: 20.0;
+   */
+  gravity?: Constant;
+
+  /**
+   * Defines the simulation space in which particles are simulated.
+   * Determines whether the particles move relative to the local object space or the world space.
+   *
+   * @default SimulationSpace.LOCAL
+   *
+   * @example
+   * // Simulate particles in local space (default)
+   * simulationSpace: SimulationSpace.LOCAL;
+   *
+   * // Simulate particles in world space
+   * simulationSpace: SimulationSpace.WORLD;
+   */
+  simulationSpace?: SimulationSpace;
+
+  /**
+   * Selects the simulation backend for particle updates.
+   *
+   * - `AUTO` (default): Uses GPU compute when a WebGPU-capable renderer is
+   *   detected, otherwise falls back to CPU.
+   * - `CPU`: Always uses the JavaScript update loop (works with any renderer).
+   * - `GPU`: Requests GPU compute simulation. Falls back to CPU if the renderer
+   *   does not support compute shaders.
+   *
+   * @default SimulationBackend.AUTO
+   */
+  simulationBackend?: SimulationBackend;
+
+  /**
+   * Defines the maximum number of particles allowed in the system.
+   * This value limits the total number of active particles at any given time.
+   *
+   * @default 100.0
+   *
+   * @example
+   * // Default value
+   * maxParticles: 100.0;
+   *
+   * // Increase the maximum number of particles
+   * maxParticles: 500.0;
+   *
+   * // Limit to a small number of particles
+   * maxParticles: 10.0;
+   */
+  maxParticles?: Constant;
+
+  /**
+   * Defines the particle emission settings.
+   * Configures the emission rate over time and distance.
+   *
+   * @see Emission
+   * @default
+   * emission: {
+   *   rateOverTime: 10.0,
+   *   rateOverDistance: 0.0,
+   * }
+   */
+  emission?: Emission;
+
+  /**
+   * Configuration for the emitter shape.
+   * Determines the shape and parameters for particle emission.
+   *
+   * @see ShapeConfig
+   */
+  shape?: ShapeConfig;
+
+  /**
+   * Defines the texture used for rendering particles.
+   * This texture is applied to all particles in the system, and can be used to control their appearance.
+   *
+   * @default undefined
+   *
+   * @example
+   * // Using a predefined texture
+   * map: new THREE.TextureLoader().load('path/to/texture.png');
+   *
+   * // No texture (default behavior)
+   * map: undefined;
+   */
+  map?: THREE.Texture;
+
+  /**
+   * Renderer configuration for blending, transparency, and depth testing.
+   *
+   * @see Renderer
+   * @default
+   * renderer: {
+   *   blending: THREE.NormalBlending,
+   *   discardBackgroundColor: false,
+   *   backgroundColorTolerance: 1.0,
+   *   backgroundColor: { r: 1.0, g: 1.0, b: 1.0 },
+   *   transparent: true,
+   *   depthTest: true,
+   *   depthWrite: false
+   * }
+   */
+  renderer?: Renderer;
+
+  /**
+   * Defines the velocity settings of particles over their lifetime.
+   * Configures both linear and orbital velocity changes.
+   *
+   * @see VelocityOverLifetime
+   * @default
+   * velocityOverLifetime: {
+   *   isActive: false,
+   *   linear: {
+   *     x: 0,
+   *     y: 0,
+   *     z: 0,
+   *   },
+   *   orbital: {
+   *     x: 0,
+   *     y: 0,
+   *     z: 0,
+   *   },
+   * }
+   */
+  velocityOverLifetime?: VelocityOverLifetime;
+
+  /**
+   * Controls the size of particles over their lifetime.
+   * The size can be adjusted using a lifetime curve (Bézier or other supported types).
+   *
+   * @default
+   * sizeOverLifetime: {
+   *   isActive: false,
+   *   lifetimeCurve: {
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 0, percentage: 0 },
+   *       { x: 1, y: 1, percentage: 1 },
+   *     ],
+   *   },
+   * }
+   */
+  sizeOverLifetime?: {
+    isActive: boolean;
+    lifetimeCurve: LifetimeCurve;
+  };
+
+  /**
+   * Controls the opacity of particles over their lifetime.
+   * The opacity can be adjusted using a lifetime curve (Bézier or other supported types).
+   *
+   * @default
+   * opacityOverLifetime: {
+   *   isActive: false,
+   *   lifetimeCurve: {
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 0, percentage: 0 },
+   *       { x: 1, y: 1, percentage: 1 },
+   *     ],
+   *   },
+   * }
+   */
+  opacityOverLifetime?: {
+    isActive: boolean;
+    lifetimeCurve: LifetimeCurve;
+  };
+
+  /**
+   * Controls the color of particles over their lifetime.
+   * Each RGB channel can be adjusted independently using a lifetime curve (Bézier or easing).
+   * The curves act as multipliers (0-1 range) that are applied to the particle's start color.
+   *
+   * This follows Unity's Color over Lifetime behavior where the final color is:
+   * finalColor = startColor * colorOverLifetime
+   *
+   * **IMPORTANT**: To achieve full color transitions, set startColor to white { r: 1, g: 1, b: 1 }.
+   * If startColor has any channel set to 0, that channel cannot be modified by colorOverLifetime.
+   *
+   * @example
+   * // Rainbow effect - requires white startColor
+   * startColor: { min: { r: 1, g: 1, b: 1 }, max: { r: 1, g: 1, b: 1 } }
+   * colorOverLifetime: {
+   *   isActive: true,
+   *   r: { // Red: full -> half -> off
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 1, percentage: 0 },
+   *       { x: 0.5, y: 0.5, percentage: 0.5 },
+   *       { x: 1, y: 0, percentage: 1 },
+   *     ],
+   *   },
+   *   g: { // Green: off -> full -> off
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 0, percentage: 0 },
+   *       { x: 0.5, y: 1, percentage: 0.5 },
+   *       { x: 1, y: 0, percentage: 1 },
+   *     ],
+   *   },
+   *   b: { // Blue: off -> half -> full
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 0, percentage: 0 },
+   *       { x: 0.5, y: 0.5, percentage: 0.5 },
+   *       { x: 1, y: 1, percentage: 1 },
+   *     ],
+   *   },
+   * }
+   *
+   * @default
+   * colorOverLifetime: {
+   *   isActive: false,
+   *   r: {
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 1, percentage: 0 },
+   *       { x: 1, y: 1, percentage: 1 },
+   *     ],
+   *   },
+   *   g: {
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 1, percentage: 0 },
+   *       { x: 1, y: 1, percentage: 1 },
+   *     ],
+   *   },
+   *   b: {
+   *     type: LifeTimeCurve.BEZIER,
+   *     scale: 1,
+   *     bezierPoints: [
+   *       { x: 0, y: 1, percentage: 0 },
+   *       { x: 1, y: 1, percentage: 1 },
+   *     ],
+   *   },
+   * }
+   */
+  colorOverLifetime?: {
+    isActive: boolean;
+    r: LifetimeCurve;
+    g: LifetimeCurve;
+    b: LifetimeCurve;
+  };
+
+  /**
+   * Controls the rotation of particles over their lifetime.
+   * The rotation can be randomized between two constants, and the feature can be toggled on or off.
+   *
+   * @default
+   * rotationOverLifetime: {
+   *   isActive: false,
+   *   min: 0.0,
+   *   max: 0.0,
+   * }
+   */
+  rotationOverLifetime?: { isActive: boolean } & RandomBetweenTwoConstants;
+
+  /**
+   * Noise configuration affecting position, rotation, and size.
+   *
+   * @see NoiseConfig
+   * @default
+   * noise: {
+   *   isActive: false,
+   *   useRandomOffset: false,
+   *   strength: 1.0,
+   *   frequency: 0.5,
+   *   octaves: 1,
+   *   positionAmount: 1.0,
+   *   rotationAmount: 0.0,
+   *   sizeAmount: 0.0,
+   * }
+   */
+  noise?: NoiseConfig;
+
+  /**
+   * Maps an image onto the emitter plane to drive each particle's start color.
+   * At emission time the spawn offset (relative to the emitter, in world
+   * orientation) is projected onto the X/Z axes and used as UV coordinates
+   * into `map`; the sampled pixel replaces the configured `startColor`.
+   * Sampling happens on the CPU at emission, so it works with both the CPU
+   * and GPU simulation backends.
+   *
+   * @see ParticleColorInstanceConfig
+   */
+  particleColorInstance?: ParticleColorInstanceConfig;
+
+  /**
+   * Configures the texture sheet animation settings for particles.
+   * Controls how textures are animated over the lifetime of particles.
+   *
+   * @see TextureSheetAnimation
+   * @default
+   * textureSheetAnimation: {
+   *   tiles: new THREE.Vector2(1.0, 1.0),
+   *   timeMode: TimeMode.LIFETIME,
+   *   fps: 30.0,
+   *   startFrame: 0,
+   * }
+   */
+  textureSheetAnimation?: TextureSheetAnimation;
+
+  /**
+   * Sub-emitters that spawn child particle systems on particle lifecycle events.
+   * Each sub-emitter is triggered when a particle is born or dies, creating a new
+   * particle system at the parent particle's position.
+   *
+   * @example
+   * ```typescript
+   * subEmitters: [
+   *   {
+   *     trigger: SubEmitterTrigger.DEATH,
+   *     config: { startLifeTime: 0.5, startSpeed: 1, emission: { rateOverTime: 10 } },
+   *   },
+   * ]
+   * ```
+   */
+  subEmitters?: Array<SubEmitterConfig>;
+
+  /**
+   * Force fields that affect particle velocities.
+   * Each force field can attract, repel, or push particles in a direction.
+   * Multiple force fields are applied cumulatively.
+   *
+   * @default []
+   *
+   * @example
+   * ```typescript
+   * forceFields: [
+   *   {
+   *     type: ForceFieldType.POINT,
+   *     position: new THREE.Vector3(0, 0, 0),
+   *     strength: 5.0,
+   *     range: 10,
+   *     falloff: ForceFieldFalloff.QUADRATIC,
+   *   },
+   * ]
+   * ```
+   */
+  forceFields?: Array<ForceFieldConfig>;
+
+  /**
+   * Collision planes that constrain particle positions.
+   *
+   * Each plane defines an infinite surface in 3D space. When a particle crosses
+   * from the front side (positive normal direction) to the back side, the
+   * configured response mode is triggered: KILL (remove), CLAMP (stop at surface),
+   * or BOUNCE (reflect with energy loss).
+   *
+   * Plane positions and normals are in world space. Multiple planes are checked
+   * in order; for KILL mode, the first collision deactivates the particle.
+   *
+   * @default []
+   *
+   * @example
+   * ```typescript
+   * collisionPlanes: [
+   *   {
+   *     position: { x: 0, y: 5, z: 0 },
+   *     normal: { x: 0, y: -1, z: 0 },
+   *     mode: CollisionPlaneMode.KILL,
+   *   },
+   * ]
+   * ```
+   */
+  collisionPlanes?: Array<CollisionPlaneConfig>;
+
+  /**
+   * Called on every update frame with particle system data.
+   */
+  onUpdate?: (data: {
+    particleSystem: THREE.Points | THREE.Mesh;
+    delta: number;
+    elapsed: number;
+    lifetime: number;
+    iterationCount: number;
+  }) => void;
+
+  /**
+   * Called when the system completes an iteration.
+   */
+  onComplete?: () => void;
+};
+
+export type NormalizedParticleSystemConfig = Required<ParticleSystemConfig>;
+
+/**
+ * Tracks the state of a burst emission event.
+ * Used internally to determine when bursts should fire and how many cycles remain.
+ */
+export type BurstState = {
+  /** Number of cycles that have been executed so far */
+  cyclesExecuted: number;
+  /** Time (in ms) when the last cycle was executed */
+  lastCycleTime: number;
+  /** Whether the probability check passed for this iteration */
+  probabilityPassed: boolean;
+};
+
+export type GeneralData = {
+  particleSystemId: number;
+  normalizedLifetimePercentage: number;
+  creationTimes: Array<number>;
+  distanceFromLastEmitByDistance: number;
+  lastWorldPosition: THREE.Vector3;
+  currentWorldPosition: THREE.Vector3;
+  worldPositionChange: THREE.Vector3;
+  /**
+   * For WORLD simulation space: the full world transform of the emitter
+   * (parent.matrixWorld × particleSystem.matrix). Used to position new
+   * particles in world coordinates at emit time and to orient the
+   * emission shape. The particleSystem's own matrixWorld is forced to
+   * identity so the buffer coordinates render as world coordinates.
+   */
+  sourceWorldMatrix: THREE.Matrix4;
+  wrapperQuaternion: THREE.Quaternion;
+  worldQuaternion: THREE.Quaternion;
+  /**
+   * Emitter world scale (decomposed from the full parent chain). Used to
+   * match Unity's parent-scale semantics:
+   *   - WORLD mode: scales the shape-emission offset at spawn time (the
+   *     Shape module in Unity obeys parent scale when Scaling Mode is
+   *     Local/Hierarchy). Live particles are unaffected.
+   *   - LOCAL mode: gravity is stored in local units, so it is divided by
+   *     this scale so the rendered fall matches world -g m/s² regardless
+   *     of parent scale.
+   */
+  worldScale: THREE.Vector3;
+  worldEuler: THREE.Euler;
+  gravityVelocity: THREE.Vector3;
+  startValues: Record<string, Array<number>>;
+  linearVelocityData?: Array<{
+    speed: THREE.Vector3;
+    valueModifiers: {
+      x?: CurveFunction;
+      y?: CurveFunction;
+      z?: CurveFunction;
+    };
+  }>;
+  orbitalVelocityData?: Array<{
+    speed: THREE.Vector3;
+    positionOffset: THREE.Vector3;
+    valueModifiers: {
+      x?: CurveFunction;
+      y?: CurveFunction;
+      z?: CurveFunction;
+    };
+  }>;
+  lifetimeValues: Record<string, Array<number>>;
+  noise: Noise;
+  colorInstance?: ColorInstanceData;
+  isEnabled: boolean;
+  /** Tracks the state of each burst emission event */
+  burstStates?: Array<BurstState>;
+  /**
+   * Circular buffer storing position history for trail renderer.
+   * Each particle has `trailLength` slots of (x, y, z) positions.
+   * Only allocated when `RendererType.TRAIL` is used.
+   */
+  positionHistory?: Float32Array;
+  /** Write index per particle into the circular position history buffer. */
+  positionHistoryIndex?: Uint16Array;
+  /** Number of valid history samples per particle (fills up from 0 to trailLength). */
+  positionHistoryCount?: Uint16Array;
+  /** Trail length (number of history samples per particle). */
+  trailLength?: number;
+  /** Cached camera world position, updated each frame via onBeforeRender for billboard trails. */
+  trailCameraPosition?: THREE.Vector3;
+
+  /**
+   * Timestamp (in ms) when each trail history sample was recorded.
+   * Used by `maxTime` to expire old segments.
+   * Layout: `maxParticles * trailLength` entries.
+   */
+  trailSampleTimes?: Float64Array;
+
+  /**
+   * Last recorded position per particle for adaptive sampling (`minVertexDistance`).
+   * Layout: `maxParticles * 3` (x, y, z).
+   */
+  trailLastSampledPosition?: Float32Array;
+
+  /**
+   * Per-particle previous ribbon normal vector for twist prevention.
+   * Layout: `maxParticles * 3` (nx, ny, nz).
+   */
+  trailPrevNormal?: Float32Array;
+
+  /**
+   * Number of trail vertex-buffer slots filled per particle in the previous
+   * frame. Lets the trail update skip re-clearing slots that are already
+   * cleared (they stay invisible via zero alpha/half-width).
+   */
+  trailPrevFilledCount?: Uint16Array;
+
+  /**
+   * Highest particle index ever written on the CPU path (monotonic).
+   * The per-frame buffer flush uploads `[0, watermark]` as a single update
+   * range — a provably covering superset of every write since the last GPU
+   * upload, independent of render timing. -1 = nothing written yet.
+   */
+  cpuDirtyParticleWatermark: number;
+
+  /**
+   * Pre-resolved lifetime-curve functions for the size / opacity / color
+   * modifiers (scale already applied). Resolved once at system creation and
+   * re-resolved by `updateConfig` — evaluating these per particle per frame
+   * avoids the curve-function lookup and closure allocations of
+   * `calculateValue`. Undefined entries fall back to `calculateValue`
+   * (e.g. constant or random-range values).
+   */
+  modifierCurves?: {
+    size?: CurveFunction;
+    opacity?: CurveFunction;
+    colorR?: CurveFunction;
+    colorG?: CurveFunction;
+    colorB?: CurveFunction;
+  };
+};
+
+/** Union of all buffer attribute types Three.js uses in geometry. */
+type AnyBufferAttribute =
+  | THREE.BufferAttribute
+  | THREE.InstancedBufferAttribute
+  | THREE.InterleavedBufferAttribute;
+
+/**
+ * A view that maps standard attribute names (e.g. 'position', 'size') to
+ * their actual geometry attribute objects, which may have different names
+ * in the instanced renderer (e.g. 'instanceOffset', 'instanceSize').
+ */
+export type MappedAttributes = {
+  position: AnyBufferAttribute;
+  isActive: AnyBufferAttribute;
+  lifetime: AnyBufferAttribute;
+  startLifetime: AnyBufferAttribute;
+  startFrame: AnyBufferAttribute;
+  size: AnyBufferAttribute;
+  rotation: AnyBufferAttribute;
+  /** Packed RGBA color (vec4). */
+  color: AnyBufferAttribute;
+  /** Packed quaternion vec4 for 3D mesh rotation (only present for RendererType.MESH). */
+  quat?: AnyBufferAttribute;
+};
+
+export type ParticleSystemInstance = {
+  particleSystem: THREE.Points | THREE.Mesh;
+  mappedAttributes: MappedAttributes;
+  /** Shared interleaved Float32Array backing all scalar per-particle attributes. */
+  scalarArray: Float32Array;
+  /** The InterleavedBuffer (or InstancedInterleavedBuffer) for scalar attributes. */
+  scalarInterleavedBuffer: THREE.InterleavedBuffer;
+  elapsedUniform: { value: number };
+  generalData: GeneralData;
+  onUpdate: (data: {
+    particleSystem: THREE.Points | THREE.Mesh;
+    delta: number;
+    elapsed: number;
+    lifetime: number;
+    normalizedLifetime: number;
+    iterationCount: number;
+  }) => void;
+  onComplete: (data: { particleSystem: THREE.Points | THREE.Mesh }) => void;
+  creationTime: number;
+  lastEmissionTime: number;
+  /**
+   * Fractional particles carried over between frames by time-based emission.
+   * Prevents `Math.floor` from systematically dropping the remainder
+   * (e.g. rate 100/s at 60 FPS = 1.66 particles/frame).
+   */
+  emissionAccumulator: number;
+  duration: number;
+  looping: boolean;
+  simulationSpace: SimulationSpace;
+  gravity: number;
+  normalizedForceFields: Array<NormalizedForceFieldConfig>;
+  normalizedCollisionPlanes: Array<NormalizedCollisionPlaneConfig>;
+  emission: Emission;
+  normalizedConfig: NormalizedParticleSystemConfig;
+  iterationCount: number;
+  velocities: Array<THREE.Vector3>;
+  freeList: Array<number>;
+  deactivateParticle: (particleIndex: number) => void;
+  /**
+   * Deactivates a particle and fires death sub-emitters first (when
+   * configured). Stable per-system callback so the collision-plane hot loop
+   * does not allocate a closure per particle per frame.
+   */
+  killParticle: (particleIndex: number) => void;
+  activateParticle: (data: {
+    particleIndex: number;
+    activationTime: number;
+    position: Required<Point3D>;
+  }) => void;
+  /** Called when a particle dies to trigger death sub-emitters */
+  onParticleDeath?: (
+    particleIndex: number,
+    positionArr: THREE.TypedArray,
+    velocity: THREE.Vector3,
+    now: number
+  ) => void;
+  /** Called when a particle is born to trigger birth sub-emitters */
+  onParticleBirth?: (
+    particleIndex: number,
+    positionArr: THREE.TypedArray,
+    velocity: THREE.Vector3,
+    now: number
+  ) => void;
+  /** Trail mesh for RendererType.TRAIL */
+  trailMesh?: THREE.Mesh;
+  /** Trail geometry position attribute */
+  trailPositionAttr?: THREE.BufferAttribute;
+  /** Trail geometry alpha attribute */
+  trailAlphaAttr?: THREE.BufferAttribute;
+  /** Trail geometry color attribute */
+  trailColorAttr?: THREE.BufferAttribute;
+  /** Trail geometry next-position attribute (cached to avoid repeated getAttribute) */
+  trailNextAttr?: THREE.BufferAttribute;
+  /** Trail geometry half-width attribute (cached) */
+  trailHalfWidthAttr?: THREE.BufferAttribute;
+  /** Trail geometry UV attribute (cached) */
+  trailUVAttr?: THREE.BufferAttribute;
+  /** Trail width curve function */
+  trailWidthCurveFn?: CurveFunction;
+  /** Trail opacity curve function */
+  trailOpacityCurveFn?: CurveFunction;
+  /** Trail color-over-trail curve functions (r, g, b multipliers) */
+  trailColorOverTrailFns?: {
+    r: CurveFunction;
+    g: CurveFunction;
+    b: CurveFunction;
+  };
+  /** Trail config (length, width, and advanced features) */
+  trailConfig?: {
+    length: number;
+    width: number;
+    minVertexDistance: number;
+    maxTime: number;
+    smoothing: boolean;
+    smoothingSubdivisions: number;
+    twistPrevention: boolean;
+    ribbonId?: number;
+  };
+  /** GPU compute pipeline for WebGPU simulation. Opaque type to avoid pulling TSL types into DTS. */
+  computePipeline?: {
+    computeNode: unknown;
+    uniforms: Record<string, unknown>;
+    buffers: Record<string, unknown>;
+    forceFieldInfo: { offset: number; countUniform: unknown } | null;
+  };
+  /** Whether this system uses GPU compute for simulation. */
+  useGPUCompute?: boolean;
+  /** Flag set by update loop, consumed by onBeforeRender to dispatch compute. */
+  computeDispatchReady?: boolean;
+};
+
+/**
+ * Represents a particle system instance, providing methods to control and manage its lifecycle.
+ *
+ * @property instance - The underlying Three.js `Points` or `Mesh` object used for particle rendering.
+ * @property resumeEmitter - Resumes the particle emitter, allowing particles to be emitted again.
+ * @property pauseEmitter - Pauses the particle emitter, stopping any new particles from being emitted.
+ * @property dispose - Disposes of the particle system, cleaning up resources to free memory.
+ *
+ * @example
+ * const particleSystem: ParticleSystem = {
+ *   instance: new THREE.Points(geometry, material),
+ *   resumeEmitter: () => { /* resume logic * / },
+ *   pauseEmitter: () => { /* pause logic * / },
+ *   dispose: () => { /* cleanup logic * / },
+ * };
+ *
+ * particleSystem.pauseEmitter(); // Stop particle emission
+ * particleSystem.resumeEmitter(); // Resume particle emission
+ * particleSystem.dispose(); // Cleanup the particle system
+ */
+export type ParticleSystem = {
+  instance: THREE.Points | THREE.Mesh;
+  resumeEmitter: () => void;
+  pauseEmitter: () => void;
+  dispose: () => void;
+  update: (cycleData: CycleData) => void;
+  /**
+   * Returns the number of currently active (alive) particles. O(1) — derived
+   * from the internal free list, no buffer scan.
+   */
+  getActiveParticleCount?: () => number;
+  /** GPU compute node for WebGPU dispatch. Call `renderer.compute(computeNode)` before `renderer.render()`. Null when CPU simulation. */
+  computeNode: unknown | null;
+  /**
+   * Updates the particle system configuration at runtime without recreating the system.
+   *
+   * System-level properties (gravity, force fields, noise, emission rates, color/size/opacity
+   * over lifetime curves) take effect immediately for all particles.
+   * Per-particle spawn properties (startColor, startSize, startSpeed, startLifetime, etc.)
+   * only affect newly emitted particles — already-alive particles retain their original values.
+   *
+   * @param config - A partial configuration object. Only the provided properties will be updated;
+   *   all other settings remain unchanged.
+   *
+   * @remarks
+   * Structural properties that are set at creation time cannot be changed at runtime:
+   * `maxParticles`, `renderer.rendererType`, `shape`, and `map` (texture).
+   * Passing these will update the internal config but have no visible effect since the
+   * geometry and material are pre-allocated.
+   *
+   * **GPU compute limitation:** when the system runs on the WebGPU compute
+   * backend, modifier activation flags and lifetime curves
+   * (`sizeOverLifetime`, `opacityOverLifetime`, `colorOverLifetime`,
+   * `rotationOverLifetime`, `velocityOverLifetime`, `noise.isActive`) are
+   * baked into the compute kernel at creation and cannot be changed live —
+   * a console warning is emitted and the system must be recreated instead.
+   * On the CPU backend all of these update live.
+   *
+   * @example
+   * ```typescript
+   * const system = createParticleSystem(config);
+   *
+   * // Change wind direction in real time
+   * system.updateConfig({
+   *   forceFields: [{ type: ForceFieldType.DIRECTIONAL, direction: { x: 1, y: 0, z: 0 }, strength: 5 }],
+   * });
+   *
+   * // Gradually change color of new particles
+   * system.updateConfig({
+   *   startColor: { min: { r: 1, g: 0, b: 0 }, max: { r: 1, g: 0.5, b: 0 } },
+   * });
+   * ```
+   */
+  updateConfig: (config: Partial<ParticleSystemConfig>) => void;
+};
+
+/**
+ * Data representing the current cycle of the particle system's update loop.
+ *
+ * @property now - The current timestamp in milliseconds.
+ * @property delta - The time elapsed since the last update, in seconds.
+ * @property elapsed - The total time elapsed since the particle system started, in seconds.
+ *
+ * @example
+ * const cycleData: CycleData = {
+ *   now: performance.now(),
+ *   delta: 0.016, // 16ms frame time
+ *   elapsed: 1.25, // 1.25 seconds since start
+ * };
+ */
+export type CycleData = {
+  now: number;
+  delta: number;
+  elapsed: number;
+};
