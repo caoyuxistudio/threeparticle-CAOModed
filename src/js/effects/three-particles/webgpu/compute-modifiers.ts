@@ -30,6 +30,11 @@ import {
   mix,
   sin,
   cos,
+  acos,
+  atan,
+  clamp,
+  length,
+  normalize,
   min as tslMin,
   compute,
   type ShaderNodeObject,
@@ -111,6 +116,21 @@ export type ModifierFlags = {
   linearVelocity: boolean;
   orbitalVelocity: boolean;
   noise: boolean;
+  /** Curl-noise flow field mode: position-sampled, divergence-free. */
+  noiseCurl: boolean;
+  /**
+   * Curl strength is scaled per particle by the luminance multiplier packed
+   * into the (curl-mode-unused) noiseOffset slot of startColorsExt.w.
+   */
+  noiseLuminance: boolean;
+  /**
+   * Track each particle's direction of travel so the MESH renderer can orient
+   * itself along it. Encoded as two spherical angles into the otherwise unused
+   * w components of the position and velocity buffers — both are already bound,
+   * so this needs no extra storage binding (the compute stage is at the
+   * spec-default limit of 8).
+   */
+  trackTravelDirection: boolean;
   forceFields: boolean;
   collisionPlanes: boolean;
 };
@@ -127,6 +147,10 @@ export type ModifierUniforms = {
   noisePositionAmount: ShaderNodeObject<Node>;
   noiseRotationAmount: ShaderNodeObject<Node>;
   noiseSizeAmount: ShaderNodeObject<Node>;
+  /** Elapsed time in seconds — animates the curl-noise field. */
+  noiseTime: ShaderNodeObject<Node>;
+  /** Per-axis (x, y, z) multiplier on the position noise displacement. */
+  noiseInfluence: ShaderNodeObject<Node>;
 };
 
 /**
@@ -153,8 +177,8 @@ export type ModifierUniforms = {
 export type ModifierStorageBuffers = {
   /** Particle position (vec3). Render attribute + compute. */
   position: StorageBufferAttribute | StorageInstancedBufferAttribute;
-  /** Particle velocity (vec3). Compute-only. */
-  velocity: StorageBufferAttribute;
+  /** Particle velocity (vec3) + travel-direction azimuth in .w. */
+  velocity: StorageBufferAttribute | StorageInstancedBufferAttribute;
   /** Packed RGBA color (vec4). Render attribute + compute. */
   color: StorageBufferAttribute | StorageInstancedBufferAttribute;
   /** Packed (lifetime, size, rotation, startFrame). Render attribute + compute. */
@@ -235,7 +259,9 @@ export function createModifierStorageBuffers(
     // Position and velocity use vec4 (w=padding) to avoid WebGPU vec3→vec4
     // storage buffer alignment conversion that breaks itemSize-based type resolution.
     position: new Cls(new Float32Array(maxParticles * 4), 4),
-    velocity: new StorageBufferAttribute(new Float32Array(maxParticles * 4), 4),
+    // Uses the render-capable class so the MESH renderer can read the travel
+    // direction packed into .w; it remains the same single storage binding.
+    velocity: new Cls(new Float32Array(maxParticles * 4), 4),
     color: new Cls(new Float32Array(maxParticles * 4), 4),
     // (lifetime, size, rotation, startFrame)
     particleState: new Cls(new Float32Array(maxParticles * 4), 4),
@@ -582,6 +608,8 @@ export function createModifierComputeUpdate(
   const uNoisePosAmount = uniform(float(0));
   const uNoiseRotAmount = uniform(float(0));
   const uNoiseSizeAmount = uniform(float(0));
+  const uNoiseTime = uniform(float(0));
+  const uNoiseInfluence = uniform(new Vector3(1, 1, 1));
 
   // ── Storage buffer nodes (8 bindings, within WebGPU per-stage limit) ──
 
@@ -787,6 +815,13 @@ export function createModifierComputeUpdate(
         //
         // Either way, the kernel integrates pos += vel * dt without any
         // per-frame emitter-motion compensation.
+        // Snapshot before any movement so the frame's travel direction can be
+        // derived below — modifiers (curl noise especially) move `pos` directly
+        // rather than through `vel`, so `vel` alone is not the heading.
+        const posAtFrameStart = flags.trackTravelDirection
+          ? vec3(pos).toVar()
+          : null;
+
         pos.assign(pos.add(vel.mul(uDelta)));
 
         // Collision planes — after position update, before modifiers
@@ -962,7 +997,90 @@ export function createModifierComputeUpdate(
         }
 
         // 7. Noise (startColorsExt.w = noiseOffset)
-        if (flags.noise) {
+        if (flags.noise && flags.noiseCurl) {
+          // Curl-noise flow field: divergence-free velocity sampled at the
+          // particle's position, so nearby particles follow coherent paths.
+          // curl ψ = (∂ψz/∂y − ∂ψy/∂z, ∂ψx/∂z − ∂ψz/∂x, ∂ψy/∂x − ∂ψx/∂y)
+          // The three potential components ψx/ψy/ψz are the same simplex
+          // noise sampled at large constant offsets to decorrelate them;
+          // partials are central differences (12 snoise evaluations).
+          // Semantics: frequency = spatial scale, strength = flow speed,
+          // positionAmount * influence.xyz = per-axis amount. Displacement is
+          // delta-scaled (a true velocity field), unlike legacy noise.
+          const p = vec3(pos)
+            .mul(uNoiseFrequency)
+            .add(
+              vec3(
+                uNoiseTime.mul(0.15),
+                uNoiseTime.mul(0.11),
+                uNoiseTime.mul(0.13)
+              )
+            )
+            .toVar();
+
+          const eps = float(0.35);
+          const dx = vec3(eps, 0, 0);
+          const dy = vec3(0, eps, 0);
+          const dz = vec3(0, 0, eps);
+          const oY = vec3(31.341, -43.23, 12.34);
+          const oZ = vec3(-231.341, 124.23, -54.34);
+
+          const dpzDy = snoise3D({ v: p.add(dy).add(oZ) }).sub(
+            snoise3D({ v: p.sub(dy).add(oZ) })
+          );
+          const dpyDz = snoise3D({ v: p.add(dz).add(oY) }).sub(
+            snoise3D({ v: p.sub(dz).add(oY) })
+          );
+          const dpxDz = snoise3D({ v: p.add(dz) }).sub(
+            snoise3D({ v: p.sub(dz) })
+          );
+          const dpzDx = snoise3D({ v: p.add(dx).add(oZ) }).sub(
+            snoise3D({ v: p.sub(dx).add(oZ) })
+          );
+          const dpyDx = snoise3D({ v: p.add(dx).add(oY) }).sub(
+            snoise3D({ v: p.sub(dx).add(oY) })
+          );
+          const dpxDy = snoise3D({ v: p.add(dy) }).sub(
+            snoise3D({ v: p.sub(dy) })
+          );
+
+          const curl = vec3(
+            dpzDy.sub(dpyDz),
+            dpxDz.sub(dpzDx),
+            dpyDx.sub(dpxDy)
+          )
+            .div(eps.mul(2.0))
+            .toVar();
+
+          // startColorsExt.w carries the per-particle luminance multiplier in
+          // curl mode (the slot's noiseOffset is unused there).
+          const lumaMul = flags.noiseLuminance
+            ? sStartColorsExt.element(i).w
+            : float(1);
+
+          pos.assign(
+            pos.add(
+              curl
+                .mul(uNoiseStrength)
+                .mul(uNoisePosAmount)
+                .mul(uNoiseInfluence)
+                .mul(lumaMul)
+                .mul(uDelta)
+            )
+          );
+
+          // Rotation / size reuse the x component of the field as a scalar.
+          If(uNoiseRotAmount.greaterThan(0.001), () => {
+            ps.z.assign(
+              ps.z.add(curl.x.mul(uNoisePower).mul(uNoiseRotAmount))
+            );
+          });
+          If(uNoiseSizeAmount.greaterThan(0.001), () => {
+            ps.y.assign(
+              ps.y.add(curl.x.mul(uNoisePower).mul(uNoiseSizeAmount))
+            );
+          });
+        } else if (flags.noise) {
           const sce = sStartColorsExt.element(i);
           // Match CPU FBM input scaling: FBM internally multiplies by `this._scale = frequency`
           const noisePos = lifePct
@@ -982,7 +1100,10 @@ export function createModifierComputeUpdate(
           // Apply to position
           pos.assign(
             pos.add(
-              vec3(noiseX, noiseY, noiseZ).mul(uNoisePower).mul(uNoisePosAmount)
+              vec3(noiseX, noiseY, noiseZ)
+                .mul(uNoisePower)
+                .mul(uNoisePosAmount)
+                .mul(uNoiseInfluence)
             )
           );
 
@@ -1001,8 +1122,32 @@ export function createModifierComputeUpdate(
 
         // === WRITE BACK ===
 
-        sPosition.element(i).assign(vec4(pos, 0));
-        sVelocity.element(i).assign(vec4(vel, 0));
+        if (flags.trackTravelDirection) {
+          const travel = pos.sub(posAtFrameStart!).toVar();
+          const dist = length(travel).toVar();
+          // Below the threshold the particle has effectively not moved; keep
+          // the previous heading so a momentary stall does not snap the mesh.
+          const prevTheta = sPosition.element(i).w;
+          const prevPhi = sVelocity.element(i).w;
+          const theta = float(0).toVar();
+          const phi = float(0).toVar();
+
+          If(dist.greaterThan(1e-7), () => {
+            const dir = normalize(travel);
+            // Spherical about +Y: theta = polar angle, phi = azimuth.
+            theta.assign(acos(clamp(dir.y, float(-1), float(1))));
+            phi.assign(atan(dir.z, dir.x));
+          }).Else(() => {
+            theta.assign(prevTheta);
+            phi.assign(prevPhi);
+          });
+
+          sPosition.element(i).assign(vec4(pos, theta));
+          sVelocity.element(i).assign(vec4(vel, phi));
+        } else {
+          sPosition.element(i).assign(vec4(pos, 0));
+          sVelocity.element(i).assign(vec4(vel, 0));
+        }
         sParticleState.element(i).assign(ps);
         sOrbitalIsActive.element(i).assign(oiaVec);
 
@@ -1030,6 +1175,8 @@ export function createModifierComputeUpdate(
       noisePower: uNoisePower,
       noiseFrequency: uNoiseFrequency,
       noisePositionAmount: uNoisePosAmount,
+      noiseTime: uNoiseTime,
+      noiseInfluence: uNoiseInfluence,
       noiseRotationAmount: uNoiseRotAmount,
       noiseSizeAmount: uNoiseSizeAmount,
     },

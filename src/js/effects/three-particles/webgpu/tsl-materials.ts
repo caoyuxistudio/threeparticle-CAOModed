@@ -55,7 +55,8 @@ export function createTSLParticleMaterial(
   rendererType: RendererType,
   sharedUniforms: SharedUniforms,
   rendererConfig: RendererConfig,
-  gpuCompute = false
+  gpuCompute = false,
+  alignToVelocity = false
 ): THREE.Material {
   switch (rendererType) {
     case RendererType.INSTANCED:
@@ -68,7 +69,8 @@ export function createTSLParticleMaterial(
       return createMeshParticleTSLMaterial(
         sharedUniforms,
         rendererConfig,
-        gpuCompute
+        gpuCompute,
+        alignToVelocity
       );
     case RendererType.POINTS:
     default:
@@ -146,6 +148,16 @@ export function createComputePipeline(
         velocityOverLifetime.orbital.y !== 0 ||
         velocityOverLifetime.orbital.z !== 0),
     noise: normalizedConfig.noise.isActive,
+    noiseCurl:
+      normalizedConfig.noise.isActive && !!normalizedConfig.noise.curl,
+    noiseLuminance:
+      normalizedConfig.noise.isActive &&
+      !!normalizedConfig.noise.curl &&
+      !!normalizedConfig.particleColorInstance?.isActive &&
+      !!normalizedConfig.particleColorInstance?.useLuminanceForNoise,
+    trackTravelDirection:
+      normalizedConfig.renderer.rendererType === RendererType.MESH &&
+      !!normalizedConfig.renderer.mesh?.alignToVelocity,
     forceFields: forceFieldCount > 0,
     collisionPlanes: collisionPlaneCount > 0,
   };

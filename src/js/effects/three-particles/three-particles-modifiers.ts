@@ -252,7 +252,11 @@ export const applyModifiers = ({
       positionAmount,
       rotationAmount,
       sizeAmount,
+      influence,
     } = noise;
+    const infX = influence?.x ?? 1;
+    const infY = influence?.y ?? 1;
+    const infZ = influence?.z ?? 1;
     let noiseOnPosition;
 
     const noisePosition =
@@ -262,7 +266,8 @@ export const applyModifiers = ({
 
     noiseInput.set(noisePosition, 0, 0);
     noiseOnPosition = sampler!.get3(noiseInput);
-    positionArr[positionIndex] += noiseOnPosition * noisePower * positionAmount;
+    positionArr[positionIndex] +=
+      noiseOnPosition * noisePower * positionAmount * infX;
 
     if (rotationAmount !== 0) {
       scalarArray[base + S_ROTATION] +=
@@ -276,12 +281,12 @@ export const applyModifiers = ({
     noiseInput.set(noisePosition, noisePosition, 0);
     noiseOnPosition = sampler!.get3(noiseInput);
     positionArr[positionIndex + 1] +=
-      noiseOnPosition * noisePower * positionAmount;
+      noiseOnPosition * noisePower * positionAmount * infY;
 
     noiseInput.set(noisePosition, noisePosition, noisePosition);
     noiseOnPosition = sampler!.get3(noiseInput);
     positionArr[positionIndex + 2] +=
-      noiseOnPosition * noisePower * positionAmount;
+      noiseOnPosition * noisePower * positionAmount * infZ;
 
     if (updateFlags) updateFlags.position = true;
     else attributes.position.needsUpdate = true;

@@ -56,6 +56,7 @@ import {
 
 import {
   CollisionPlaneConfig,
+  ColorInstanceData,
   Constant,
   CurveFunction,
   CycleData,
@@ -138,7 +139,8 @@ type TSLMaterialFactory = {
       depthTest: boolean;
       depthWrite: boolean;
     },
-    gpuCompute?: boolean
+    gpuCompute?: boolean,
+    alignToVelocity?: boolean
   ) => THREE.Material;
   createTSLTrailMaterial: (
     trailUniforms: Record<string, { value: unknown }>,
@@ -545,6 +547,15 @@ const DEFAULT_PARTICLE_SYSTEM_CONFIG: ParticleSystemConfig = {
     positionAmount: 1.0,
     rotationAmount: 0.0,
     sizeAmount: 0.0,
+    curl: false,
+    influence: { x: 1.0, y: 1.0, z: 1.0 },
+  },
+  particleColorInstance: {
+    isActive: false,
+    area: { x: 0, z: 0 },
+    useAlphaForOpacity: false,
+    useLuminanceForNoise: false,
+    luminanceNoiseAmount: 0,
   },
   textureSheetAnimation: {
     tiles: new THREE.Vector2(1.0, 1.0),
@@ -619,6 +630,41 @@ const calculatePositionAndVelocity = (
         box as Required<NonNullable<ShapeConfig['box']>>
       );
       break;
+  }
+};
+
+/**
+ * Lazily extracts RGBA pixel data from the color-instance texture. Returns
+ * true once pixels are available. Retries on every call until the image has
+ * loaded; gives up permanently only when readback throws (e.g. CORS taint).
+ */
+const ensureColorInstancePixels = (ci: ColorInstanceData): boolean => {
+  if (ci.pixels) return true;
+  if (ci.failed) return false;
+  const img = ci.map?.image as
+    | { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number }
+    | undefined;
+  if (!img) return false;
+  const width = img.naturalWidth || img.width || 0;
+  const height = img.naturalHeight || img.height || 0;
+  if (!width || !height) return false;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      ci.failed = true;
+      return false;
+    }
+    ctx.drawImage(img as CanvasImageSource, 0, 0);
+    ci.pixels = ctx.getImageData(0, 0, width, height).data;
+    ci.width = width;
+    ci.height = height;
+    return true;
+  } catch {
+    ci.failed = true;
+    return false;
   }
 };
 
@@ -746,6 +792,8 @@ export const createParticleSystem = (
       positionAmount: 0,
       rotationAmount: 0,
       sizeAmount: 0,
+      curl: false,
+      influence: { x: 1, y: 1, z: 1 },
       fbmMax: 1,
     },
     isEnabled: true,
@@ -1026,6 +1074,12 @@ export const createParticleSystem = (
     positionAmount: noise.positionAmount,
     rotationAmount: noise.rotationAmount,
     sizeAmount: noise.sizeAmount,
+    curl: !!noise.curl,
+    influence: {
+      x: noise.influence?.x ?? 1,
+      y: noise.influence?.y ?? 1,
+      z: noise.influence?.z ?? 1,
+    },
     fbmMax,
     sampler: noise.isActive
       ? new FBM({
@@ -1038,6 +1092,19 @@ export const createParticleSystem = (
       ? Array.from({ length: maxParticles }, () => Math.random() * 100)
       : undefined,
   };
+
+  const colorInstanceConfig = normalizedConfig.particleColorInstance;
+  generalData.colorInstance = colorInstanceConfig?.isActive
+    ? {
+        isActive: true,
+        map: colorInstanceConfig.map,
+        areaX: colorInstanceConfig.area?.x ?? 0,
+        areaZ: colorInstanceConfig.area?.z ?? 0,
+        useAlphaForOpacity: !!colorInstanceConfig.useAlphaForOpacity,
+        useLuminanceForNoise: !!colorInstanceConfig.useLuminanceForNoise,
+        luminanceNoiseAmount: colorInstanceConfig.luminanceNoiseAmount ?? 0,
+      }
+    : undefined;
 
   // Initialize burst states if bursts are configured
   if (emission.bursts && emission.bursts.length > 0) {
@@ -1157,6 +1224,14 @@ export const createParticleSystem = (
       value: renderer.softParticles?.depthTexture ?? null,
     },
     cameraNearFar: { value: new THREE.Vector2(0.1, 1000.0) },
+    // Per-axis mesh scale (MESH renderer only); ignored by the other renderers.
+    meshScale: {
+      value: new THREE.Vector3(
+        renderer.mesh?.scale?.x ?? 1,
+        renderer.mesh?.scale?.y ?? 1,
+        renderer.mesh?.scale?.z ?? 1
+      ),
+    },
   };
 
   const getVertexShader = () => {
@@ -1222,7 +1297,8 @@ export const createParticleSystem = (
         renderer.rendererType ?? RendererType.POINTS,
         sharedUniforms,
         rendererConfig,
-        useGPUCompute
+        useGPUCompute,
+        !!renderer.mesh?.alignToVelocity
       )
     : new THREE.ShaderMaterial({
         uniforms: sharedUniforms,
@@ -1345,6 +1421,11 @@ export const createParticleSystem = (
     geometry.setAttribute(attr('color'), gpuBuf.color);
     geometry.setAttribute(attr('particleState'), gpuBuf.particleState);
     geometry.setAttribute(attr('startValues'), gpuBuf.startValues);
+    // Velocity is only needed by the vertex stage for velocity-aligned meshes;
+    // binding it unconditionally would spend a vertex buffer slot for nothing.
+    if (useMesh && renderer.mesh?.alignToVelocity) {
+      geometry.setAttribute(attr('velocity'), gpuBuf.velocity);
+    }
   } else {
     // ── CPU Path: position + interleaved scalar attributes ──
     const positionArray = new Float32Array(maxParticles * 3);
@@ -1697,6 +1778,69 @@ export const createParticleSystem = (
 
     scalarArray[base + S_LIFETIME] = 0;
 
+    // Particle Color Instance: replace the start color with an image pixel
+    // sampled by the spawn offset projected onto X/Z (world orientation).
+    // Runs after calculatePositionAndVelocity so startPositions is final, and
+    // before the GPU emit write below so the override reaches both backends.
+    // Per-particle curl-noise multiplier derived from the sampled pixel's
+    // luminance. Stays 1 (no modulation) unless the feature is on and the
+    // particle spawned inside the mapped area.
+    let colorInstanceNoiseMul = 1;
+    const ci = generalData.colorInstance;
+    if (ci?.isActive && ensureColorInstancePixels(ci)) {
+      const rectScale = normalizedConfig.shape.rectangle?.scale;
+      const areaX = ci.areaX || rectScale?.x || 1;
+      const areaZ = ci.areaZ || rectScale?.y || 1;
+      const u = startPositions[particleIndex].x / areaX + 0.5;
+      const v = startPositions[particleIndex].z / areaZ + 0.5;
+      if (u >= 0 && u <= 1 && v >= 0 && v <= 1) {
+        const w = ci.width!;
+        const px = Math.min(w - 1, (u * w) | 0);
+        const py = Math.min(ci.height! - 1, (v * ci.height!) | 0);
+        const o = (py * w + px) * 4;
+        const pixels = ci.pixels!;
+        scalarArray[base + S_COLOR_R] = sRGBToLinear(pixels[o] / 255);
+        scalarArray[base + S_COLOR_G] = sRGBToLinear(pixels[o + 1] / 255);
+        scalarArray[base + S_COLOR_B] = sRGBToLinear(pixels[o + 2] / 255);
+        generalData.startValues.startColorR[particleIndex] =
+          scalarArray[base + S_COLOR_R];
+        generalData.startValues.startColorG[particleIndex] =
+          scalarArray[base + S_COLOR_G];
+        generalData.startValues.startColorB[particleIndex] =
+          scalarArray[base + S_COLOR_B];
+        if (ci.useAlphaForOpacity) {
+          const alpha = pixels[o + 3] / 255;
+          generalData.startValues.startOpacity[particleIndex] *= alpha;
+          scalarArray[base + S_COLOR_A] =
+            generalData.startValues.startOpacity[particleIndex];
+        }
+
+        if (ci.useLuminanceForNoise) {
+          // Rec.709 luma of the sRGB pixel — perceived brightness, which is
+          // what "grayscale value" means to the eye.
+          const luma =
+            (0.2126 * pixels[o] +
+              0.7152 * pixels[o + 1] +
+              0.0722 * pixels[o + 2]) /
+            255;
+          const amount = ci.luminanceNoiseAmount;
+          // Positive amount drives motion with brightness, negative inverts it.
+          // At |amount| = 1 the damped end reaches a full stop.
+          const t = amount >= 0 ? luma : 1 - luma;
+          colorInstanceNoiseMul = 1 - Math.abs(amount) * (1 - t);
+        }
+      }
+    }
+
+    // In curl mode the noiseOffset slot is unused (the field is sampled from
+    // position + time, not a per-particle offset), so it carries the luminance
+    // multiplier instead — avoids a 9th storage binding on WebGPU.
+    const useNoiseLuma = !!(
+      generalData.noise.curl &&
+      ci?.isActive &&
+      ci.useLuminanceForNoise
+    );
+
     if (useGPUCompute && gpuPipeline) {
       // Write all particle data to GPU storage buffers.
       //
@@ -1741,9 +1885,11 @@ export const createParticleSystem = (
           rotationSpeed: generalData.lifetimeValues.rotationOverLifetime
             ? generalData.lifetimeValues.rotationOverLifetime[particleIndex]
             : 0,
-          noiseOffset: generalData.noise.offsets
-            ? generalData.noise.offsets[particleIndex]
-            : 0,
+          noiseOffset: useNoiseLuma
+            ? colorInstanceNoiseMul
+            : generalData.noise.offsets
+              ? generalData.noise.offsets[particleIndex]
+              : 0,
           startFrame: scalarArray[base + S_START_FRAME],
           orbitalOffset: {
             x: startPositions[particleIndex].x,
@@ -2365,6 +2511,12 @@ export const createParticleSystem = (
         positionAmount: n.positionAmount,
         rotationAmount: n.rotationAmount,
         sizeAmount: n.sizeAmount,
+        curl: !!n.curl,
+        influence: {
+          x: n.influence?.x ?? 1,
+          y: n.influence?.y ?? 1,
+          z: n.influence?.z ?? 1,
+        },
         fbmMax: 2 - Math.pow(2, -n.octaves),
         sampler: n.isActive
           ? new FBM({
@@ -2378,6 +2530,22 @@ export const createParticleSystem = (
             Array.from({ length: maxParticles }, () => Math.random() * 100))
           : undefined,
       };
+    }
+
+    // Re-initialize the color-instance sampler when changed
+    if (partialConfig.particleColorInstance !== undefined) {
+      const ciCfg = cfg.particleColorInstance;
+      instanceData.generalData.colorInstance = ciCfg?.isActive
+        ? {
+            isActive: true,
+            map: ciCfg.map,
+            areaX: ciCfg.area?.x ?? 0,
+            areaZ: ciCfg.area?.z ?? 0,
+            useAlphaForOpacity: !!ciCfg.useAlphaForOpacity,
+            useLuminanceForNoise: !!ciCfg.useLuminanceForNoise,
+            luminanceNoiseAmount: ciCfg.luminanceNoiseAmount ?? 0,
+          }
+        : undefined;
     }
 
     // Re-resolve pre-baked modifier curve functions — the CPU update loop
@@ -2798,6 +2966,13 @@ const updateParticleSystemInstance = (
     setUniformFloat(cp.uniforms.noisePositionAmount, noiseData.positionAmount);
     setUniformFloat(cp.uniforms.noiseRotationAmount, noiseData.rotationAmount);
     setUniformFloat(cp.uniforms.noiseSizeAmount, noiseData.sizeAmount);
+    setUniformFloat(cp.uniforms.noiseTime, elapsed);
+    setUniformVec3(
+      cp.uniforms.noiseInfluence,
+      noiseData.influence.x,
+      noiseData.influence.y,
+      noiseData.influence.z
+    );
 
     // Force-field and collision-plane uploads share the `curveData` storage
     // buffer with the per-particle init slots. A blanket `needsUpdate = true`

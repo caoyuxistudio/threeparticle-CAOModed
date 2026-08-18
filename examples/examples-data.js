@@ -1,6 +1,14 @@
 
 export const examples = [
   {
+    id: "temp-1",
+    title: "temp-1",
+    description: "Neon Rain — 200K GPU particles falling from a 12x12 rectangle emitter with noise turbulence, exported from the visual editor.",
+    tags: ["webgpu", "compute", "noise", "highParticleCount", "texture"],
+    textureId: "VORTEX",
+    config: {"transform":{"position":{"y":5},"rotation":{"x":90}},"startDelay":{"min":0,"max":0},"startLifetime":{"min":1.5,"max":3},"startSpeed":{"min":0,"max":0},"startSize":{"min":0.8,"max":2.5},"startOpacity":{"min":0.6,"max":1},"startRotation":{"min":0,"max":0},"startColor":{"max":{"r":0,"g":0,"b":0}},"simulationSpace":"WORLD","simulationBackend":"GPU","maxParticles":200000,"emission":{"rateOverTime":50000,"bursts":[]},"shape":{"shape":"RECTANGLE","rectangle":{"scale":{"x":12,"y":12}}},"renderer":{"blending":"THREE.AdditiveBlending","depthWrite":true},"velocityOverLifetime":{"linear":{"x":{"min":0,"max":0},"y":{"min":0,"max":0.2},"z":{"min":0,"max":0}},"orbital":{"x":{"min":0,"max":0},"y":{"min":0,"max":0},"z":{"min":0,"max":0}}},"sizeOverLifetime":{"isActive":true,"lifetimeCurve":{"bezierPoints":[{"x":0,"y":0.3,"percentage":0},{"x":0.1,"y":1},{"x":0.5,"y":1,"percentage":0.5},{"x":0.8,"y":0.6},{"x":1,"y":0,"percentage":1}]}},"colorOverLifetime":{"isActive":true,"r":{"bezierPoints":[{"x":0,"y":1,"percentage":0},{"x":0.3333333333333333,"y":1},{"x":0.6666666666666667,"y":1},{"x":1,"y":1,"percentage":1}]},"g":{"bezierPoints":[{"x":0,"y":1,"percentage":0},{"x":0.3333333333333333,"y":1},{"x":0.6666666666666667,"y":1},{"x":1,"y":1,"percentage":1}]},"b":{"bezierPoints":[{"x":0,"y":1,"percentage":0},{"x":0.3333333333333333,"y":1},{"x":0.6666666666666667,"y":1},{"x":1,"y":1,"percentage":1}]}},"opacityOverLifetime":{"isActive":true,"lifetimeCurve":{"bezierPoints":[{"x":0,"y":1,"percentage":0},{"x":0.3333333333333333,"y":1},{"x":0.6666666666666667,"y":0},{"x":1,"y":0,"percentage":1}]}},"noise":{"isActive":true,"useRandomOffset":true,"strength":2,"frequency":0.062,"octaves":2,"positionAmount":-0.072},"textureSheetAnimation":{"startFrame":{"min":0,"max":0}},"forceFields":[],"collisionPlanes":[]},
+  },
+  {
     id: "live-morph-showcase",
     title: "Live Morph (updateConfig)",
     description: "One CPU particle system reshaped on the fly — colors, forces, noise, and lifetime modifiers are swapped every few seconds via updateConfig() without ever rebuilding the system. Showcases runtime reconfiguration and the optimized CPU hot path at 6 000 particles.",

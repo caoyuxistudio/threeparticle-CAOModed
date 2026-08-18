@@ -56,6 +56,8 @@ export type SharedUniforms = {
   softParticlesIntensity: { value: number };
   sceneDepthTexture: { value: THREE.Texture | null };
   cameraNearFar: { value: THREE.Vector2 };
+  /** Per-axis mesh scale (MESH renderer only). */
+  meshScale?: { value: THREE.Vector3 };
   [key: string]: { value: unknown };
 };
 
@@ -94,6 +96,9 @@ export function createParticleUniforms(sharedUniforms: SharedUniforms) {
     uSoftIntensity: uniform(float(sharedUniforms.softParticlesIntensity.value)),
     uSceneDepthTex: sharedUniforms.sceneDepthTexture.value ?? dummy,
     uCameraNearFar: uniform(sharedUniforms.cameraNearFar.value),
+    uMeshScale: uniform(
+      sharedUniforms.meshScale?.value ?? new Vector3(1, 1, 1)
+    ),
   };
 }
 

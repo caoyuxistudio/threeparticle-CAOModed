@@ -597,6 +597,23 @@ export type TrailConfig = {
 export type MeshConfig = {
   /** The geometry to render for each particle. */
   geometry: THREE.BufferGeometry;
+  /**
+   * Per-axis scale multiplier applied to the mesh in its local frame, on top
+   * of the per-particle size. Applied before the particle's rotation, so a
+   * non-uniform scale stretches the shape itself instead of shearing it as the
+   * particle spins. Defaults to `{ x: 1, y: 1, z: 1 }`.
+   */
+  scale?: Point3D;
+  /**
+   * Orient each particle along its direction of travel — the mesh's local +Z
+   * axis points where the particle is heading, so an elongated shape reads as
+   * a fish or a dart rather than a tumbling block. The rotation value
+   * (`rotationOverLifetime` and the noise `rotationAmount`) then acts as roll
+   * around that heading, which gives a natural banking wobble.
+   *
+   * GPU (WebGPU compute) backend only.
+   */
+  alignToVelocity?: boolean;
 };
 
 /**
@@ -765,8 +782,65 @@ export type Noise = {
   sizeAmount: number;
   /** Pre-computed FBM normalisation divisor: `2 - 2^(-octaves)`. */
   fbmMax: number;
+  curl: boolean;
+  influence: { x: number; y: number; z: number };
   sampler?: FBM;
   offsets?: Array<number>;
+};
+
+/**
+ * Configuration for image-based per-particle start colors.
+ * The image is mapped onto the emitter's X/Z plane (centered on the emitter);
+ * each particle samples the pixel under its spawn position as its start color.
+ */
+export type ParticleColorInstanceConfig = {
+  isActive: boolean;
+  /**
+   * The image texture to sample. Not serialized — reassign after loading a
+   * saved config.
+   */
+  map?: THREE.Texture;
+  /**
+   * World-space size of the mapped area along X and Z, centered on the
+   * emitter. A value of 0 (default) auto-fits the rectangle shape's scale.
+   */
+  area?: { x?: number; z?: number };
+  /** Multiply the image's alpha channel into startOpacity. */
+  useAlphaForOpacity?: boolean;
+  /**
+   * Modulate curl-noise strength by the brightness of the sampled pixel, so the
+   * image drives *motion* as well as color. Requires `noise.curl`; the legacy
+   * (non-curl) noise mode ignores it.
+   */
+  useLuminanceForNoise?: boolean;
+  /**
+   * How strongly luminance modulates the curl noise, in the range -1..1.
+   * Positive: bright areas move at full strength, dark areas are damped.
+   * Negative: inverted — dark areas move, bright areas are damped.
+   * At 0 the modulation is a no-op. Luminance is Rec.709 luma of the sRGB
+   * pixel (`0.2126R + 0.7152G + 0.0722B`).
+   */
+  luminanceNoiseAmount?: number;
+};
+
+/**
+ * Runtime sampler state for {@link ParticleColorInstanceConfig}. Pixel data is
+ * extracted lazily on first emission once the texture image has loaded.
+ */
+export type ColorInstanceData = {
+  isActive: boolean;
+  map?: THREE.Texture;
+  areaX: number;
+  areaZ: number;
+  useAlphaForOpacity: boolean;
+  useLuminanceForNoise: boolean;
+  luminanceNoiseAmount: number;
+  /** sRGB byte pixels (RGBA), lazily extracted from `map`. */
+  pixels?: Uint8ClampedArray;
+  width?: number;
+  height?: number;
+  /** Set when pixel extraction failed permanently (e.g. CORS taint). */
+  failed?: boolean;
 };
 
 export type NoiseConfig = {
@@ -778,6 +852,18 @@ export type NoiseConfig = {
   positionAmount: number;
   rotationAmount: number;
   sizeAmount: number;
+  /**
+   * When true the position noise becomes a spatially-coherent curl-noise flow
+   * field sampled at the particle's world/local position instead of an
+   * independent per-particle curve over lifetime. Nearby particles follow
+   * similar paths (divergence-free flow). GPU backend only — the CPU backend
+   * ignores this flag. `useRandomOffset` has no effect in curl mode; the field
+   * is animated over time instead. `strength` acts as flow speed and
+   * `frequency` as the spatial scale of the field.
+   */
+  curl?: boolean;
+  /** Per-axis multiplier (0–1) applied to the position noise displacement. */
+  influence?: { x?: number; y?: number; z?: number };
 };
 
 /**
@@ -1528,6 +1614,18 @@ export type ParticleSystemConfig = {
   noise?: NoiseConfig;
 
   /**
+   * Maps an image onto the emitter plane to drive each particle's start color.
+   * At emission time the spawn offset (relative to the emitter, in world
+   * orientation) is projected onto the X/Z axes and used as UV coordinates
+   * into `map`; the sampled pixel replaces the configured `startColor`.
+   * Sampling happens on the CPU at emission, so it works with both the CPU
+   * and GPU simulation backends.
+   *
+   * @see ParticleColorInstanceConfig
+   */
+  particleColorInstance?: ParticleColorInstanceConfig;
+
+  /**
    * Configures the texture sheet animation settings for particles.
    * Controls how textures are animated over the lifetime of particles.
    *
@@ -1690,6 +1788,7 @@ export type GeneralData = {
   }>;
   lifetimeValues: Record<string, Array<number>>;
   noise: Noise;
+  colorInstance?: ColorInstanceData;
   isEnabled: boolean;
   /** Tracks the state of each burst emission event */
   burstStates?: Array<BurstState>;

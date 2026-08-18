@@ -69,6 +69,8 @@ function createMockComputePipeline(maxParticles: number) {
       noisePositionAmount: { value: 0 },
       noiseRotationAmount: { value: 0 },
       noiseSizeAmount: { value: 0 },
+      noiseTime: { value: 0 },
+      noiseInfluence: { value: new THREE.Vector3(1, 1, 1) },
     },
     buffers,
     curveDataLength: 1,

@@ -336,6 +336,18 @@ function deserializeConfig(raw: RawObject): ParticleSystemConfig {
     config.noise = raw['noise'] as ParticleSystemConfig['noise'];
   }
 
+  // particleColorInstance (plain data; the `map` texture is not serialized —
+  // reassign it after deserialization)
+  if (
+    raw['particleColorInstance'] &&
+    typeof raw['particleColorInstance'] === 'object'
+  ) {
+    const pci = { ...(raw['particleColorInstance'] as RawObject) };
+    delete pci['map'];
+    config.particleColorInstance =
+      pci as ParticleSystemConfig['particleColorInstance'];
+  }
+
   // textureSheetAnimation — reconstruct tiles Vector2, deserialize startFrame
   if (
     raw['textureSheetAnimation'] &&

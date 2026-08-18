@@ -29,8 +29,10 @@ import {
   Discard,
   If,
   max,
+  abs,
   cross,
   dot,
+  normalize,
   varyingProperty,
   uv,
   type ShaderNodeObject,
@@ -89,9 +91,12 @@ export function createMeshParticleTSLMaterial(
     depthTest: boolean;
     depthWrite: boolean;
   },
-  gpuCompute = false
+  gpuCompute = false,
+  alignToVelocity = false
 ): MeshBasicNodeMaterial {
   const u = createParticleUniforms(sharedUniforms);
+  // Velocity alignment needs the compute backend's packed travel direction.
+  const useVelocityAlign = alignToVelocity && gpuCompute;
 
   // ── Per-instance attributes ────────────────────────────────────────────────
 
@@ -102,6 +107,8 @@ export function createMeshParticleTSLMaterial(
 
   // GPU compute uses packed vec4 buffers; CPU uses individual attributes
   const aParticleState = gpuCompute ? attribute('instanceParticleState') : null;
+  /** (vx, vy, vz, travel-direction azimuth). Bound only for velocity alignment. */
+  const aVelocity = useVelocityAlign ? attribute('instanceVelocity') : null;
   const aStartValues = gpuCompute ? attribute('instanceStartValues') : null;
   /** Particle orientation as a unit quaternion (vec4: x, y, z, w). CPU path only. */
   const aInstanceQuat = gpuCompute ? null : attribute('instanceQuat');
@@ -165,11 +172,63 @@ export function createMeshParticleTSLMaterial(
         quat = aInstanceQuat!;
       }
 
-      // 1. Rotate mesh vertex position by instance quaternion
-      const rotatedPos = applyQuaternion({
-        v: positionLocal,
-        q: quat,
-      });
+      // 0. Per-axis scale in the mesh's local frame, BEFORE the rotation, so a
+      // non-uniform scale stretches the shape itself rather than shearing it
+      // along world axes as the particle spins.
+      const localPos = positionLocal.mul(u.uMeshScale);
+
+      // Velocity alignment builds an orthonormal frame from the direction of
+      // travel: local +Z maps to the heading, +X/+Y span the perpendicular
+      // plane, and the particle's rotation value becomes roll about the
+      // heading. Direction arrives as two spherical angles packed into the
+      // position (.w = polar) and velocity (.w = azimuth) buffers.
+      const buildTravelBasis = () => {
+        const theta = aInstanceOffset.w;
+        const phi = aVelocity!.w;
+        const sinT = sin(theta);
+        const forward = vec3(
+          sinT.mul(cos(phi)),
+          cos(theta),
+          sinT.mul(sin(phi))
+        ).toVar();
+
+        // Pick a reference that is never parallel to the heading, otherwise the
+        // cross product collapses and the frame flips.
+        const upRef = vec3(0, 1, 0).toVar();
+        If(abs(dot(forward, upRef)).greaterThan(0.999), () => {
+          upRef.assign(vec3(0, 0, 1));
+        });
+
+        const right = normalize(cross(upRef, forward)).toVar();
+        const upv = cross(forward, right).toVar();
+
+        // Roll about the heading, driven by the same rotation value the
+        // Z-spin path uses (rotationOverLifetime + noise rotationAmount).
+        const roll = gpuCompute ? aParticleState!.z : aRotation!;
+        const cr = cos(roll);
+        const sr = sin(roll);
+        const rolledRight = right.mul(cr).add(upv.mul(sr));
+        const rolledUp = upv.mul(cr).sub(right.mul(sr));
+
+        return { right: rolledRight, up: rolledUp, forward };
+      };
+
+      // 1. Orient the mesh vertex — either along the travel direction or by
+      // the instance quaternion (flat Z-spin).
+      let rotatedPos: ShaderNodeObject<Node>;
+      let basis: ReturnType<typeof buildTravelBasis> | null = null;
+      if (useVelocityAlign) {
+        basis = buildTravelBasis();
+        rotatedPos = basis.right
+          .mul(localPos.x)
+          .add(basis.up.mul(localPos.y))
+          .add(basis.forward.mul(localPos.z));
+      } else {
+        rotatedPos = applyQuaternion({
+          v: localPos,
+          q: quat,
+        });
+      }
 
       // 2. Scale by particle size
       const scaledPos = rotatedPos.mul(gpuCompute ? aParticleState!.y : aSize!);
@@ -182,11 +241,20 @@ export function createMeshParticleTSLMaterial(
       const mvPos = modelViewMatrix.mul(vec4(worldPos, 1.0));
       vViewZ.assign(mvPos.z.negate());
 
-      // Transform normal: rotate by quaternion then into view space
-      const rotatedNormal = applyQuaternion({
-        v: normalLocal,
-        q: quat,
-      });
+      // Transform normal: normals scale by the inverse-transpose, which for a
+      // diagonal scale is a component-wise divide, then rotate into view space.
+      const scaledNormal = normalLocal
+        .div(max(u.uMeshScale, vec3(0.0001)))
+        .normalize();
+      const rotatedNormal = basis
+        ? basis.right
+            .mul(scaledNormal.x)
+            .add(basis.up.mul(scaledNormal.y))
+            .add(basis.forward.mul(scaledNormal.z))
+        : applyQuaternion({
+            v: scaledNormal,
+            q: quat,
+          });
       const mvNormal = modelViewMatrix.mul(vec4(rotatedNormal, 0.0)).xyz;
       vNormal.assign(mvNormal.normalize());
 
