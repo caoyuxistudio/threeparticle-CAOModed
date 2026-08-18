@@ -1,0 +1,120 @@
+{
+  "startLifetime": {
+    "min": 3,
+    "max": 4
+  },
+  "startSpeed": {
+    "min": 0.8,
+    "max": 1.5
+  },
+  "startSize": {
+    "min": 0.2,
+    "max": 0.4
+  },
+  "startOpacity": {
+    "min": 0.6,
+    "max": 0.9
+  },
+  "startColor": {
+    "min": { "r": 0.05, "g": 0.02, "b": 0.1 },
+    "max": { "r": 0.15, "g": 0.05, "b": 0.2 }
+  },
+  "maxParticles": 20,
+  "emission": {
+    "rateOverTime": 5,
+    "bursts": []
+  },
+  "renderer": {
+    "rendererType": "TRAIL",
+    "blending": "THREE.NormalBlending"
+  },
+  "velocityOverLifetime": {
+    "isActive": true,
+    "orbital": {
+      "y": { "min": -0.5, "max": 0.5 }
+    }
+  },
+  "sizeOverLifetime": {
+    "lifetimeCurve": {
+      "bezierPoints": [
+        { "x": 0, "y": 0, "percentage": 0 },
+        { "x": 1, "y": 1, "percentage": 1 }
+      ]
+    }
+  },
+  "colorOverLifetime": {
+    "r": {
+      "bezierPoints": [
+        { "x": 0, "y": 1, "percentage": 0 },
+        { "x": 1, "y": 1, "percentage": 1 }
+      ]
+    },
+    "g": {
+      "bezierPoints": [
+        { "x": 0, "y": 1, "percentage": 0 },
+        { "x": 1, "y": 1, "percentage": 1 }
+      ]
+    },
+    "b": {
+      "bezierPoints": [
+        { "x": 0, "y": 1, "percentage": 0 },
+        { "x": 1, "y": 1, "percentage": 1 }
+      ]
+    }
+  },
+  "opacityOverLifetime": {
+    "lifetimeCurve": {
+      "bezierPoints": [
+        { "x": 0, "y": 0, "percentage": 0 },
+        { "x": 1, "y": 1, "percentage": 1 }
+      ]
+    }
+  },
+  "noise": {
+    "isActive": true,
+    "useRandomOffset": true,
+    "strength": 0.4,
+    "frequency": 0.3
+  },
+  "forceFields": [],
+  "_editorData": {
+    "textureId": "POINT",
+    "simulation": {
+      "movements": "DISABLED",
+      "movementSpeed": 1,
+      "rotation": "DISABLED",
+      "rotationSpeed": 1
+    },
+    "showLocalAxes": false,
+    "showWorldAxes": false,
+    "showShape": false,
+    "showForceFields": false,
+    "frustumCulled": true,
+    "useIndividualUpdate": false,
+    "enableBigNumbers": false,
+    "terrain": {
+      "textureId": "TERRAIN_DIRT",
+      "movements": "DISABLED",
+      "movementSpeed": 1,
+      "rotation": "DISABLED",
+      "rotationSpeed": 1
+    },
+    "gradientStops": [
+      { "position": 0, "color": { "r": 255, "g": 255, "b": 255, "a": 255 } },
+      { "position": 1, "color": { "r": 255, "g": 255, "b": 255, "a": 0 } }
+    ],
+    "metadata": {
+      "name": "Ink Strokes",
+      "createdAt": 1711612800000,
+      "modifiedAt": 1711612800000,
+      "editorVersion": "2.10.0"
+    },
+    "trailGradientStops": [
+      { "position": 0, "color": { "r": 255, "g": 255, "b": 255, "a": 230 } },
+      { "position": 0.25, "color": { "r": 255, "g": 255, "b": 255, "a": 183 } },
+      { "position": 0.5, "color": { "r": 255, "g": 255, "b": 255, "a": 124 } },
+      { "position": 0.75, "color": { "r": 255, "g": 255, "b": 255, "a": 61 } },
+      { "position": 1, "color": { "r": 255, "g": 255, "b": 255, "a": 0 } }
+    ]
+  }
+}
