@@ -76,6 +76,9 @@ export const particleExamples = [
   //   name: 'Ethereal Wisps',
   // },
   {
+    name: 'shanshui',
+  },
+  {
     name: 'temp-1',
   },
   {

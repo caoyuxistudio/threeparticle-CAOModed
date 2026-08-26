@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markAsEditorOnly } from './editor-layers';
 
 const INACTIVE_COLOR = 0x666666;
 const PLANE_SIZE = 3;
@@ -138,6 +139,7 @@ export const createCollisionPlaneHelpers = (
 
   collisionPlanes.forEach((config, index) => {
     const { group, centerMesh } = createPlaneHelper(config, index);
+    markAsEditorOnly(group);
     scene.add(group);
     collisionPlaneHelpers.push(group);
     collisionPlaneCenterMeshes.push(centerMesh);

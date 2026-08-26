@@ -36,6 +36,7 @@ export const TextureId = {
   WIREFRAME: 'WIREFRAME',
   VORTEX: 'VORTEX',
   BUBBLES: 'BUBBLES',
+  SHANSHUI: 'SHANSHUI',
 };
 
 type TextureConfig = {
@@ -219,5 +220,14 @@ export const textureConfigs: TextureConfig[] = [
     id: TextureId.BUBBLES,
     url: './assets/textures/bubbles.webp',
     isParticleTexture: true,
+  },
+  {
+    // A photograph rather than a sprite: the default source image for
+    // `particleColorInstance`, which samples it across the emitter to colour
+    // the cloud and — with `useLuminanceForNoise` — to drive curl strength
+    // from its light and dark. Its wide tonal range is what makes it useful
+    // here, so it is deliberately not marked `isParticleTexture`.
+    id: TextureId.SHANSHUI,
+    url: './assets/textures/shanshui.jpg',
   },
 ];

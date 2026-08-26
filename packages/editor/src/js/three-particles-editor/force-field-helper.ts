@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markAsEditorOnly } from './editor-layers';
 
 const POINT_COLOR = 0xff8800;
 const DIRECTIONAL_COLOR = 0x4488ff;
@@ -164,6 +165,7 @@ export const createForceFieldHelpers = (
         ? createDirectionalHelper(config, index)
         : createPointHelper(config, index);
 
+    markAsEditorOnly(group);
     scene.add(group);
     forceFieldHelpers.push(group);
     forceFieldCenterMeshes.push(centerMesh);

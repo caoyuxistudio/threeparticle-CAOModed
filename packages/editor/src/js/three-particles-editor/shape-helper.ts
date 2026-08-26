@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markAsEditorOnly } from './editor-layers';
 
 type ShapeConfig = {
   shape: string;
@@ -430,6 +431,7 @@ export const updateShapeHelper = (
   // Create new helper
   currentShapeHelper = createShapeHelper(shapeConfig);
   if (currentShapeHelper) {
+    markAsEditorOnly(currentShapeHelper);
     container.add(currentShapeHelper);
   }
 };

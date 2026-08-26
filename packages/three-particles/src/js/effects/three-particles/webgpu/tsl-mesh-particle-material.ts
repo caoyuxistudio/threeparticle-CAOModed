@@ -38,7 +38,7 @@ import {
   type ShaderNodeObject,
   type Node,
 } from 'three/tsl';
-import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { MeshBasicNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 
 import { ALPHA_DISCARD_THRESHOLD } from '../three-particles-constants.js';
 import {
@@ -92,8 +92,10 @@ export function createMeshParticleTSLMaterial(
     depthWrite: boolean;
   },
   gpuCompute = false,
-  alignToVelocity = false
-): MeshBasicNodeMaterial {
+  alignToVelocity = false,
+  lit = false,
+  emissive = 0
+): MeshBasicNodeMaterial | MeshStandardNodeMaterial {
   const u = createParticleUniforms(sharedUniforms);
   // Velocity alignment needs the compute backend's packed travel direction.
   const useVelocityAlign = alignToVelocity && gpuCompute;
@@ -306,12 +308,16 @@ export function createMeshParticleTSLMaterial(
       uBgTolerance: u.uBgTolerance,
     });
 
-    // Simple directional lighting from camera direction (+Z in view space).
-    // lightIntensity = 0.5 + 0.5 * max(dot(vNormal, vec3(0,0,1)), 0.0)
-    const lightIntensity = float(0.5).add(
-      float(0.5).mul(max(dot(vNormal, vec3(0.0, 0.0, 1.0)), float(0.0)))
-    );
-    outColor.assign(vec4(outColor.xyz.mul(lightIntensity), outColor.w));
+    // Unlit mode fakes a headlight so particles are not flat. In lit mode the
+    // real lighting model shades them instead, so applying this too would
+    // double up.
+    if (!lit) {
+      // lightIntensity = 0.5 + 0.5 * max(dot(vNormal, vec3(0,0,1)), 0.0)
+      const lightIntensity = float(0.5).add(
+        float(0.5).mul(max(dot(vNormal, vec3(0.0, 0.0, 1.0)), float(0.0)))
+      );
+      outColor.assign(vec4(outColor.xyz.mul(lightIntensity), outColor.w));
+    }
 
     // Soft particles — fade out fragments that are close to opaque scene geometry
     const softFade = computeSoftParticleFade({
@@ -329,7 +335,10 @@ export function createMeshParticleTSLMaterial(
 
   // ── Material assembly ──────────────────────────────────────────────────────
 
-  const material = new MeshBasicNodeMaterial();
+  // Standard material takes part in the scene's lights, environment and light
+  // probes; Basic ignores them entirely. Particles opt out of shadows either
+  // way — the shadow pass cannot run this material's vertexNode.
+  const material = lit ? new MeshStandardNodeMaterial() : new MeshBasicNodeMaterial();
   material.transparent = rendererConfig.transparent;
   material.blending = rendererConfig.blending;
   material.depthTest = rendererConfig.depthTest;
@@ -340,6 +349,26 @@ export function createMeshParticleTSLMaterial(
   // vertexNode receives a clip-space vec4 (manual MVP to avoid double-transform)
   material.vertexNode = vertexSetup;
   material.colorNode = fragmentColor;
+
+  if (lit) {
+    // The built-in normal pipeline derives from normalLocal and the normal
+    // matrix, which knows nothing about the per-instance rotation applied in
+    // vertexNode. Feed it the view-space normal already computed there, which
+    // is the space `normalNode` expects.
+    (material as MeshStandardNodeMaterial).normalNode = vNormal;
+    (material as MeshStandardNodeMaterial).roughness = 0.65;
+    (material as MeshStandardNodeMaterial).metalness = 0.0;
+
+    if (emissive > 0) {
+      // Each particle glows in its own colour — including the colour sampled
+      // from a Particle Color Instance image — so the cloud reads as a light
+      // source. An environment capture taken with the particles visible then
+      // carries that colour out to the surrounding surfaces.
+      (material as MeshStandardNodeMaterial).emissiveNode = vColor.xyz.mul(
+        float(emissive)
+      );
+    }
+  }
 
   return material;
 }

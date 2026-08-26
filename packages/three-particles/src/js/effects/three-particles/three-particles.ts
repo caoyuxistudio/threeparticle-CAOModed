@@ -140,7 +140,9 @@ type TSLMaterialFactory = {
       depthWrite: boolean;
     },
     gpuCompute?: boolean,
-    alignToVelocity?: boolean
+    alignToVelocity?: boolean,
+    lit?: boolean,
+    emissive?: number
   ) => THREE.Material;
   createTSLTrailMaterial: (
     trailUniforms: Record<string, { value: unknown }>,
@@ -1298,7 +1300,9 @@ export const createParticleSystem = (
         sharedUniforms,
         rendererConfig,
         useGPUCompute,
-        !!renderer.mesh?.alignToVelocity
+        !!renderer.mesh?.alignToVelocity,
+        !!renderer.mesh?.lit,
+        renderer.mesh?.emissive ?? 0
       )
     : new THREE.ShaderMaterial({
         uniforms: sharedUniforms,

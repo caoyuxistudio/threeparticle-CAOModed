@@ -5,6 +5,9 @@ import { TextureId } from './texture-config';
  * Used for sorting textures by date (newest first)
  */
 export const textureMetadata: Record<string, { addedDate: string }> = {
+  // 2026-08-26
+  [TextureId.SHANSHUI]: { addedDate: '2026-08-26' },
+
   // 2026-01-30 - Latest additions
   [TextureId.SNOWFLAKE_DETAILED]: { addedDate: '2026-01-30' },
 

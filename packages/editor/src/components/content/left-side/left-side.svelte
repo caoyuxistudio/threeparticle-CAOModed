@@ -3,6 +3,7 @@
   import Examples from '../examples/examples.svelte';
   import Library from '../library/library.svelte';
   import Textures from '../textures/textures.svelte';
+  import Scene from '../scene/scene.svelte';
   import { onMount } from 'svelte';
 
   const STORAGE_KEY = 'leftPanelCollapsed';
@@ -19,6 +20,10 @@
     {
       icon: 'texture',
       label: 'Texture',
+    },
+    {
+      icon: 'category',
+      label: 'Scene',
     },
   ].map((entry, index) => ({ ...entry, index }));
   let active = $state(tabs[0]);
@@ -81,6 +86,8 @@
       <Library />
     {:else if active.index === 2}
       <Textures />
+    {:else if active.index === 3}
+      <Scene />
     {/if}
   </div>
 

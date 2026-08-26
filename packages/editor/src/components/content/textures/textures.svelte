@@ -41,7 +41,9 @@
     const randomId = Math.floor(Math.random() * 100000000);
     const entry = {
       url,
-      name: `ImageTexture-${Math.floor(Math.random() * 1000)}`,
+      // 1000 names collide after a few dozen uploads (birthday bound), which
+      // makes a config's embedded texture bind to an unrelated local image.
+      name: `ImageTexture-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       id: randomId,
     };
     rawList.unshift(entry);

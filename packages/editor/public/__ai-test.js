@@ -1,0 +1,201 @@
+/**
+ * Throwaway verification harness. Not part of the app, not committed
+ * (public/__ai-* is gitignored). Nothing imports it; it is fetched and eval'd
+ * from the console after a reload:
+ *
+ *   await fetch('/__ai-test.js').then(r=>r.text()).then(eval); __t.report()
+ *
+ * It exists so a change can be checked in two tool calls instead of twenty
+ * clicks and screenshots.
+ */
+(() => {
+  const FIXTURE = 'ForAITEST';
+  const KEY_SAVED = 'three-particles-saved-configs';
+  const KEY_SCENE = 'particle-system-editor/scene-objects';
+
+  const errs = [];
+  addEventListener('error', (e) => errs.push('error: ' + e.message));
+  addEventListener('unhandledrejection', (e) =>
+    errs.push('rejection: ' + (e.reason?.message || e.reason))
+  );
+
+  /**
+   * Reinstalls the fixture from the copy kept in the repo.
+   *
+   * A saved config normally lives only in one browser's localStorage, which any
+   * profile reset or crash wipes. The repo copy is the durable one, so recovery
+   * is a page reload rather than an afternoon of rebuilding a scene by hand.
+   */
+  const seed = async () => {
+    const file = await (await fetch('/fixtures/for-ai-test.json')).json();
+    const all = JSON.parse(localStorage.getItem(KEY_SAVED) || '[]').filter((c) => c.name !== file.name);
+    all.push({
+      id: 'config-fixture-for-ai-test',
+      name: file.name,
+      config: file.config,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      editorVersion: file.config._editorData.metadata.editorVersion,
+    });
+    localStorage.setItem(KEY_SAVED, JSON.stringify(all));
+    localStorage.setItem(KEY_SCENE, JSON.stringify(file.config._editorData.sceneObjects));
+    return `seeded ${file.name}: ${file.config._editorData.sceneObjects.length} objects — reload to mount`;
+  };
+
+  /** The saved config, deep-cloned so a load can't mutate the stored copy. */
+  const fixture = (name = FIXTURE) => {
+    const all = JSON.parse(localStorage.getItem(KEY_SAVED) || '[]');
+    const hit = all.find((c) => (c.name || c.config?._editorData?.metadata?.name) === name);
+    return hit ? structuredClone(hit.config || hit) : null;
+  };
+
+  /**
+   * What scene-objects.ts currently holds. Reading localStorage rather than the
+   * module: persist() writes on every change, so this is the same array that
+   * serializeConfig would embed, and it needs no hook in the app.
+   */
+  const storedScene = () => JSON.parse(localStorage.getItem(KEY_SCENE) || '[]');
+
+  /** Live THREE objects, to catch mounts that leak or never happen. */
+  const live = () => {
+    const scene = window.__world?.scene;
+    if (!scene) return { error: 'no window.__world' };
+    const c = { box: 0, sphere: 0, point: 0, dir: 0, probe: 0 };
+    scene.children.forEach((o) => {
+      if (o.isLightProbe) c.probe++;
+      else if (o.isDirectionalLight) c.dir++;
+      else if (o.isPointLight) c.point++;
+      else if (o.isMesh && o.geometry?.type === 'BoxGeometry') c.box++;
+      else if (o.isMesh && o.geometry?.type === 'SphereGeometry') c.sphere++;
+    });
+    const targets = new Set(scene.children.filter((o) => o.isDirectionalLight).map((l) => l.target));
+    c.orphanTargets = scene.children.filter((o) => targets.has(o)).length - c.dir;
+    return c;
+  };
+
+  const load = (name = FIXTURE) => {
+    const cfg = fixture(name);
+    if (!cfg) throw new Error('no saved config named ' + name);
+    errs.length = 0;
+    window.editor.load(cfg);
+    return cfg;
+  };
+
+  /** Field-by-field diff, so a report names what drifted instead of "not equal". */
+  const diff = (a, b, path = '', out = []) => {
+    if (a === b) return out;
+    const plain = (v) => v && typeof v === 'object';
+    if (!plain(a) || !plain(b)) {
+      if (JSON.stringify(a) !== JSON.stringify(b)) out.push(`${path}: ${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
+      return out;
+    }
+    new Set([...Object.keys(a), ...Object.keys(b)]).forEach((k) => diff(a[k], b[k], path ? `${path}.${k}` : k, out));
+    return out;
+  };
+
+  /**
+   * Loads the fixture and checks it arrived intact. Everything here is an
+   * invariant the fixture is built to exercise, so a regression anywhere in
+   * save/load shows up as a named FAIL rather than a blank screen.
+   */
+  const report = (name = FIXTURE) => {
+    const cfg = load(name);
+    const want = cfg._editorData.sceneObjects;
+    const got = storedScene();
+    const l = live();
+    const ed = window.editor.getCurrentParticleSystemConfig()._editorData;
+    const mesh = window.editor.getCurrentParticleSystemConfig().renderer?.mesh;
+
+    const lines = [];
+    const check = (label, ok, detail = '') => lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+
+    check('scene object count', got.length === want.length, `${got.length}/${want.length}`);
+    check('scene data identical', diff(want, got).length === 0, diff(want, got).slice(0, 4).join(' | '));
+    check('live boxes', l.box === want.filter((o) => o.type === 'BOX').length, `${l.box}`);
+    check('live spheres', l.sphere === want.filter((o) => o.type === 'SPHERE').length, `${l.sphere}`);
+    check('live point lights', l.point === want.filter((o) => o.type === 'POINT_LIGHT').length, `${l.point}`);
+    check('live probes', l.probe === want.filter((o) => o.type === 'LIGHT_PROBE').length, `${l.probe}`);
+    check('no orphaned light targets', l.orphanTargets === 0, `${l.orphanTargets}`);
+    check('sceneObjects stripped from live config', !('sceneObjects' in ed));
+    check('mesh.lit preserved', mesh?.lit === cfg.renderer?.mesh?.lit, `${mesh?.lit}`);
+    check('mesh.emissive preserved', mesh?.emissive === cfg.renderer?.mesh?.emissive, `${mesh?.emissive}`);
+
+    const wantTex = cfg._editorData.colorInstanceTextureId;
+    const gotTex = ed.colorInstanceTextureId;
+    check('colour texture bound', !!gotTex, `${wantTex} -> ${gotTex}`);
+    check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
+
+    const failed = lines.filter((s) => s.startsWith('FAIL')).length;
+    return [`${name}: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
+  /**
+   * Which top-level objects the output camera can still see. The layer split is
+   * the whole point of the preview, so it is checked by asking a layer-0 mask
+   * rather than by trusting that every helper remembered to mark itself.
+   */
+  const layerSplit = () => {
+    const scene = window.__world.scene;
+    const artworkOnly = new window.__world.THREE.Layers();
+    artworkOnly.set(0);
+    const seen = [];
+    const hidden = [];
+    scene.children.forEach((o) => {
+      const label = `${o.type}${o.material ? '/' + o.material.type : ''}`;
+      (o.layers.test(artworkOnly) ? seen : hidden).push(label);
+    });
+    return { seen, hidden };
+  };
+
+  /** Camera-specific checks, run on top of report()'s fixture load. */
+  const cameraReport = () => {
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+
+    const split = layerSplit();
+    const leaked = split.seen.filter((l) => /Basic|Line|AxesHelper/.test(l));
+    check('no editor furniture on the artwork layer', leaked.length === 0, leaked.join(','));
+    check('furniture is actually marked', split.hidden.length >= 7, `${split.hidden.length} hidden`);
+    check('editor camera sees everything', window.__world.camera.layers.mask === -1 >>> 0 || window.__world.camera.layers.mask === -1);
+
+    const cams = storedScene().filter((o) => o.type === 'CAMERA');
+    const active = window.__world.getOutputCamera();
+    check('camera count', cams.length > 0, `${cams.length}`);
+    if (cams.length) {
+      const c = cams[0];
+      check('camera has a lens', c.fov > 0 && c.near > 0 && c.far > c.near, `fov ${c.fov} near ${c.near} far ${c.far}`);
+      check('camera has an aspect', !!c.aspect, `${(c.aspect || 0).toFixed(3)}`);
+      check('camera has a rotation', !!c.rotation, JSON.stringify(c.rotation));
+      check('output camera wired to world', !!active, active ? `fov ${active.fov}` : 'null');
+      check('output camera only sees artwork', active ? active.layers.mask === 1 : false, active ? String(active.layers.mask) : '-');
+      const frustums = window.__world.scene.children.filter((o) => o.type === 'CameraHelper');
+      check('frustum helper present', frustums.length === cams.length, `${frustums.length}`);
+      check(
+        'frustum helper kept out of output',
+        frustums.every((f) => !f.layers.test((() => { const l = new window.__world.THREE.Layers(); l.set(0); return l; })()))
+      );
+    }
+
+    const failed = lines.filter((s) => s.startsWith('FAIL')).length;
+    return [`camera: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
+  window.__t = {
+    seed,
+    fixture,
+    storedScene,
+    live,
+    load,
+    diff,
+    report,
+    layerSplit,
+    cameraReport,
+    errs,
+  };
+  const missing = !fixture();
+  return (
+    'harness ready: __t.report() | __t.cameraReport() | __t.load() | __t.seed() | __t.errs' +
+    (missing ? '\n!! ForAITEST missing from this browser — run: await __t.seed() then reload' : '')
+  );
+})();

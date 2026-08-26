@@ -614,6 +614,20 @@ export type MeshConfig = {
    * GPU (WebGPU compute) backend only.
    */
   alignToVelocity?: boolean;
+  /**
+   * Shade the particles with the scene's real lights, environment and light
+   * probes instead of the built-in fake headlight. Off by default so existing
+   * configs keep their look — a lit particle in a scene with no lights is
+   * black.
+   *
+   * GPU (WebGPU) backend only.
+   */
+  lit?: boolean;
+  /**
+   * Adds self-illumination in the particle's own colour, so the cloud acts as a
+   * light source rather than only receiving light. Requires `lit`. 0 disables.
+   */
+  emissive?: number;
 };
 
 /**

@@ -7,6 +7,7 @@ import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { updateShapeHelper } from '../shape-helper';
 import { updateForceFieldHelperVisibility } from './force-field-entries';
 import { updateCollisionPlaneHelperVisibility } from './collision-plane-entries';
+import { markAsEditorOnly } from '../editor-layers';
 
 const worldAxesHelper = new THREE.AxesHelper(5);
 const localAxesHelper = new THREE.AxesHelper(1);
@@ -135,6 +136,7 @@ export const createHelperEntries = ({
   const updateLocalAxesHelper = (): void => {
     if (particleSystemContainer)
       if (particleSystemConfig._editorData.showLocalAxes) {
+        markAsEditorOnly(localAxesHelper);
         particleSystemContainer.add(localAxesHelper);
       } else {
         particleSystemContainer.remove(localAxesHelper);
@@ -148,6 +150,7 @@ export const createHelperEntries = ({
 
   const updateWorldAxesHelper = (): void => {
     if (particleSystemConfig._editorData.showWorldAxes) {
+      markAsEditorOnly(worldAxesHelper);
       scene.add(worldAxesHelper);
     } else {
       scene.remove(worldAxesHelper);

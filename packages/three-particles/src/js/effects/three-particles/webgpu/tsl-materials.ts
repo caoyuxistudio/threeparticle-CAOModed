@@ -56,7 +56,9 @@ export function createTSLParticleMaterial(
   sharedUniforms: SharedUniforms,
   rendererConfig: RendererConfig,
   gpuCompute = false,
-  alignToVelocity = false
+  alignToVelocity = false,
+  lit = false,
+  emissive = 0
 ): THREE.Material {
   switch (rendererType) {
     case RendererType.INSTANCED:
@@ -70,7 +72,9 @@ export function createTSLParticleMaterial(
         sharedUniforms,
         rendererConfig,
         gpuCompute,
-        alignToVelocity
+        alignToVelocity,
+        lit,
+        emissive
       );
     case RendererType.POINTS:
     default:

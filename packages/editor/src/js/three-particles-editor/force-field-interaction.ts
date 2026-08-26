@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { getCamera, getRendererDomElement, getOrbitControls } from './world';
 import { getForceFieldCenterMeshes, getForceFieldHelpers } from './force-field-helper';
+import { markAsEditorOnly } from './editor-layers';
 
 let transformControls: TransformControls | null = null;
 let activeForceFieldIndex: number | null = null;
@@ -75,7 +76,9 @@ const selectForceField = (index: number): void => {
   const helper = helpers[index];
 
   transformControls.attach(helper);
-  scene.add(transformControls.getHelper());
+  const gizmo = transformControls.getHelper();
+  markAsEditorOnly(gizmo);
+  scene.add(gizmo);
 };
 
 export const deselectForceField = (): void => {

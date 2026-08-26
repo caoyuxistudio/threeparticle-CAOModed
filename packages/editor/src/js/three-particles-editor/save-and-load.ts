@@ -4,29 +4,45 @@ import { convertToNewFormat } from './config-converter';
 import { showLegacyConfigModal } from './showLegacyConfigModal';
 import { ObjectUtils } from '@newkrok/three-utils';
 import { setTerrain } from './world';
-import { getTexture } from './assets';
+import { getTexture, loadCustomAssets } from './assets';
+import { getSceneObjects, replaceSceneObjects } from './scene-objects';
 
 const { deepMerge } = ObjectUtils;
 import { showSuccessSnackbar } from '../stores/snackbar-store';
 
+const isPlainObject = (value) =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Diffs a live config against the defaults, keeping only what differs.
+ *
+ * Walks the union of both objects' keys. Iterating only the defaults used to
+ * mean anything the editor adds at runtime — `renderer.rendererType` and the
+ * whole `renderer.mesh` block (geometry type, scale, alignToVelocity) — was
+ * never even looked at, so it silently vanished from every save and copy.
+ */
 export const getObjectDiff = (objectA, objectB, config = { skippedProperties: [] }) => {
   const result = {};
-  Object.keys(objectA).forEach((key) => {
-    if (!config.skippedProperties || !config.skippedProperties.includes(key)) {
-      if (
-        typeof objectA[key] === 'object' &&
-        objectA[key] &&
-        objectB[key] &&
-        !Array.isArray(objectA[key])
-      ) {
-        const objectDiff = getObjectDiff(objectA[key], objectB[key], config);
-        if (Object.keys(objectDiff).length > 0) result[key] = objectDiff;
-      } else {
-        const mergedValue = objectB[key] ?? objectA[key];
-        if (mergedValue !== objectA[key]) result[key] = mergedValue;
-      }
+  const keys = new Set([...Object.keys(objectA || {}), ...Object.keys(objectB || {})]);
+
+  keys.forEach((key) => {
+    if (config.skippedProperties && config.skippedProperties.includes(key)) return;
+
+    const a = objectA ? objectA[key] : undefined;
+    const b = objectB ? objectB[key] : undefined;
+
+    // Recurse whenever the live value is a plain object, including keys the
+    // defaults never had — otherwise a new branch would be copied wholesale and
+    // carry non-serialisable THREE objects (mesh.geometry) straight into JSON.
+    if (isPlainObject(b) && (isPlainObject(a) || a === undefined)) {
+      const objectDiff = getObjectDiff(a || {}, b, config);
+      if (Object.keys(objectDiff).length > 0) result[key] = objectDiff;
+    } else {
+      const mergedValue = b ?? a;
+      if (mergedValue !== a) result[key] = mergedValue;
     }
   });
+
   return result;
 };
 
@@ -69,14 +85,69 @@ const serializeSubEmitters = (subEmitters: any[] | undefined): any[] | undefined
   });
 };
 
-export const copyToClipboard = (particleSystemConfig) => {
-  const type = 'text/plain';
+const CUSTOM_TEXTURE_KEYS = [
+  'particle-system-editor/library',
+  'particle-system-editor/image-textures',
+];
+
+const readCustomTextures = () => {
+  const all: Record<string, string> = {};
+  CUSTOM_TEXTURE_KEYS.forEach((key) => {
+    try {
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      if (Array.isArray(list)) list.forEach(({ name, url }) => (all[name] = url));
+    } catch {
+      /* ignore an unreadable list */
+    }
+  });
+  return all;
+};
+
+/**
+ * Embeds the data URLs of any *uploaded* textures the config refers to.
+ *
+ * A config only stores texture *names*; the pixels live in the browser's
+ * localStorage, so a config moved to another browser — or to a display client —
+ * silently loses its imagery. Built-in textures ship with the app and are left
+ * as plain names.
+ */
+const collectEmbeddedTextures = (editorData) => {
+  const custom = readCustomTextures();
+  const embedded: Record<string, string> = {};
+  [editorData?.textureId, editorData?.colorInstanceTextureId].forEach((id) => {
+    if (id && custom[id]) embedded[id] = custom[id];
+  });
+  return Object.keys(embedded).length > 0 ? embedded : undefined;
+};
+
+/**
+ * Turns the live config into a clean, saveable object: only what differs from
+ * the defaults, with the non-serialisable THREE objects (textures, geometry,
+ * depth texture) left out and force fields / collision planes / sub-emitters
+ * reduced to plain data.
+ *
+ * Saving and copying both go through this so what the save dialog shows is
+ * exactly what gets stored.
+ */
+export const serializeConfig = (particleSystemConfig) => {
+  const editorData = { ...particleSystemConfig._editorData };
+  const embeddedTextures = collectEmbeddedTextures(editorData);
+  if (embeddedTextures) editorData.embeddedTextures = embeddedTextures;
+  else delete editorData.embeddedTextures;
+
+  // The scene the emitter sits in — its lights, boxes and probes. It lives in
+  // scene-objects.ts rather than on the config, so it is read from there at
+  // save time instead of trusting whatever a previous load left behind.
+  //
+  // Written even when empty: an empty scene is a scene, and the loader treats a
+  // missing key as "this file predates scenes, leave mine alone".
+  editorData.sceneObjects = structuredClone(getSceneObjects());
 
   const serialized: any = {
     ...getObjectDiff(getDefaultParticleSystemConfig(), particleSystemConfig, {
       skippedProperties: ['map', 'geometry', 'depthTexture'],
     }),
-    _editorData: { ...particleSystemConfig._editorData },
+    _editorData: editorData,
   };
 
   // Include force fields if present
@@ -115,10 +186,14 @@ export const copyToClipboard = (particleSystemConfig) => {
     serialized.subEmitters = subEmitters;
   }
 
-  const blob = new Blob([JSON.stringify(serialized)], { type: 'text/plain' });
-  const data = [new ClipboardItem({ [type]: blob })];
+  return serialized;
+};
 
-  navigator.clipboard.write(data);
+export const copyToClipboard = (particleSystemConfig) => {
+  const blob = new Blob([JSON.stringify(serializeConfig(particleSystemConfig))], {
+    type: 'text/plain',
+  });
+  navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
 };
 
 export const loadFromClipboard = ({
@@ -144,6 +219,89 @@ export const loadFromClipboard = ({
       // Handle clipboard read error silently
       // In a production app, we might want to show a notification to the user
     });
+};
+
+/**
+ * Imports textures embedded in a loaded config into the user's own library, so
+ * a config brought in from elsewhere arrives complete instead of referring to
+ * images this browser has never seen. Names already present win — the local
+ * copy is left alone.
+ *
+ * @returns true when something new was registered and its GPU texture is still
+ *   loading, so the caller knows to refresh once it lands.
+ */
+/**
+ * Imports the textures a config carries with it into the local library.
+ *
+ * Names can collide: uploads are named `ImageTexture-<n>`, so a config from
+ * another browser can name an image that already exists here as something
+ * else entirely. Yielding to the local one silently swaps in the wrong picture,
+ * so a colliding name is imported under a fresh one instead and the config's
+ * references are rewritten — returned in `renamed`.
+ */
+const importEmbeddedTextures = (
+  embedded,
+  onReady: () => void
+): { pending: boolean; renamed: Record<string, string> } => {
+  const renamed: Record<string, string> = {};
+  if (!embedded || typeof embedded !== 'object') return { pending: false, renamed };
+
+  const KEY = 'particle-system-editor/image-textures';
+  let stored: any[] = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(KEY) || '[]');
+    if (Array.isArray(parsed)) stored = parsed;
+  } catch {
+    /* start from an empty list if it is unreadable */
+  }
+
+  const urlOf = (name: string): string | undefined =>
+    (getTexture(name) as any)?.url ?? stored.find((e) => e.name === name)?.url;
+
+  const taken = (name: string): boolean =>
+    !!getTexture(name) || stored.some((e) => e.name === name);
+
+  const freshName = (base: string): string => {
+    let candidate: string;
+    do {
+      candidate = `${base}-${Math.random().toString(36).slice(2, 8)}`;
+    } while (taken(candidate) || candidate in renamed);
+    return candidate;
+  };
+
+  const added: Array<[string, string]> = [];
+  Object.entries(embedded).forEach(([name, url]) => {
+    const existing = urlOf(name);
+    // Already here, pixel for pixel — nothing to do.
+    if (existing === url) return;
+    if (existing === undefined && !taken(name)) {
+      added.push([name, url as string]);
+      return;
+    }
+    // Same name, different image: keep both.
+    const fresh = freshName(name);
+    renamed[name] = fresh;
+    added.push([fresh, url as string]);
+  });
+
+  if (added.length === 0) return { pending: false, renamed };
+
+  added.forEach(([name, url]) =>
+    stored.unshift({ id: Math.floor(Math.random() * 100000000), name, url })
+  );
+
+  try {
+    localStorage.setItem(KEY, JSON.stringify(stored));
+  } catch {
+    // Out of quota — the textures still register for this session below.
+    showSuccessSnackbar('Textures imported for this session only (storage full)');
+  }
+
+  loadCustomAssets({
+    textures: added.map(([name, url]) => ({ id: name, url })),
+    onComplete: onReady,
+  });
+  return { pending: true, renamed };
 };
 
 export const loadParticleSystem = ({
@@ -215,17 +373,55 @@ export const loadParticleSystem = ({
     skippedProperties: ['map', 'geometry', 'depthTexture'],
     applyToFirstObject: true,
   });
-  // Restore map texture from _editorData.textureId before recreating,
-  // since map (THREE.Texture) is not serializable and gets lost during reset
-  if (particleSystemConfig._editorData?.textureId) {
-    const texture = getTexture(particleSystemConfig._editorData.textureId);
-    if (texture) {
-      particleSystemConfig.map = texture.map;
+  // Textures the config carries with it are imported into the local library
+  // first, so the name-based restore below can find them like any other upload.
+  const applyTextures = () => {
+    if (particleSystemConfig._editorData?.textureId) {
+      const texture = getTexture(particleSystemConfig._editorData.textureId);
+      if (texture) {
+        particleSystemConfig.map = texture.map;
+      }
     }
-  }
+    if (particleSystemConfig._editorData?.colorInstanceTextureId) {
+      const texture = getTexture(particleSystemConfig._editorData.colorInstanceTextureId);
+      if (texture && particleSystemConfig.particleColorInstance) {
+        particleSystemConfig.particleColorInstance.map = texture.map;
+      }
+    }
+  };
+
+  const { pending: stillDecoding, renamed } = importEmbeddedTextures(
+    particleSystemConfig._editorData?.embeddedTextures,
+    () => {
+      // Re-apply once the imported images have become GPU textures.
+      applyTextures();
+      recreateParticleSystem(false);
+    }
+  );
+
+  // Point the config at the names the images actually landed under.
+  const editorData = particleSystemConfig._editorData;
+  (['textureId', 'colorInstanceTextureId'] as const).forEach((key) => {
+    const id = editorData?.[key];
+    if (id && renamed[id]) editorData[key] = renamed[id];
+  });
+
+  applyTextures();
+
+  // The scene travels inside _editorData but is owned by scene-objects.ts, so
+  // hand it over there and drop the copy — leaving one on the live config would
+  // let a stale scene be re-saved later.
+  //
+  // Read from the incoming config rather than the merged one: a config written
+  // before scenes were saved has no sceneObjects key at all, and that has to
+  // mean "leave the current scene alone", not "clear it".
+  const loadedScene = config?._editorData?.sceneObjects;
+  if (Array.isArray(loadedScene)) replaceSceneObjects(loadedScene);
+  delete particleSystemConfig._editorData.sceneObjects;
 
   setTerrain(particleSystemConfig._editorData.terrain?.textureId);
   recreateParticleSystem(false);
+  void stillDecoding;
 
   // Call onLoad callback to notify entries about the loaded config
   if (onLoad) {

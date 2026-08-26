@@ -3,8 +3,7 @@
   import Button, { Label, Icon } from '@smui/button';
   import Dialog, { Title, Content, Actions } from '@smui/dialog';
   import Textfield from '@smui/textfield';
-  import { getObjectDiff } from '../../js/three-particles-editor/save-and-load';
-  import { getDefaultParticleSystemConfig } from '@newkrok/three-particles';
+  import { serializeConfig } from '../../js/three-particles-editor/save-and-load';
   import { generateDefaultName } from '../../js/utils/name-utils';
   import {
     createConfigId,
@@ -96,7 +95,7 @@
       const newConfig: SavedConfig = {
         id: configId,
         name: nameToUse,
-        config: rawConfigData,
+        config: serializeConfig(rawConfigData),
         createdAt: metadata.createdAt,
         updatedAt: metadata.modifiedAt,
         editorVersion: metadata.editorVersion,
@@ -149,7 +148,7 @@
 
       const updatedConfig: SavedConfig = {
         ...selectedConfig,
-        config: rawConfigData,
+        config: serializeConfig(rawConfigData),
         updatedAt: metadata.modifiedAt,
         editorVersion: metadata.editorVersion,
       };
@@ -237,7 +236,7 @@
         const existingConfig = savedConfigs[existingConfigIndex];
         savedConfigs[existingConfigIndex] = {
           ...existingConfig,
-          config: currentConfig,
+          config: serializeConfig(currentConfig),
           updatedAt: updatedMetadata.modifiedAt,
           editorVersion: updatedMetadata.editorVersion,
         };
@@ -252,7 +251,7 @@
         const newConfig: SavedConfig = {
           id: configId,
           name: nameToUse,
-          config: currentConfig,
+          config: serializeConfig(currentConfig),
           createdAt: updatedMetadata.createdAt,
           updatedAt: updatedMetadata.modifiedAt,
           editorVersion: updatedMetadata.editorVersion,
@@ -281,16 +280,8 @@
       configName = metadata.name;
     }
 
-    configContent = JSON.stringify(
-      {
-        ...getObjectDiff(getDefaultParticleSystemConfig(), rawConfigData, {
-          skippedProperties: ['map'],
-        }),
-        _editorData: { ...rawConfigData._editorData },
-      },
-      null,
-      2
-    ); // Pretty print with 2 spaces indentation
+    // Show exactly what will be stored.
+    configContent = JSON.stringify(serializeConfig(rawConfigData), null, 2);
 
     // Load saved configs when dialog opens
     loadSavedConfigs();

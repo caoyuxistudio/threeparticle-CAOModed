@@ -26,6 +26,7 @@ import {
   getDepthTexture,
 } from './three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './three-particles-editor/assets';
+import { initSceneObjects } from './three-particles-editor/scene-objects';
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { Object3D } from 'three';
@@ -96,6 +97,12 @@ type EditorData = {
   };
   gradientStops?: GradientStop[];
   metadata?: ConfigMetadata;
+  /**
+   * Source image for `particleColorInstance`. Defaults to the bundled
+   * shan-shui photograph so switching the section on shows something
+   * immediately instead of an unpainted cloud.
+   */
+  colorInstanceTextureId?: string;
 };
 
 type CycleData = {
@@ -160,6 +167,7 @@ const defaultEditorData: EditorData = {
   terrain: {
     textureId: TextureId.WIREFRAME,
   },
+  colorInstanceTextureId: TextureId.SHANSHUI,
   gradientStops: [
     { position: 0, color: { r: 255, g: 255, b: 255, a: 255 } },
     { position: 1, color: { r: 255, g: 255, b: 255, a: 0 } },
@@ -386,6 +394,8 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
         })
       ),
       onComplete: () => {
+        // Boxes, lights and probes saved from a previous session.
+        initSceneObjects();
         isInitializing = true;
         createPanel();
         createCurveEditor();
@@ -626,6 +636,14 @@ const doFullRecreate = (activeConfig: any, markAsDirty: boolean): void => {
     backendBadge.textContent = isGPU ? 'GPU' : 'CPU';
     backendBadge.style.background = isGPU ? '#2e7d32' : '#555';
   }
+
+  // Particles stay out of the shadow exchange on purpose. Their material drives
+  // the vertex stage through vertexNode, which the shadow pass neither runs
+  // (casting) nor can feed shadow coordinates through (receiving) — and letting
+  // them into the pass silently breaks shadows for every other object in the
+  // scene. Lighting still applies to them; only shadows are opted out.
+  particleSystem.instance.castShadow = false;
+  particleSystem.instance.receiveShadow = false;
 
   particleSystemContainer.add(particleSystem.instance);
   configEntries.forEach(

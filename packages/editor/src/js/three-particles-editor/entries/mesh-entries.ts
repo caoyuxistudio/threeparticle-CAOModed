@@ -64,6 +64,8 @@ const ensureMeshConfig = (particleSystemConfig: any): void => {
   if (!mesh.geometryType) mesh.geometryType = MeshGeometryType.BOX;
   if (!mesh.scale) mesh.scale = { x: 1, y: 1, z: 1 };
   if (mesh.alignToVelocity === undefined) mesh.alignToVelocity = false;
+  if (mesh.lit === undefined) mesh.lit = false;
+  if (mesh.emissive === undefined) mesh.emissive = 0;
   mesh.geometry = createGeometry(mesh.geometryType);
 };
 
@@ -127,6 +129,24 @@ export const createMeshEntries = ({
       folder
         .add(mesh, 'alignToVelocity')
         .name('align to velocity (+Z = heading)')
+        .onChange(recreateParticleSystem)
+        .listen()
+    );
+
+    // Off by default: an unlit particle carries a built-in fake headlight, so
+    // turning this on in a scene with no lights renders the cloud black.
+    controllers.push(
+      folder
+        .add(mesh, 'lit')
+        .name('lit (use scene lights)')
+        .onChange(recreateParticleSystem)
+        .listen()
+    );
+
+    controllers.push(
+      folder
+        .add(mesh, 'emissive', 0, 4, 0.01)
+        .name('emissive (needs lit)')
         .onChange(recreateParticleSystem)
         .listen()
     );
