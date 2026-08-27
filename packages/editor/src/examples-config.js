@@ -76,10 +76,10 @@ export const particleExamples = [
   //   name: 'Ethereal Wisps',
   // },
   {
-    // Regression scene: a room of three mirrored walls, an emissive sphere and a
-    // top-down output camera. Lives here rather than in a browser's localStorage
-    // so it survives a restart and can be reloaded with one click.
-    name: 'ForAITEST',
+    // Working scene: a frame, an emissive sphere, a point light and a top-down
+    // output camera with reflections on. Lives here rather than in a browser's
+    // localStorage so it survives a restart and is one click from loaded.
+    name: 'WIP-Test',
   },
   {
     name: 'shanshui',

@@ -9,7 +9,7 @@
  * clicks and screenshots.
  */
 (() => {
-  const FIXTURE = 'ForAITEST';
+  const FIXTURE = 'WIP-Test';
   const KEY_SAVED = 'three-particles-saved-configs';
   const KEY_SCENE = 'particle-system-editor/scene-objects';
 
@@ -26,7 +26,7 @@
    * `public/examples/<name>/config.json` at load time, so unlike a saved config
    * they owe nothing to localStorage and survive a restart or a wiped profile.
    */
-  const EXAMPLE_URL = './examples/foraitest/config.json';
+  const EXAMPLE_URL = './examples/wip-test/config.json';
   let cached = null;
 
   const fixture = async () => {
@@ -289,6 +289,9 @@
 
     const build = async (patch) => {
       const cfg = await fixture();
+      // The fixture has a frame of its own now, and scene order would hand back
+      // that one instead of the probe. Measure a scene with exactly one frame.
+      cfg._editorData.sceneObjects = cfg._editorData.sceneObjects.filter((o) => o.type !== 'FRAME');
       cfg._editorData.sceneObjects.push({
         id: 'obj-frame-probe', type: 'FRAME', name: 'Frame probe', visible: true,
         position: { x: 0, y: 2, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
