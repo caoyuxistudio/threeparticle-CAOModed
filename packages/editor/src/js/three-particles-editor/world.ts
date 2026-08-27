@@ -10,7 +10,10 @@ import {
   blendColor,
   directionToColor,
   colorToDirection,
+  sample,
+  screenUV,
   vec2,
+  vec3,
 } from 'three/tsl';
 import { ssr } from 'three/examples/jsm/tsl/display/SSRNode.js';
 
@@ -58,7 +61,7 @@ export type SsrSettings = {
    * wrong one is invisible in the composite, so being able to look at each in
    * isolation is the difference between tuning and guessing.
    */
-  debug: 'off' | 'color' | 'normal' | 'metalrough' | 'reflection';
+  debug: 'off' | 'color' | 'normal' | 'metalrough' | 'metalness' | 'roughness' | 'depth' | 'reflection';
 };
 
 let postProcessing: PostProcessing | null = null;
@@ -106,16 +109,37 @@ const buildSsrPipeline = (camera: THREE.PerspectiveCamera): void => {
 
   const colorNode = scenePass.getTextureNode('output');
   const depthNode = scenePass.getTextureNode('depth');
-  const normalNode = colorToDirection(scenePass.getTextureNode('normal'));
   const metalRough = scenePass.getTextureNode('metalrough');
+  // Sampled at the screen coordinate rather than handed over as a bare channel.
+  // SSR reads metalness with float(), which evaluates a texture node at its
+  // default UV — meaningless on the full-screen quad the effect runs on, so the
+  // gate `metalness == 0 -> discard` rejected every pixel and the reflection
+  // buffer came back empty with every input looking correct.
+  const metalnessNode = metalRough.sample(screenUV).r;
+  const roughnessNode = metalRough.sample(screenUV).g;
 
-  ssrPass = ssr(colorNode, depthNode, normalNode, metalRough.r, metalRough.g, camera);
+  // The ray march samples neighbouring normals as it walks, so this has to stay
+  // something with a `sample(uv)` on it. Decoding the buffer directly with
+  // colorToDirection() yields a plain computed node instead, and every step of
+  // the loop then throws — which TSL swallows, leaving reflections silently
+  // black with correct-looking inputs. `sample()` keeps the decode lazy so the
+  // node stays samplable.
+  const normalTexture = scenePass.getTextureNode('normal');
+  const normalNode = sample((uv) => colorToDirection(normalTexture.sample(uv)));
+
+  ssrPass = ssr(colorNode, depthNode, normalNode, metalnessNode, roughnessNode, camera);
 
   debugNodes = {
     off: blendColor(colorNode, ssrPass),
     color: colorNode,
     normal: scenePass.getTextureNode('normal'),
     metalrough: metalRough,
+    // The two halves of metalrough separately: a combined view is dominated by
+    // roughness, which is near 1 almost everywhere and hides whether metalness
+    // — the channel SSR actually gates on — made it into the buffer at all.
+    metalness: vec3(metalRough.r),
+    roughness: vec3(metalRough.g),
+    depth: vec3(depthNode),
     reflection: ssrPass,
   };
 
