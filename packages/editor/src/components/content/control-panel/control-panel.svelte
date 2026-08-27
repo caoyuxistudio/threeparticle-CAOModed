@@ -16,6 +16,9 @@
       <Button onclick={() => window.editor.reset()}>
         <Icon class="material-icons">replay</Icon><Label>Reset</Label>
       </Button>
+      <Button onclick={() => window.editor.resetCamera()} title="Frame the scene from a 3/4 view">
+        <Icon class="material-icons">center_focus_strong</Icon><Label>Reset Camera</Label>
+      </Button>
     </Actions>
   </Card>
 </div>

@@ -20,6 +20,7 @@ import { enableWebGPU } from '@newkrok/three-particles/webgpu';
 import { convertToNewFormat } from './three-particles-editor/config-converter';
 import {
   createWorld,
+  resetCamera,
   setTerrain,
   updateWorld,
   captureScreenshot,
@@ -1043,6 +1044,7 @@ interface EditorInterface {
   load: (config: ParticleSystemConfig) => void;
   loadFromClipboard: () => void;
   copyToClipboard: () => void;
+  resetCamera: () => void;
   reset: () => void;
   play: () => void;
   pause: () => void;
@@ -1106,6 +1108,7 @@ window.editor = {
   },
   copyToClipboard: () => copyToClipboard(particleSystemConfig),
   reset: () => recreateParticleSystem(false),
+  resetCamera,
   play: resumeTime,
   pause: pauseTime,
   updateAssets: () =>

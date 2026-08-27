@@ -167,6 +167,29 @@
       canvas.top === 0 || !window.__world.overPreviewHandle(gripX + canvas.left, gripY + canvas.top),
       `canvas offset ${canvas.left},${canvas.top}`
     );
+    // Reset Camera exists to rescue a lost view, so it has to land on the scene
+    // rather than merely somewhere, and at the agreed three-quarter angle.
+    (() => {
+      const w = window.__world;
+      const restore = { pos: w.camera.position.clone(), target: w.controls.target.clone() };
+      w.camera.position.set(-1400, 900, 2200);
+      w.controls.target.set(700, -400, -1100);
+      w.controls.update();
+      window.editor.resetCamera();
+
+      const offset = w.camera.position.clone().sub(w.controls.target);
+      const dist = offset.length();
+      const elevation = w.THREE.MathUtils.radToDeg(Math.asin(offset.y / dist));
+      const azimuth = w.THREE.MathUtils.radToDeg(Math.atan2(offset.x, offset.z));
+      check('reset camera lands on the scene', w.controls.target.length() < 3, `target ${w.controls.target.toArray().map((n) => n.toFixed(1))}`);
+      check('reset camera uses a 45/45 view', Math.abs(elevation - 45) < 1 && Math.abs(azimuth - 45) < 1, `${elevation.toFixed(0)}deg up, ${azimuth.toFixed(0)}deg around`);
+      check('reset camera frames the scene', dist > 5 && dist < 200, `${dist.toFixed(0)} away`);
+
+      w.camera.position.copy(restore.pos);
+      w.controls.target.copy(restore.target);
+      w.controls.update();
+    })();
+
     check('preview can exceed half the screen', (() => {
       const before = window.__world.getPreviewScale();
       window.__world.setPreviewScale(1);

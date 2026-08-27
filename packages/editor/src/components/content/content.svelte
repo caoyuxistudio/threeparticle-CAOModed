@@ -1,7 +1,6 @@
 <script lang="ts">
   import ControlPanel from './control-panel/control-panel.svelte';
   import LeftSide from './left-side/left-side.svelte';
-  import KofiButton from '../ko-fi-button/ko-fi-button.svelte';
 
   // Track the left panel's collapsed state
   let isLeftPanelCollapsed: boolean = false;
@@ -13,7 +12,6 @@
   <div class="right-panel"></div>
   <LeftSide bind:isCollapsed={isLeftPanelCollapsed} />
   <ControlPanel />
-  <KofiButton floating={true} />
   <div class="gradient-editor-modal" style="display: none;">
     <div class="gradient-editor-modal__content">
       <div class="gradient-editor-modal__header">

@@ -528,6 +528,50 @@ const renderPreview = (): void => {
   renderer.setClearColor(previousClear, previousAlpha);
 };
 
+/**
+ * Puts the viewport back on the scene from a three-quarter view.
+ *
+ * Framing is measured rather than fixed: a scene can be a one-metre prop or a
+ * twelve-metre room, and a hard-coded distance would land inside one and miles
+ * from the other. Only the artwork layer counts, so the 50m terrain grid does
+ * not drag the framing out to nothing.
+ */
+export const resetCamera = (): void => {
+  const artworkOnly = new THREE.Layers();
+  artworkOnly.set(0);
+
+  const bounds = new THREE.Box3();
+  scene.children.forEach((child) => {
+    if (child.visible && child.layers.test(artworkOnly)) bounds.expandByObject(child);
+  });
+
+  const target = new THREE.Vector3();
+  let radius = 6;
+  if (!bounds.isEmpty()) {
+    bounds.getCenter(target);
+    // GPU-simulated particles move in the shader, so their reported bounds can
+    // be anything; clamping keeps one odd object from throwing away the framing.
+    radius = THREE.MathUtils.clamp(bounds.getSize(new THREE.Vector3()).length() / 2, 2, 40);
+  }
+
+  // 45 degrees around and 45 degrees up — the angle that shows three sides of a
+  // box at once, and the one every 3D package calls "home".
+  const diagonal = Math.SQRT1_2;
+  const direction = new THREE.Vector3(diagonal * diagonal, diagonal, diagonal * diagonal);
+  const distance = (radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.15;
+
+  camera.position.copy(target).addScaledVector(direction, distance);
+  // Grow the far plane if the scene outruns it, but never shrink it: the depth
+  // range is shared with soft particles and shadows.
+  if (distance * 3 > camera.far) {
+    camera.far = distance * 3;
+    camera.updateProjectionMatrix();
+  }
+
+  controls.target.copy(target);
+  controls.update();
+};
+
 export const setTerrain = (textureId?: string): void => {
   if (!textureId || textureId === TextureId.WIREFRAME) {
     const material = new THREE.MeshBasicMaterial({
