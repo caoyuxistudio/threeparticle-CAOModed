@@ -16,7 +16,10 @@ import {
   getRendererDomElement,
   getOrbitControls,
   setOutputCamera,
+  setSsrSettings,
+  defaultSsrSettings,
 } from './world';
+import type { SsrSettings } from './world';
 import { markAsEditorOnly } from './editor-layers';
 
 const STORAGE_KEY = 'particle-system-editor/scene-objects';
@@ -84,6 +87,15 @@ export type SceneObject = {
    * following the viewport — an installation is composed for a fixed frame.
    */
   aspect?: number;
+  /**
+   * CAMERA only: screen space reflections for this camera's view.
+   *
+   * Post processing belongs to the camera rather than the editor because it is
+   * part of how a shot is composed — two cameras in one scene can reasonably
+   * want different settings, and the choice has to survive a reload and travel
+   * inside the saved config like every other decision about the artwork.
+   */
+  ssr?: SsrSettings;
 };
 
 /** Live THREE objects, keyed by scene-object id. */
@@ -259,6 +271,7 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
       near: 0.1,
       far: 200,
       aspect: 16 / 9,
+      ssr: defaultSsrSettings(),
     };
   },
 };
@@ -432,6 +445,9 @@ const unmount = (id: string): void => {
 const syncOutputCamera = (): void => {
   const active = objects.find((o) => o.type === 'CAMERA' && o.visible);
   setOutputCamera(active ? ((live.get(active.id) as THREE.PerspectiveCamera) ?? null) : null);
+  // Reflection settings ride along with the camera they belong to. Cameras saved
+  // before this existed have none, and fall back to the defaults switched off.
+  setSsrSettings({ ...defaultSsrSettings(), ...(active?.ssr ?? {}) });
   // Only the chosen camera shows its frustum; the rest would be visual noise.
   frustums.forEach((frustum, id) => {
     const obj = objects.find((o) => o.id === id);

@@ -347,7 +347,16 @@
         "fov": 45,
         "near": 0.1,
         "far": 200,
-        "aspect": 1
+        "aspect": 1,
+        "ssr": {
+          "enabled": true,
+          "quality": 1,
+          "blurQuality": 2,
+          "maxDistance": 20,
+          "thickness": 0.15,
+          "opacity": 1,
+          "debug": "off"
+        }
       }
     ]
   }

@@ -1,7 +1,10 @@
 <script>
   import { Icon } from '@smui/common';
   import * as THREE from 'three';
-  import { getCamera } from './../../../js/three-particles-editor/world';
+  import {
+    getCamera,
+    defaultSsrSettings,
+  } from './../../../js/three-particles-editor/world';
 
   let { obj, update, remove, bake, selected = false, select, contextMenu } = $props();
 
@@ -9,6 +12,25 @@
   let baking = $state(false);
 
   const set = (patch) => update(obj.id, patch);
+
+  /**
+   * Reflection settings live on the camera, so they patch like anything else —
+   * but always onto a complete set. Storing only the keys that were touched
+   * would leave the rest reading from whatever the defaults happen to be later,
+   * so an old camera's look would drift when those change.
+   */
+  const setSsr = (patch) =>
+    set({ ssr: { ...defaultSsrSettings(), ...(obj.ssr ?? {}), ...patch } });
+
+  const SSR_VIEWS = [
+    { id: 'off', label: 'Final image' },
+    { id: 'reflection', label: 'Reflections only' },
+    { id: 'color', label: 'Colour buffer' },
+    { id: 'normal', label: 'Normals' },
+    { id: 'metalness', label: 'Metalness' },
+    { id: 'roughness', label: 'Roughness' },
+    { id: 'depth', label: 'Depth' },
+  ];
 
   /** Snaps this camera onto the viewport's current position and lens. */
   const alignToView = () => {
@@ -153,9 +175,56 @@
         <button class="wide" onclick={alignToView}>
           Align to current view
         </button>
+
+        <div class="group-label">reflections (SSR)</div>
+        <label class="row check">
+          <span>enabled</span>
+          <input
+            type="checkbox"
+            checked={obj.ssr?.enabled ?? false}
+            onchange={(e) => setSsr({ enabled: e.target.checked })} />
+        </label>
+
+        {#if obj.ssr?.enabled}
+          {#each [
+            { key: 'maxDistance', label: 'distance', min: 1, max: 60, step: 0.5, fallback: 20 },
+            { key: 'opacity', label: 'strength', min: 0, max: 1, step: 0.01, fallback: 1 },
+            { key: 'quality', label: 'quality', min: 0.1, max: 1, step: 0.05, fallback: 1 },
+            { key: 'thickness', label: 'thickness', min: 0.01, max: 1, step: 0.01, fallback: 0.15 },
+            { key: 'blurQuality', label: 'blur', min: 0, max: 3, step: 1, fallback: 2 },
+          ] as p}
+            <label class="row">
+              <span>{p.label}</span>
+              <input type="range" min={p.min} max={p.max} step={p.step}
+                value={obj.ssr?.[p.key] ?? p.fallback}
+                oninput={(e) => setSsr({ [p.key]: +e.target.value })} />
+              <input type="number" step={p.step}
+                value={obj.ssr?.[p.key] ?? p.fallback}
+                oninput={(e) => setSsr({ [p.key]: +e.target.value })} />
+            </label>
+          {/each}
+
+          <label class="row">
+            <span>view</span>
+            <select
+              value={obj.ssr?.debug ?? 'off'}
+              onchange={(e) => setSsr({ debug: e.target.value })}>
+              {#each SSR_VIEWS as v}
+                <option value={v.id}>{v.label}</option>
+              {/each}
+            </select>
+          </label>
+          <p class="hint">
+            Only surfaces with metalness above zero reflect, and only what is
+            already on screen can appear in them. If a wall stays blank, check
+            it in the Metalness view first.
+          </p>
+        {/if}
+
         <p class="hint">
           The corner preview renders through the first visible camera. Hide this
-          one to preview another.
+          one to preview another. Drag the grip in its bottom-left corner to
+          resize it.
         </p>
       {/if}
 
@@ -399,6 +468,18 @@
         color: #eee;
       }
     }
+  }
+
+  select {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 4px;
+    background: #2a2a2a;
+    color: #ddd;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    font: inherit;
+    font-size: 11px;
   }
 
   .wide {

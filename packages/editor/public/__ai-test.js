@@ -198,6 +198,15 @@
       return widest >= window.innerWidth / 2;
     })());
 
+    // Reflections are a property of the camera, not of the editor session — the
+    // whole reason they kept vanishing on reload before.
+    const shot = storedScene().find((o) => o.type === 'CAMERA');
+    const live = window.__world.getSsrSettings();
+    check('camera carries its own SSR settings', !!shot?.ssr, JSON.stringify(shot?.ssr ?? null));
+    check('stored SSR settings are complete', shot?.ssr && Object.keys(shot.ssr).length === Object.keys(live).length, `${Object.keys(shot?.ssr ?? {}).length} of ${Object.keys(live).length} keys`);
+    check('renderer uses the camera\'s settings', JSON.stringify(shot?.ssr) === JSON.stringify(live));
+    check('fixture ships with reflections on', live.enabled === true);
+
     const frustums = window.__world.scene.children.filter((o) => o.type === 'CameraHelper');
       check('frustum helper present', frustums.length === cams.length, `${frustums.length}`);
       check(

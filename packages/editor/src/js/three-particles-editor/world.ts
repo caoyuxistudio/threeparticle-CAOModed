@@ -78,15 +78,25 @@ let ssrPass: any = null;
 /** The camera the current pipeline was compiled for; rebuilt when it changes. */
 let pipelineCamera: THREE.PerspectiveCamera | null = null;
 
-let ssrSettings: SsrSettings = {
+/**
+ * Starting values for a new camera.
+ *
+ * Not the library's own defaults: its maxDistance of 1 is calibrated for a
+ * scene a metre across and finds nothing in a room, which reads as "SSR is
+ * broken" rather than "the ray gives up too early". These are the values that
+ * measurably produce reflections on the test scene.
+ */
+export const defaultSsrSettings = (): SsrSettings => ({
   enabled: false,
-  quality: 0.5,
+  quality: 1,
   blurQuality: 2,
-  maxDistance: 8,
-  thickness: 0.1,
+  maxDistance: 20,
+  thickness: 0.15,
   opacity: 1,
   debug: 'off',
-};
+});
+
+let ssrSettings: SsrSettings = defaultSsrSettings();
 
 /**
  * Compiles the SSR pipeline for a camera.
