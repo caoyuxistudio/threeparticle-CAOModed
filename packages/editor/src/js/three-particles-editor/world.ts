@@ -277,7 +277,7 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
     scene, camera, controls, renderer, THREE,
     updateLightProbe, getLightProbe, removeLightProbe,
     getOutputCamera, isPreviewVisible, freeViewportBounds,
-    getPreviewScale, setPreviewScale, previewRect,
+    getPreviewScale, setPreviewScale, previewRect, overPreviewHandle, canvasBounds,
     setSsrSettings, getSsrSettings,
     _ssr: () => ({ postProcessing, ssrPass, previewTarget, previewBlit, pipelineCamera }),
   };
@@ -356,16 +356,31 @@ const PREVIEW_BOUNDS_TTL_MS = 250;
 let previewBounds = { left: 0, right: 0 };
 let previewBoundsAt = 0;
 
+/**
+ * The canvas does not start at the window's top left — a toolbar sits above it.
+ * Viewport and scissor rectangles are relative to the canvas, so everything the
+ * preview computes has to be too, or the drawn box and the area that reacts to
+ * the mouse end up offset by the height of that toolbar.
+ */
+const canvasBounds = (): DOMRect => renderer.domElement.getBoundingClientRect();
+
+/** A pointer event in canvas coordinates. */
+const toCanvasSpace = (event: PointerEvent): { x: number; y: number } => {
+  const rect = canvasBounds();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+};
+
 const freeViewportBounds = (): { left: number; right: number } => {
   const now = performance.now();
   if (now - previewBoundsAt < PREVIEW_BOUNDS_TTL_MS) return previewBounds;
   previewBoundsAt = now;
 
+  const canvas = canvasBounds();
   const rightPanel = document.querySelector('.right-panel');
   const leftPanel = document.querySelector('.panel-content');
   previewBounds = {
-    left: leftPanel ? leftPanel.getBoundingClientRect().right : 0,
-    right: rightPanel ? rightPanel.getBoundingClientRect().left : window.innerWidth,
+    left: leftPanel ? leftPanel.getBoundingClientRect().right - canvas.left : 0,
+    right: rightPanel ? rightPanel.getBoundingClientRect().left - canvas.left : canvas.width,
   };
   return previewBounds;
 };
@@ -384,8 +399,8 @@ const previewRect = (): { x: number; y: number; w: number; h: number } => {
   let w = Math.round(Math.max(160, available * previewWidthRatio));
   let h = Math.round(w / aspect);
 
-  // A tall output frame would otherwise run off the bottom of the window.
-  const maxH = window.innerHeight - PREVIEW_MARGIN * 2;
+  // A tall output frame would otherwise run off the bottom of the canvas.
+  const maxH = canvasBounds().height - PREVIEW_MARGIN * 2;
   if (h > maxH) {
     h = maxH;
     w = Math.round(h * aspect);
@@ -394,7 +409,7 @@ const previewRect = (): { x: number; y: number; w: number; h: number } => {
   return { x: Math.round(free.right - w - PREVIEW_MARGIN), y: PREVIEW_MARGIN, w, h };
 };
 
-/** True when a point in CSS pixels is inside the resize grip. */
+/** True when a point in canvas coordinates is inside the resize grip. */
 const overPreviewHandle = (px: number, py: number): boolean => {
   if (!outputCamera || !previewVisible) return false;
   const { x, y, h } = previewRect();
@@ -418,9 +433,10 @@ const installPreviewResize = (canvas: HTMLCanvasElement): void => {
   canvas.addEventListener(
     'pointerdown',
     (event) => {
-      if (!overPreviewHandle(event.clientX, event.clientY)) return;
+      const point = toCanvasSpace(event);
+      if (!overPreviewHandle(point.x, point.y)) return;
       dragging = true;
-      startX = event.clientX;
+      startX = point.x;
       startRatio = previewWidthRatio;
       controls.enabled = false;
       canvas.setPointerCapture(event.pointerId);
@@ -431,14 +447,15 @@ const installPreviewResize = (canvas: HTMLCanvasElement): void => {
   );
 
   canvas.addEventListener('pointermove', (event) => {
+    const point = toCanvasSpace(event);
     if (!dragging) {
-      canvas.style.cursor = overPreviewHandle(event.clientX, event.clientY) ? 'nesw-resize' : '';
+      canvas.style.cursor = overPreviewHandle(point.x, point.y) ? 'nesw-resize' : '';
       return;
     }
     const free = freeViewportBounds();
     const available = free.right - free.left - PREVIEW_MARGIN * 2;
     // Dragging left is away from the top-right anchor, so it enlarges.
-    setPreviewScale(startRatio + (startX - event.clientX) / available);
+    setPreviewScale(startRatio + (startX - point.x) / available);
     event.stopPropagation();
   });
 

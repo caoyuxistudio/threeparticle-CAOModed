@@ -153,7 +153,29 @@
       check('camera has a rotation', !!c.rotation, JSON.stringify(c.rotation));
       check('output camera wired to world', !!active, active ? `fov ${active.fov}` : 'null');
       check('output camera only sees artwork', active ? active.layers.mask === 1 : false, active ? String(active.layers.mask) : '-');
-      const frustums = window.__world.scene.children.filter((o) => o.type === 'CameraHelper');
+      // The grip is drawn with canvas-relative coordinates but clicked with
+    // window-relative ones. They differ by the toolbar's height, and when that
+    // was unaccounted for the handle rendered in one place and responded in
+    // another — invisible in a screenshot, so it gets an assertion.
+    const canvas = window.__world.canvasBounds();
+    const box = window.__world.previewRect();
+    const gripX = box.x + 8;
+    const gripY = box.y + box.h - 8;
+    check('resize grip reacts where it is drawn', window.__world.overPreviewHandle(gripX, gripY));
+    check(
+      'grip hit test is in canvas space, not window space',
+      canvas.top === 0 || !window.__world.overPreviewHandle(gripX + canvas.left, gripY + canvas.top),
+      `canvas offset ${canvas.left},${canvas.top}`
+    );
+    check('preview can exceed half the screen', (() => {
+      const before = window.__world.getPreviewScale();
+      window.__world.setPreviewScale(1);
+      const widest = window.__world.previewRect().w;
+      window.__world.setPreviewScale(before);
+      return widest >= window.innerWidth / 2;
+    })());
+
+    const frustums = window.__world.scene.children.filter((o) => o.type === 'CameraHelper');
       check('frustum helper present', frustums.length === cams.length, `${frustums.length}`);
       check(
         'frustum helper kept out of output',
