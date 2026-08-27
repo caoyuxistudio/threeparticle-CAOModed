@@ -33,14 +33,18 @@ export type SceneObjectType =
   | 'DIRECTIONAL_LIGHT'
   | 'LIGHT_PROBE'
   | 'CAMERA'
-  | 'ENVIRONMENT';
+  | 'ENVIRONMENT'
+  | 'FRAME';
 
 /** Types the rotate gizmo means something for. */
 const rotatable = (type?: SceneObjectType): boolean =>
-  type === 'BOX' || type === 'SPHERE' || type === 'CAMERA';
+  type === 'BOX' || type === 'SPHERE' || type === 'CAMERA' || type === 'FRAME';
 
 /** Types the scale gizmo means something for. */
 const scalable = (type?: SceneObjectType): boolean => type === 'BOX' || type === 'SPHERE';
+
+/** Types built from a shape rather than scaled from a unit primitive. */
+const parametric = (type?: SceneObjectType): boolean => type === 'FRAME';
 
 export type Vec3 = { x: number; y: number; z: number };
 
@@ -107,6 +111,28 @@ export type SceneObject = {
    * has to save, load and travel with the config like a light does.
    */
   environment?: EnvironmentSettings;
+
+  /**
+   * FRAME only: a rectangular border, measured the way one is built rather than
+   * the way it is drawn — you know the opening you want and how heavy the
+   * surround should be, not the outer dimensions those imply.
+   */
+  innerWidth?: number;
+  innerHeight?: number;
+  /** Width of the surround, added outside the opening on every side. */
+  border?: number;
+  /** How far the frame stands off its plane. */
+  depth?: number;
+  /**
+   * The inside of the opening, which is what catches reflections at a grazing
+   * angle. Its own material because it is doing a different job from the face:
+   * the face is seen head-on, the edge is seen almost edge-on.
+   */
+  edgeColor?: string;
+  edgeRoughness?: number;
+  edgeMetalness?: number;
+  edgeEmissive?: string;
+  edgeEmissiveIntensity?: number;
 };
 
 /** Live THREE objects, keyed by scene-object id. */
@@ -263,6 +289,28 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     captureHeight: 4,
     includeParticles: true,
   }),
+  FRAME: () => ({
+    type: 'FRAME',
+    visible: true,
+    position: { x: 0, y: 1.5, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    innerWidth: 6,
+    innerHeight: 3.5,
+    border: 0.6,
+    depth: 0.5,
+    // Face: what the viewer sees, matte enough to read as a surround.
+    color: '#d8d8d8',
+    roughness: 0.6,
+    metalness: 0.2,
+    emissive: '#000000',
+    emissiveIntensity: 0,
+    // Edge: mirror-ish but not sharp, which is where the reflections live.
+    edgeColor: '#ffffff',
+    edgeRoughness: 0.25,
+    edgeMetalness: 0.9,
+    edgeEmissive: '#000000',
+    edgeEmissiveIntensity: 0,
+  }),
   ENVIRONMENT: () => ({
     type: 'ENVIRONMENT',
     visible: true,
@@ -302,7 +350,53 @@ const LABEL: Record<SceneObjectType, string> = {
   LIGHT_PROBE: 'Light Probe',
   CAMERA: 'Camera',
   ENVIRONMENT: 'Environment',
+  FRAME: 'Frame',
 };
+
+/**
+ * A rectangular border, extruded from a shape with a hole in it.
+ *
+ * Extrusion rather than four boxes because it produces one watertight mesh with
+ * mitred corners, and because it groups its faces: the caps come out as one
+ * material slot and the walls as another, which is exactly the split between
+ * the face you look at and the inside of the opening.
+ */
+const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
+  const innerW = Math.max(0.01, obj.innerWidth ?? 6);
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  const border = Math.max(0.01, obj.border ?? 0.6);
+  const depth = Math.max(0.01, obj.depth ?? 0.5);
+  const outerW = innerW + border * 2;
+  const outerH = innerH + border * 2;
+
+  const shape = new THREE.Shape();
+  shape.moveTo(-outerW / 2, -outerH / 2);
+  shape.lineTo(outerW / 2, -outerH / 2);
+  shape.lineTo(outerW / 2, outerH / 2);
+  shape.lineTo(-outerW / 2, outerH / 2);
+  shape.closePath();
+
+  // Wound the opposite way from the outline, which is how a path reads as a hole.
+  const hole = new THREE.Path();
+  hole.moveTo(-innerW / 2, -innerH / 2);
+  hole.lineTo(-innerW / 2, innerH / 2);
+  hole.lineTo(innerW / 2, innerH / 2);
+  hole.lineTo(innerW / 2, -innerH / 2);
+  hole.closePath();
+  shape.holes.push(hole);
+
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  // Extrusion grows along +Z from the plane; centre it so the object's position
+  // is the middle of the frame rather than its back face.
+  geometry.translate(0, 0, -depth / 2);
+  return geometry;
+};
+
+/** The dimensions baked into a frame's geometry, to avoid rebuilding it needlessly. */
+const frameGeometryKey = (obj: SceneObject): string =>
+  [obj.innerWidth, obj.innerHeight, obj.border, obj.depth].join('/');
+
+const frameKeys = new Map<string, string>();
 
 const buildThreeObject = (obj: SceneObject): THREE.Object3D => {
   switch (obj.type) {
@@ -353,6 +447,16 @@ const buildThreeObject = (obj: SceneObject): THREE.Object3D => {
       // Nothing to draw: the panorama is a scene property, not an object in it.
       // An empty node keeps this type inside the same lifecycle as the rest.
       return new THREE.Object3D();
+    case 'FRAME': {
+      // Two slots in the order ExtrudeGeometry groups them: caps, then walls.
+      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), [
+        new THREE.MeshStandardMaterial(),
+        new THREE.MeshStandardMaterial(),
+      ]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
   }
 };
 
@@ -382,6 +486,38 @@ const applyToThree = (obj: SceneObject): void => {
     mat.emissiveIntensity = obj.emissiveIntensity ?? 0;
     mat.side = obj.insideOut ? THREE.BackSide : THREE.FrontSide;
     mat.needsUpdate = true;
+  } else if (obj.type === 'FRAME') {
+    const mesh = three as THREE.Mesh;
+    const [face, edge] = mesh.material as THREE.MeshStandardMaterial[];
+
+    const key = frameGeometryKey(obj);
+    if (frameKeys.get(obj.id) !== key) {
+      mesh.geometry.dispose();
+      mesh.geometry = buildFrameGeometry(obj);
+      frameKeys.set(obj.id, key);
+    }
+
+    if (obj.rotation) {
+      mesh.rotation.set(
+        THREE.MathUtils.degToRad(obj.rotation.x),
+        THREE.MathUtils.degToRad(obj.rotation.y),
+        THREE.MathUtils.degToRad(obj.rotation.z)
+      );
+    }
+
+    face.color.set(obj.color ?? '#d8d8d8');
+    face.roughness = obj.roughness ?? 0.6;
+    face.metalness = obj.metalness ?? 0.2;
+    face.emissive.set(obj.emissive ?? '#000000');
+    face.emissiveIntensity = obj.emissiveIntensity ?? 0;
+    face.needsUpdate = true;
+
+    edge.color.set(obj.edgeColor ?? '#ffffff');
+    edge.roughness = obj.edgeRoughness ?? 0.25;
+    edge.metalness = obj.edgeMetalness ?? 0.9;
+    edge.emissive.set(obj.edgeEmissive ?? '#000000');
+    edge.emissiveIntensity = obj.edgeEmissiveIntensity ?? 0;
+    edge.needsUpdate = true;
   } else if (obj.type === 'POINT_LIGHT') {
     const light = three as THREE.PointLight;
     light.color.set(obj.color ?? '#ffffff');
@@ -444,6 +580,7 @@ const mount = (obj: SceneObject): THREE.Object3D => {
 
 /** Removes an object's THREE counterpart and frees what it owns. */
 const unmount = (id: string): void => {
+  frameKeys.delete(id);
   const frustum = frustums.get(id);
   if (frustum) {
     getScene().remove(frustum);
@@ -455,8 +592,10 @@ const unmount = (id: string): void => {
   getScene().remove(three);
   if (three instanceof THREE.DirectionalLight) getScene().remove(three.target);
   if ((three as THREE.Mesh).geometry) (three as THREE.Mesh).geometry.dispose();
-  const mat = (three as THREE.Mesh).material as THREE.Material | undefined;
-  if (mat && 'dispose' in mat) mat.dispose();
+  const mat = (three as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+  // A frame carries one material per face group, so this can be a list.
+  if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+  else if (mat && 'dispose' in mat) mat.dispose();
   live.delete(id);
 };
 

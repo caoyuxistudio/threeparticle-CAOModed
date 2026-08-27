@@ -68,7 +68,15 @@
     LIGHT_PROBE: 'blur_on',
     CAMERA: 'photo_camera',
     ENVIRONMENT: 'panorama_photosphere',
+    FRAME: 'crop_din',
   };
+
+  /** The five knobs a standard material exposes, reused for both frame slots. */
+  const MATERIAL_ROWS = [
+    { key: 'roughness', label: 'rough', min: 0, max: 1, step: 0.01, fallback: 0.6 },
+    { key: 'metalness', label: 'metal', min: 0, max: 1, step: 0.01, fallback: 0.2 },
+    { key: 'emissiveIntensity', label: 'glow', min: 0, max: 4, step: 0.01, fallback: 0 },
+  ];
 
   let envFileInput;
   let envStatus = $state('');
@@ -245,7 +253,86 @@
         </p>
       {/if}
 
-      {#if obj.type === 'BOX' || obj.type === 'SPHERE' || obj.type === 'CAMERA'}
+      {#if obj.type === 'FRAME'}
+        <div class="group-label">opening</div>
+        {#each [
+          { key: 'innerWidth', label: 'width', max: 30, fallback: 6 },
+          { key: 'innerHeight', label: 'height', max: 30, fallback: 3.5 },
+        ] as f}
+          <label class="row">
+            <span>{f.label}</span>
+            <input type="range" min="0.1" max={f.max} step="0.05"
+              value={obj[f.key] ?? f.fallback}
+              oninput={(e) => set({ [f.key]: +e.target.value })} />
+            <input type="number" step="0.05"
+              value={obj[f.key] ?? f.fallback}
+              oninput={(e) => set({ [f.key]: +e.target.value })} />
+          </label>
+        {/each}
+
+        <div class="group-label">surround</div>
+        {#each [
+          { key: 'border', label: 'thickness', max: 8, fallback: 0.6 },
+          { key: 'depth', label: 'depth', max: 8, fallback: 0.5 },
+        ] as f}
+          <label class="row">
+            <span>{f.label}</span>
+            <input type="range" min="0.01" max={f.max} step="0.01"
+              value={obj[f.key] ?? f.fallback}
+              oninput={(e) => set({ [f.key]: +e.target.value })} />
+            <input type="number" step="0.01"
+              value={obj[f.key] ?? f.fallback}
+              oninput={(e) => set({ [f.key]: +e.target.value })} />
+          </label>
+        {/each}
+        <p class="hint">
+          Outer size is the opening plus the surround on each side, so widening
+          the border grows the frame rather than eating into the picture.
+        </p>
+
+        <div class="group-label">face material</div>
+        <label class="row">
+          <span>color</span>
+          <input type="color" value={obj.color ?? '#d8d8d8'}
+            oninput={(e) => set({ color: e.target.value })} />
+        </label>
+        {#each MATERIAL_ROWS as m}
+          <label class="row">
+            <span>{m.label}</span>
+            <input type="range" min={m.min} max={m.max} step={m.step}
+              value={obj[m.key] ?? m.fallback}
+              oninput={(e) => set({ [m.key]: +e.target.value })} />
+            <input type="number" step={m.step}
+              value={obj[m.key] ?? m.fallback}
+              oninput={(e) => set({ [m.key]: +e.target.value })} />
+          </label>
+        {/each}
+
+        <div class="group-label">inner edge material</div>
+        <label class="row">
+          <span>color</span>
+          <input type="color" value={obj.edgeColor ?? '#ffffff'}
+            oninput={(e) => set({ edgeColor: e.target.value })} />
+        </label>
+        {#each MATERIAL_ROWS as m}
+          <label class="row">
+            <span>{m.label}</span>
+            <input type="range" min={m.min} max={m.max} step={m.step}
+              value={obj['edge' + m.key[0].toUpperCase() + m.key.slice(1)] ?? (m.key === 'roughness' ? 0.25 : m.key === 'metalness' ? 0.9 : 0)}
+              oninput={(e) => set({ ['edge' + m.key[0].toUpperCase() + m.key.slice(1)]: +e.target.value })} />
+            <input type="number" step={m.step}
+              value={obj['edge' + m.key[0].toUpperCase() + m.key.slice(1)] ?? (m.key === 'roughness' ? 0.25 : m.key === 'metalness' ? 0.9 : 0)}
+              oninput={(e) => set({ ['edge' + m.key[0].toUpperCase() + m.key.slice(1)]: +e.target.value })} />
+          </label>
+        {/each}
+        <p class="hint">
+          Roughness stops at 1 — that is the whole range the shading model has,
+          and it already lands on the blurriest reflection there is. For softer
+          reflections use the camera's blur and resolution instead.
+        </p>
+      {/if}
+
+      {#if obj.type === 'BOX' || obj.type === 'SPHERE' || obj.type === 'CAMERA' || obj.type === 'FRAME'}
         <div class="group-label">rotation (deg)</div>
         {#each ['x', 'y', 'z'] as axis}
           <label class="row">
@@ -312,7 +399,8 @@
             { key: 'opacity', label: 'strength', min: 0, max: 1, step: 0.01, fallback: 1 },
             { key: 'quality', label: 'quality', min: 0.1, max: 1, step: 0.05, fallback: 1 },
             { key: 'thickness', label: 'thickness', min: 0.01, max: 1, step: 0.01, fallback: 0.15 },
-            { key: 'blurQuality', label: 'blur', min: 0, max: 3, step: 1, fallback: 2 },
+            { key: 'blurQuality', label: 'blur', min: 0, max: 8, step: 1, fallback: 2 },
+            { key: 'resolutionScale', label: 'resolution', min: 0.15, max: 1, step: 0.05, fallback: 1 },
           ] as p}
             <label class="row">
               <span>{p.label}</span>
@@ -339,6 +427,11 @@
             Only surfaces with metalness above zero reflect, and only what is
             already on screen can appear in them. If a wall stays blank, check
             it in the Metalness view first.
+          </p>
+          <p class="hint">
+            For softer reflections, lower the resolution before raising blur —
+            it smears just as well and costs less rather than more. Blur widens
+            the kernel, and its samples grow as the square.
           </p>
         {/if}
 

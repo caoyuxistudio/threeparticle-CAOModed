@@ -189,8 +189,17 @@ export type SsrSettings = {
   enabled: boolean;
   /** Ray march step count, 0..1. */
   quality: number;
-  /** Box blur radius applied to the reflection buffer. */
+  /** Box blur kernel applied to the reflection buffer. Samples go as (n*2+1)^2. */
   blurQuality: number;
+  /**
+   * Fraction of full resolution the reflections are traced at.
+   *
+   * Doubles as the softening control that roughness cannot provide: roughness
+   * caps at 1 and already selects the blurriest prefiltered mip there, so when
+   * a surface still reflects too sharply, tracing coarser and letting the
+   * upscale smear it is the lever that remains — and it costs less, not more.
+   */
+  resolutionScale: number;
   /** How far a ray travels before giving up, in world units. */
   maxDistance: number;
   /** Depth tolerance when deciding a ray hit something. */
@@ -230,6 +239,7 @@ export const defaultSsrSettings = (): SsrSettings => ({
   enabled: false,
   quality: 1,
   blurQuality: 2,
+  resolutionScale: 1,
   maxDistance: 20,
   thickness: 0.15,
   opacity: 1,
@@ -330,6 +340,9 @@ const applySsrUniforms = (): void => {
   if (!ssrPass) return;
   ssrPass.quality.value = ssrSettings.quality;
   ssrPass.blurQuality.value = ssrSettings.blurQuality;
+  // A plain property rather than a uniform: the node reads it when it sizes its
+  // buffers, which happens every frame in updateBefore.
+  ssrPass.resolutionScale = ssrSettings.resolutionScale;
   ssrPass.maxDistance.value = ssrSettings.maxDistance;
   ssrPass.thickness.value = ssrSettings.thickness;
   ssrPass.opacity.value = ssrSettings.opacity;

@@ -204,7 +204,15 @@
     const live = window.__world.getSsrSettings();
     check('camera carries its own SSR settings', !!shot?.ssr, JSON.stringify(shot?.ssr ?? null));
     check('stored SSR settings are complete', shot?.ssr && Object.keys(shot.ssr).length === Object.keys(live).length, `${Object.keys(shot?.ssr ?? {}).length} of ${Object.keys(live).length} keys`);
-    check('renderer uses the camera\'s settings', JSON.stringify(shot?.ssr) === JSON.stringify(live));
+    // Compared key by key: stringify would also fail on a difference of order,
+    // which says nothing about whether the renderer got the right values.
+    const sameSettings =
+      shot?.ssr && Object.keys(live).every((k) => shot.ssr[k] === live[k]);
+    check(
+      'renderer uses the camera\'s settings',
+      sameSettings,
+      sameSettings ? '' : Object.keys(live).filter((k) => shot?.ssr?.[k] !== live[k]).join(',')
+    );
     check('fixture ships with reflections on', live.enabled === true);
 
     const frustums = window.__world.scene.children.filter((o) => o.type === 'CameraHelper');
@@ -271,7 +279,54 @@
     return [`environment: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
+  /** Frame checks, on a frame built here rather than one saved in the fixture. */
+  const frameReport = async () => {
+    const w = window.__world;
+    const T = w.THREE;
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+
+    const build = async (patch) => {
+      const cfg = await fixture();
+      cfg._editorData.sceneObjects.push({
+        id: 'obj-frame-probe', type: 'FRAME', name: 'Frame probe', visible: true,
+        position: { x: 0, y: 2, z: 0 }, rotation: { x: 0, y: 0, z: 0 },
+        innerWidth: 6, innerHeight: 3.5, border: 0.6, depth: 0.5,
+        color: '#d8d8d8', roughness: 0.6, metalness: 0.2,
+        edgeColor: '#ffffff', edgeRoughness: 0.25, edgeMetalness: 0.9,
+        ...patch,
+      });
+      window.editor.load(cfg);
+      await new Promise((r) => setTimeout(r, 700));
+      const mesh = w.scene.children.find((o) => o.isMesh && Array.isArray(o.material));
+      const size = new T.Box3().setFromObject(mesh).getSize(new T.Vector3());
+      return { mesh, size };
+    };
+
+    const base = await build({});
+    check('frame builds one mesh with two material slots', base.mesh?.material?.length === 2);
+    check('geometry groups match the slots', base.mesh?.geometry.groups.length === 2);
+    // Outer size is the opening plus the surround on both sides: the whole point
+    // of measuring a frame this way rather than by its outside.
+    check('outer size is opening plus surround', Math.abs(base.size.x - 7.2) < 0.01 && Math.abs(base.size.y - 4.7) < 0.01, `${base.size.x.toFixed(2)}x${base.size.y.toFixed(2)}`);
+    check('depth is honoured', Math.abs(base.size.z - 0.5) < 0.01, base.size.z.toFixed(2));
+    check('face and edge materials are distinct', base.mesh.material[0].roughness !== base.mesh.material[1].roughness);
+
+    const wider = await build({ innerWidth: 12 });
+    check('opening drives the geometry', Math.abs(wider.size.x - 13.2) < 0.01, wider.size.x.toFixed(2));
+    const thicker = await build({ border: 2 });
+    check('surround drives the geometry', Math.abs(thicker.size.x - 10) < 0.01, thicker.size.x.toFixed(2));
+    const deeper = await build({ depth: 3 });
+    check('depth drives the geometry', Math.abs(deeper.size.z - 3) < 0.01, deeper.size.z.toFixed(2));
+
+    await load();
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
   window.__t = {
+    frameReport,
     environmentReport,
     fixture,
     storedScene,

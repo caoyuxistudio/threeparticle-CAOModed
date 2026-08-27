@@ -119,6 +119,7 @@
   const BUTTONS = [
     { type: 'BOX', icon: 'view_in_ar', label: 'Box' },
     { type: 'SPHERE', icon: 'circle', label: 'Sphere' },
+    { type: 'FRAME', icon: 'crop_din', label: 'Frame' },
     { type: 'POINT_LIGHT', icon: 'lightbulb', label: 'Point' },
     { type: 'DIRECTIONAL_LIGHT', icon: 'wb_sunny', label: 'Sun' },
     { type: 'LIGHT_PROBE', icon: 'blur_on', label: 'Probe' },
