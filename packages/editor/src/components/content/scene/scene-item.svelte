@@ -4,7 +4,10 @@
   import {
     getCamera,
     defaultSsrSettings,
+    defaultEnvironmentSettings,
+    setOnEnvironmentLoaded,
   } from './../../../js/three-particles-editor/world';
+  import { onMount } from 'svelte';
 
   let { obj, update, remove, bake, selected = false, select, contextMenu } = $props();
 
@@ -64,6 +67,55 @@
     DIRECTIONAL_LIGHT: 'wb_sunny',
     LIGHT_PROBE: 'blur_on',
     CAMERA: 'photo_camera',
+    ENVIRONMENT: 'panorama_photosphere',
+  };
+
+  let envFileInput;
+  let envStatus = $state('');
+
+  onMount(() => {
+    setOnEnvironmentLoaded((error) => (envStatus = error ? `Could not read that file: ${error}` : ''));
+    return () => setOnEnvironmentLoaded(null);
+  });
+
+  const setEnv = (patch) =>
+    set({ environment: { ...defaultEnvironmentSettings(), ...(obj.environment ?? {}), ...patch } });
+
+  /** Radiance and OpenEXR are not image formats the browser can decode. */
+  const formatOf = (name) => {
+    const ext = name.split('.').pop().toLowerCase();
+    if (ext === 'exr') return 'exr';
+    if (ext === 'hdr' || ext === 'pic') return 'hdr';
+    return 'ldr';
+  };
+
+  const readAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const onEnvFile = async (event) => {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    envStatus = 'Reading…';
+    try {
+      const source = await readAsDataUrl(file);
+      // High dynamic range panoramas are routinely tens of megabytes, well past
+      // what localStorage holds. Loading one still works for the session; it is
+      // only the saving that cannot, and saying so beats a silent loss.
+      const megabytes = source.length / (1024 * 1024);
+      setEnv({ source, format: formatOf(file.name), name: file.name });
+      envStatus =
+        megabytes > 4
+          ? `${file.name} — ${megabytes.toFixed(1)}MB, too large to save; reload will clear it`
+          : '';
+    } catch {
+      envStatus = 'Could not read that file';
+    }
   };
 
   /** Common output shapes, so an installation's frame is one click away. */
@@ -90,7 +142,7 @@
     <button class="eye" title="Show / hide" onclick={() => set({ visible: !obj.visible })}>
       <Icon class="material-icons">{obj.visible ? 'visibility' : 'visibility_off'}</Icon>
     </button>
-    {#if obj.type !== 'LIGHT_PROBE'}
+    {#if obj.type !== 'LIGHT_PROBE' && obj.type !== 'ENVIRONMENT'}
       <button
         class="pick"
         title={selected ? 'Hide drag axes' : 'Show drag axes in the viewport'}
@@ -111,18 +163,87 @@
 
   {#if open}
     <div class="body">
-      <div class="group-label">position</div>
-      {#each ['x', 'y', 'z'] as axis}
+      {#if obj.type !== 'ENVIRONMENT'}
+        <div class="group-label">position</div>
+        {#each ['x', 'y', 'z'] as axis}
+          <label class="row">
+            <span>{axis}</span>
+            <input type="range" min="-20" max="20" step="0.05"
+              value={obj.position[axis]}
+              oninput={(e) => setVec('position', axis, +e.target.value)} />
+            <input type="number" step="0.05"
+              value={obj.position[axis]}
+              oninput={(e) => setVec('position', axis, +e.target.value)} />
+          </label>
+        {/each}
+      {/if}
+
+
+      {#if obj.type === 'ENVIRONMENT'}
+        <button class="wide" onclick={() => envFileInput.click()}>
+          {obj.environment?.name ? 'Replace panorama' : 'Load panorama'}
+        </button>
+        <input
+          style="display:none"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.hdr,.exr"
+          bind:this={envFileInput}
+          onchange={onEnvFile} />
+        <p class="hint">
+          {obj.environment?.name || 'Equirectangular JPEG, PNG, WebP, Radiance HDR or OpenEXR.'}
+        </p>
+        {#if envStatus}
+          <p class="hint warn">{envStatus}</p>
+        {/if}
+
+        <div class="group-label">lighting</div>
         <label class="row">
-          <span>{axis}</span>
-          <input type="range" min="-20" max="20" step="0.05"
-            value={obj.position[axis]}
-            oninput={(e) => setVec('position', axis, +e.target.value)} />
+          <span>intensity</span>
+          <input type="range" min="0" max="5" step="0.05"
+            value={obj.environment?.intensity ?? 1}
+            oninput={(e) => setEnv({ intensity: +e.target.value })} />
           <input type="number" step="0.05"
-            value={obj.position[axis]}
-            oninput={(e) => setVec('position', axis, +e.target.value)} />
+            value={obj.environment?.intensity ?? 1}
+            oninput={(e) => setEnv({ intensity: +e.target.value })} />
         </label>
-      {/each}
+        <label class="row">
+          <span>rotation</span>
+          <input type="range" min="0" max="360" step="1"
+            value={obj.environment?.rotation ?? 0}
+            oninput={(e) => setEnv({ rotation: +e.target.value })} />
+          <input type="number" step="1"
+            value={obj.environment?.rotation ?? 0}
+            oninput={(e) => setEnv({ rotation: +e.target.value })} />
+        </label>
+        <label class="row">
+          <span>blur</span>
+          <input type="range" min="0" max="1" step="0.01"
+            value={obj.environment?.blur ?? 0}
+            oninput={(e) => setEnv({ blur: +e.target.value })} />
+          <input type="number" step="0.01"
+            value={obj.environment?.blur ?? 0}
+            oninput={(e) => setEnv({ blur: +e.target.value })} />
+        </label>
+
+        <div class="group-label">show backdrop in</div>
+        <label class="row check">
+          <span>viewport</span>
+          <input type="checkbox"
+            checked={obj.environment?.showInViewport ?? true}
+            onchange={(e) => setEnv({ showInViewport: e.target.checked })} />
+        </label>
+        <label class="row check">
+          <span>camera</span>
+          <input type="checkbox"
+            checked={obj.environment?.showInCamera ?? true}
+            onchange={(e) => setEnv({ showInCamera: e.target.checked })} />
+        </label>
+        <p class="hint">
+          These hide the panorama from view only. It keeps lighting the scene and
+          showing up in reflections either way — which is how you get the light
+          without the backdrop.
+        </p>
+      {/if}
 
       {#if obj.type === 'BOX' || obj.type === 'SPHERE' || obj.type === 'CAMERA'}
         <div class="group-label">rotation (deg)</div>
@@ -495,6 +616,11 @@
     font-size: 11px;
 
     &:hover { border-color: var(--mdc-theme-primary, #ff5722); }
+  }
+
+  .hint.warn {
+    color: #e0955f;
+    opacity: 0.95;
   }
 
   .hint {

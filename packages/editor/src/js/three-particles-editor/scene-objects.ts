@@ -18,8 +18,10 @@ import {
   setOutputCamera,
   setSsrSettings,
   defaultSsrSettings,
+  setEnvironment,
+  defaultEnvironmentSettings,
 } from './world';
-import type { SsrSettings } from './world';
+import type { SsrSettings, EnvironmentSettings } from './world';
 import { markAsEditorOnly } from './editor-layers';
 
 const STORAGE_KEY = 'particle-system-editor/scene-objects';
@@ -30,7 +32,8 @@ export type SceneObjectType =
   | 'POINT_LIGHT'
   | 'DIRECTIONAL_LIGHT'
   | 'LIGHT_PROBE'
-  | 'CAMERA';
+  | 'CAMERA'
+  | 'ENVIRONMENT';
 
 /** Types the rotate gizmo means something for. */
 const rotatable = (type?: SceneObjectType): boolean =>
@@ -96,6 +99,14 @@ export type SceneObject = {
    * inside the saved config like every other decision about the artwork.
    */
   ssr?: SsrSettings;
+  /**
+   * ENVIRONMENT only: a panorama that lights the scene and shows in reflections.
+   *
+   * It sits with the scene objects rather than in a settings pane because it is
+   * part of the artwork — swap the panorama and the whole piece changes — so it
+   * has to save, load and travel with the config like a light does.
+   */
+  environment?: EnvironmentSettings;
 };
 
 /** Live THREE objects, keyed by scene-object id. */
@@ -252,6 +263,13 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     captureHeight: 4,
     includeParticles: true,
   }),
+  ENVIRONMENT: () => ({
+    type: 'ENVIRONMENT',
+    visible: true,
+    // No transform: a panorama surrounds the scene rather than sitting in it.
+    position: { x: 0, y: 0, z: 0 },
+    environment: defaultEnvironmentSettings(),
+  }),
   CAMERA: () => {
     // Born where you are looking from. Framing a shot by flying there and
     // dropping a camera beats typing coordinates, and it matches what every
@@ -283,6 +301,7 @@ const LABEL: Record<SceneObjectType, string> = {
   DIRECTIONAL_LIGHT: 'Directional Light',
   LIGHT_PROBE: 'Light Probe',
   CAMERA: 'Camera',
+  ENVIRONMENT: 'Environment',
 };
 
 const buildThreeObject = (obj: SceneObject): THREE.Object3D => {
@@ -330,6 +349,10 @@ const buildThreeObject = (obj: SceneObject): THREE.Object3D => {
     case 'CAMERA':
       // Values are pushed on by applyToThree, like every other type.
       return new THREE.PerspectiveCamera();
+    case 'ENVIRONMENT':
+      // Nothing to draw: the panorama is a scene property, not an object in it.
+      // An empty node keeps this type inside the same lifecycle as the rest.
+      return new THREE.Object3D();
   }
 };
 
@@ -442,6 +465,15 @@ const unmount = (id: string): void => {
  * visible one. Several cameras can be parked in a scene as alternative framings,
  * and hiding the others is how you choose between them.
  */
+/**
+ * Hands world.ts the panorama in force: the first visible one. Hiding an
+ * environment is how you turn it off without losing the image you loaded.
+ */
+const syncEnvironment = (): void => {
+  const active = objects.find((o) => o.type === 'ENVIRONMENT' && o.visible);
+  void setEnvironment({ ...defaultEnvironmentSettings(), ...(active?.environment ?? {}) });
+};
+
 const syncOutputCamera = (): void => {
   const active = objects.find((o) => o.type === 'CAMERA' && o.visible);
   setOutputCamera(active ? ((live.get(active.id) as THREE.PerspectiveCamera) ?? null) : null);
@@ -455,6 +487,9 @@ const syncOutputCamera = (): void => {
   });
 };
 
+export const getEnvironmentId = (): string | null =>
+  objects.find((o) => o.type === 'ENVIRONMENT' && o.visible)?.id ?? null;
+
 export const getOutputCameraId = (): string | null =>
   objects.find((o) => o.type === 'CAMERA' && o.visible)?.id ?? null;
 
@@ -463,6 +498,7 @@ const persist = (): void => {
   // every path that changes `objects` already ends here, so nothing can add,
   // hide or delete a camera without the preview finding out.
   syncOutputCamera();
+  syncEnvironment();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(objects));
   } catch {
@@ -611,6 +647,7 @@ export const initSceneObjects = (): void => {
 
   objects.forEach(mount);
   syncOutputCamera();
+  syncEnvironment();
 };
 
 /**

@@ -219,7 +219,60 @@
     return [`camera: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
+  /**
+   * Environment checks, run against a panorama generated here rather than the
+   * fixture's, so the test scene keeps whatever look it was saved with.
+   */
+  const environmentReport = async () => {
+    const w = window.__world;
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+
+    const before = w.getEnvironmentSettings();
+
+    // A 2x1 panorama: blue above, black below. Small, but a real decode.
+    const c = document.createElement('canvas');
+    c.width = 2;
+    c.height = 1;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#3070ff';
+    ctx.fillRect(0, 0, 2, 1);
+    const source = c.toDataURL('image/png');
+
+    await w.setEnvironment({ source, format: 'ldr' });
+    check('panorama decodes and prefilters', w.hasEnvironmentTexture());
+    check('scene receives the environment', !!w.scene.environment);
+
+    // The two visibilities are the point. scene.background cannot be inspected
+    // for this — it holds whichever pass ran last — so the decision is queried
+    // per view instead.
+    await w.setEnvironment({ showInViewport: false, showInCamera: false });
+    check('lighting survives both backdrops hidden', !!w.scene.environment);
+    check('no backdrop anywhere when both are off', !w.backdropFor('viewport').isTexture && !w.backdropFor('camera').isTexture);
+
+    await w.setEnvironment({ showInViewport: true, showInCamera: false });
+    check('viewport shows it while the camera does not', w.backdropFor('viewport').isTexture === true && !w.backdropFor('camera').isTexture);
+    check('hiding the backdrop leaves the lighting alone', !!w.scene.environment);
+
+    await w.setEnvironment({ showInViewport: false, showInCamera: true });
+    check('camera shows it while the viewport does not', w.backdropFor('camera').isTexture === true && !w.backdropFor('viewport').isTexture);
+
+    await w.setEnvironment({ intensity: 2.5 });
+    check('intensity reaches the scene', w.scene.environmentIntensity === 2.5);
+    await w.setEnvironment({ rotation: 90 });
+    check('rotation reaches the scene', Math.abs(w.scene.environmentRotation.y - Math.PI / 2) < 1e-6);
+
+    await w.setEnvironment({ source: null });
+    check('clearing the panorama releases it', !w.hasEnvironmentTexture());
+
+    await w.setEnvironment(before);
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`environment: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
   window.__t = {
+    environmentReport,
     fixture,
     storedScene,
     live,

@@ -123,6 +123,7 @@
     { type: 'DIRECTIONAL_LIGHT', icon: 'wb_sunny', label: 'Sun' },
     { type: 'LIGHT_PROBE', icon: 'blur_on', label: 'Probe' },
     { type: 'CAMERA', icon: 'photo_camera', label: 'Camera' },
+    { type: 'ENVIRONMENT', icon: 'panorama_photosphere', label: 'Env' },
   ];
 
   const MODES = [

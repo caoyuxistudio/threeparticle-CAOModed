@@ -16,6 +16,8 @@ import {
   vec3,
 } from 'three/tsl';
 import { ssr } from 'three/examples/jsm/tsl/display/SSRNode.js';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LightProbeGenerator } from 'three/examples/jsm/lights/LightProbeGenerator.js';
@@ -39,6 +41,144 @@ let depthRenderTarget: THREE.RenderTarget | null = null;
  */
 let outputCamera: THREE.PerspectiveCamera | null = null;
 let previewVisible = true;
+
+// ─── Environment ─────────────────────────────────────────────────────────────
+
+export type EnvironmentFormat = 'ldr' | 'hdr' | 'exr';
+
+export type EnvironmentSettings = {
+  /** Data URL of the equirectangular panorama, or null for none. */
+  source: string | null;
+  format: EnvironmentFormat;
+  /** How brightly the panorama lights the scene and shows in reflections. */
+  intensity: number;
+  /** Turns the panorama around the vertical axis, in degrees. */
+  rotation: number;
+  /** Softens the visible backdrop without affecting the lighting. */
+  blur: number;
+  /** Show the panorama behind the scene in the editor viewport. */
+  showInViewport: boolean;
+  /** Show it behind the scene in the output camera. */
+  showInCamera: boolean;
+};
+
+export const defaultEnvironmentSettings = (): EnvironmentSettings => ({
+  source: null,
+  format: 'ldr',
+  intensity: 1,
+  rotation: 0,
+  blur: 0,
+  showInViewport: true,
+  showInCamera: true,
+});
+
+let environmentSettings: EnvironmentSettings = defaultEnvironmentSettings();
+/** The prefiltered map handed to the scene, and the source it was built from. */
+let environmentTexture: THREE.Texture | null = null;
+let environmentKey = '';
+let pmrem: THREE.PMREMGenerator | null = null;
+let defaultBackground: THREE.Color;
+let onEnvironmentLoaded: ((error?: string) => void) | null = null;
+
+export const setOnEnvironmentLoaded = (fn: ((error?: string) => void) | null): void => {
+  onEnvironmentLoaded = fn;
+};
+
+/**
+ * Decodes a panorama. The three formats need three different readers, and the
+ * browser cannot decode EXR or Radiance on its own, which is why this is not
+ * simply a TextureLoader call.
+ */
+const loadEquirectangular = async (
+  source: string,
+  format: EnvironmentFormat
+): Promise<THREE.Texture> => {
+  if (format === 'exr') return new EXRLoader().loadAsync(source);
+  if (format === 'hdr') return new HDRLoader().loadAsync(source);
+
+  const texture = await new THREE.TextureLoader().loadAsync(source);
+  // Ordinary images are authored for display, so they arrive gamma-encoded.
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+};
+
+/**
+ * Applies the environment, reloading the panorama only when it actually changes.
+ *
+ * Prefiltering is the expensive part — it renders the panorama into a mip chain
+ * so that a rough surface can sample a blurrier version of it — so the result is
+ * cached against the source and reused while only the sliders move.
+ */
+export const setEnvironment = async (next: Partial<EnvironmentSettings>): Promise<void> => {
+  environmentSettings = { ...environmentSettings, ...next };
+  const { source, format } = environmentSettings;
+  const key = source ? `${format}:${source.length}:${source.slice(-64)}` : '';
+
+  if (key !== environmentKey) {
+    environmentKey = key;
+    environmentTexture?.dispose();
+    environmentTexture = null;
+
+    if (source) {
+      try {
+        const equirect = await loadEquirectangular(source, format);
+        // A late arrival for a panorama that has since been replaced.
+        if (key !== environmentKey) {
+          equirect.dispose();
+          return;
+        }
+        equirect.mapping = THREE.EquirectangularReflectionMapping;
+        pmrem = pmrem ?? new THREE.PMREMGenerator(renderer as unknown as THREE.WebGLRenderer);
+        environmentTexture = pmrem.fromEquirectangular(equirect).texture;
+        equirect.dispose();
+        onEnvironmentLoaded?.();
+      } catch (error) {
+        environmentKey = '';
+        onEnvironmentLoaded?.((error as Error)?.message || 'could not be decoded');
+      }
+    }
+  }
+
+  applyEnvironment();
+};
+
+/** Pushes the current settings onto the scene, without touching the source. */
+const applyEnvironment = (): void => {
+  if (!scene) return;
+  scene.environment = environmentTexture;
+  scene.environmentIntensity = environmentSettings.intensity;
+  scene.backgroundIntensity = environmentSettings.intensity;
+  scene.backgroundBlurriness = environmentSettings.blur;
+
+  const radians = THREE.MathUtils.degToRad(environmentSettings.rotation);
+  scene.environmentRotation.set(0, radians, 0);
+  scene.backgroundRotation.set(0, radians, 0);
+};
+
+/**
+ * What a given view should have behind it.
+ *
+ * Kept separate from applying it because scene.background holds only one value
+ * at a time: after a frame it reads as whatever the last pass wanted, so asking
+ * the scene is not a way to find out what a view is configured to show.
+ */
+export const backdropFor = (view: 'viewport' | 'camera'): THREE.Texture | THREE.Color => {
+  const wanted =
+    view === 'viewport' ? environmentSettings.showInViewport : environmentSettings.showInCamera;
+  return wanted && environmentTexture ? environmentTexture : defaultBackground;
+};
+
+/**
+ * The backdrop is one scene property but two answers: it can show in the
+ * viewport while staying out of the camera, or the reverse. Swapping it around
+ * each render is what lets the same panorama light the scene invisibly.
+ */
+const setBackdropFor = (view: 'viewport' | 'camera'): void => {
+  scene.background = backdropFor(view);
+};
+
+export const getEnvironmentSettings = (): EnvironmentSettings => environmentSettings;
+export const hasEnvironmentTexture = (): boolean => !!environmentTexture;
 
 // ─── Screen space reflections ────────────────────────────────────────────────
 //
@@ -227,7 +367,8 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   }
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x000000);
+  defaultBackground = new THREE.Color(0x000000);
+  scene.background = defaultBackground;
 
   mesh = new THREE.Mesh(new THREE.PlaneGeometry(50, 50, 50, 50));
   mesh.rotation.x = -Math.PI / 2;
@@ -288,6 +429,7 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
     updateLightProbe, getLightProbe, removeLightProbe,
     getOutputCamera, isPreviewVisible, freeViewportBounds,
     getPreviewScale, setPreviewScale, previewRect, overPreviewHandle, canvasBounds,
+    setEnvironment, getEnvironmentSettings, hasEnvironmentTexture, backdropFor,
     setSsrSettings, getSsrSettings,
     _ssr: () => ({ postProcessing, ssrPass, previewTarget, previewBlit, pipelineCamera }),
   };
@@ -318,12 +460,18 @@ export const updateWorld = (
     // Hide particle system during depth pass to avoid feedback loop
     // (the particle shader reads the depth texture that would be written to)
     if (particleContainer) particleContainer.visible = false;
+    setBackdropFor('viewport');
     renderer.setRenderTarget(depthRenderTarget);
     renderer.render(scene, camera);
     renderer.setRenderTarget(null);
     if (particleContainer) particleContainer.visible = true;
   }
+  setBackdropFor('viewport');
   renderer.render(scene, camera);
+
+  // The preview may want the panorama hidden while the viewport shows it, so
+  // the backdrop is chosen again rather than left over from the pass above.
+  setBackdropFor('camera');
   renderPreview();
   stats.update();
 };
