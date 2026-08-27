@@ -270,12 +270,14 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   statsContainer.appendChild(stats.dom);
 
   window.addEventListener('resize', onWindowResize);
+  installPreviewResize(renderer.domElement);
 
   // TEMP DEBUG
   (window as any).__world = {
     scene, camera, controls, renderer, THREE,
     updateLightProbe, getLightProbe, removeLightProbe,
     getOutputCamera, isPreviewVisible, freeViewportBounds,
+    getPreviewScale, setPreviewScale, previewRect,
     setSsrSettings, getSsrSettings,
     _ssr: () => ({ postProcessing, ssrPass, previewTarget, previewBlit, pipelineCamera }),
   };
@@ -316,10 +318,34 @@ export const updateWorld = (
   stats.update();
 };
 
-/** Fraction of the free viewport width the corner preview occupies. */
-const PREVIEW_WIDTH_RATIO = 0.3;
 const PREVIEW_MARGIN = 16;
 const PREVIEW_BORDER = 2;
+/** Side of the square grab area in the preview's bottom-left corner. */
+const PREVIEW_HANDLE = 20;
+const PREVIEW_MIN_RATIO = 0.15;
+/**
+ * Lets the preview fill the free area edge to edge. That clears half the screen
+ * with both panels open, and collapsing the left one takes it well past that.
+ */
+const PREVIEW_MAX_RATIO = 1;
+const PREVIEW_SCALE_KEY = 'particle-system-editor/preview-scale';
+
+/** Fraction of the free viewport width the preview occupies; drag to change. */
+let previewWidthRatio = (() => {
+  const stored = Number(localStorage.getItem(PREVIEW_SCALE_KEY));
+  return stored >= PREVIEW_MIN_RATIO && stored <= PREVIEW_MAX_RATIO ? stored : 0.3;
+})();
+
+export const getPreviewScale = (): number => previewWidthRatio;
+
+export const setPreviewScale = (ratio: number): void => {
+  previewWidthRatio = Math.min(PREVIEW_MAX_RATIO, Math.max(PREVIEW_MIN_RATIO, ratio));
+  try {
+    localStorage.setItem(PREVIEW_SCALE_KEY, String(previewWidthRatio));
+  } catch {
+    /* quota — the size still applies for this session */
+  }
+};
 /**
  * The canvas spans the whole window and the side panels float on top of it, so
  * the preview has to dodge them or it renders underneath. Their widths change
@@ -345,6 +371,88 @@ const freeViewportBounds = (): { left: number; right: number } => {
 };
 
 /**
+ * Where the preview sits, in CSS pixels with the origin at the top left.
+ *
+ * Rendering and hit-testing both read this, so a dragged handle cannot drift
+ * away from the box it is supposed to be attached to.
+ */
+const previewRect = (): { x: number; y: number; w: number; h: number } => {
+  const free = freeViewportBounds();
+  const aspect = outputCamera?.aspect || 16 / 9;
+  const available = free.right - free.left - PREVIEW_MARGIN * 2;
+
+  let w = Math.round(Math.max(160, available * previewWidthRatio));
+  let h = Math.round(w / aspect);
+
+  // A tall output frame would otherwise run off the bottom of the window.
+  const maxH = window.innerHeight - PREVIEW_MARGIN * 2;
+  if (h > maxH) {
+    h = maxH;
+    w = Math.round(h * aspect);
+  }
+
+  return { x: Math.round(free.right - w - PREVIEW_MARGIN), y: PREVIEW_MARGIN, w, h };
+};
+
+/** True when a point in CSS pixels is inside the resize grip. */
+const overPreviewHandle = (px: number, py: number): boolean => {
+  if (!outputCamera || !previewVisible) return false;
+  const { x, y, h } = previewRect();
+  return px >= x - PREVIEW_BORDER && px <= x + PREVIEW_HANDLE && py >= y + h - PREVIEW_HANDLE && py <= y + h + PREVIEW_BORDER;
+};
+
+/**
+ * Lets the preview be dragged to any size from a corner thumbnail up to most of
+ * the viewport, because judging reflections in a 200px box is guesswork.
+ *
+ * The grip is at the bottom-left because the box is pinned to the top-right:
+ * dragging away from the anchor grows it, which is the direction that reads as
+ * "bigger". Orbit controls are suspended for the duration so the scene does not
+ * spin while resizing.
+ */
+const installPreviewResize = (canvas: HTMLCanvasElement): void => {
+  let dragging = false;
+  let startX = 0;
+  let startRatio = 0;
+
+  canvas.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (!overPreviewHandle(event.clientX, event.clientY)) return;
+      dragging = true;
+      startX = event.clientX;
+      startRatio = previewWidthRatio;
+      controls.enabled = false;
+      canvas.setPointerCapture(event.pointerId);
+      event.stopPropagation();
+      event.preventDefault();
+    },
+    true
+  );
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (!dragging) {
+      canvas.style.cursor = overPreviewHandle(event.clientX, event.clientY) ? 'nesw-resize' : '';
+      return;
+    }
+    const free = freeViewportBounds();
+    const available = free.right - free.left - PREVIEW_MARGIN * 2;
+    // Dragging left is away from the top-right anchor, so it enlarges.
+    setPreviewScale(startRatio + (startX - event.clientX) / available);
+    event.stopPropagation();
+  });
+
+  const end = (event: PointerEvent): void => {
+    if (!dragging) return;
+    dragging = false;
+    controls.enabled = true;
+    canvas.releasePointerCapture?.(event.pointerId);
+  };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+};
+
+/**
  * Draws the output camera's view into the top-right of the free viewport area.
  *
  * Scissoring is what makes this affordable to bolt onto the existing frame: the
@@ -358,11 +466,7 @@ const renderPreview = (): void => {
   if (!outputCamera || !previewVisible) return;
 
   const size = renderer.getSize(new THREE.Vector2());
-  const free = freeViewportBounds();
-  const w = Math.round(Math.max(160, (free.right - free.left) * PREVIEW_WIDTH_RATIO));
-  const h = Math.round(w / outputCamera.aspect);
-  const x = Math.round(free.right - w - PREVIEW_MARGIN);
-  const y = PREVIEW_MARGIN;
+  const { x, y, w, h } = previewRect();
 
   const previousClear = renderer.getClearColor(new THREE.Color());
   const previousAlpha = renderer.getClearAlpha();
@@ -394,6 +498,12 @@ const renderPreview = (): void => {
   } else {
     renderer.render(scene, outputCamera);
   }
+
+  // The grip, drawn last so it sits on top of the rendered frame.
+  renderer.setScissor(x - PREVIEW_BORDER, y + h - PREVIEW_HANDLE, PREVIEW_HANDLE, PREVIEW_HANDLE + PREVIEW_BORDER);
+  renderer.setViewport(x - PREVIEW_BORDER, y + h - PREVIEW_HANDLE, PREVIEW_HANDLE, PREVIEW_HANDLE + PREVIEW_BORDER);
+  renderer.setClearColor(0xb34a2c, 1);
+  renderer.clear(true, false, false);
 
   renderer.setScissorTest(false);
   renderer.setViewport(0, 0, size.x, size.y);
