@@ -20,33 +20,18 @@
   );
 
   /**
-   * Reinstalls the fixture from the copy kept in the repo.
+   * The fixture config, read from the example on disk.
    *
-   * A saved config normally lives only in one browser's localStorage, which any
-   * profile reset or crash wipes. The repo copy is the durable one, so recovery
-   * is a page reload rather than an afternoon of rebuilding a scene by hand.
+   * Examples are the editor's own durable storage: the app fetches them from
+   * `public/examples/<name>/config.json` at load time, so unlike a saved config
+   * they owe nothing to localStorage and survive a restart or a wiped profile.
    */
-  const seed = async () => {
-    const file = await (await fetch('/fixtures/for-ai-test.json')).json();
-    const all = JSON.parse(localStorage.getItem(KEY_SAVED) || '[]').filter((c) => c.name !== file.name);
-    all.push({
-      id: 'config-fixture-for-ai-test',
-      name: file.name,
-      config: file.config,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      editorVersion: file.config._editorData.metadata.editorVersion,
-    });
-    localStorage.setItem(KEY_SAVED, JSON.stringify(all));
-    localStorage.setItem(KEY_SCENE, JSON.stringify(file.config._editorData.sceneObjects));
-    return `seeded ${file.name}: ${file.config._editorData.sceneObjects.length} objects — reload to mount`;
-  };
+  const EXAMPLE_URL = './examples/foraitest/config.json';
+  let cached = null;
 
-  /** The saved config, deep-cloned so a load can't mutate the stored copy. */
-  const fixture = (name = FIXTURE) => {
-    const all = JSON.parse(localStorage.getItem(KEY_SAVED) || '[]');
-    const hit = all.find((c) => (c.name || c.config?._editorData?.metadata?.name) === name);
-    return hit ? structuredClone(hit.config || hit) : null;
+  const fixture = async () => {
+    if (!cached) cached = await (await fetch(EXAMPLE_URL)).json();
+    return structuredClone(cached);
   };
 
   /**
@@ -73,9 +58,8 @@
     return c;
   };
 
-  const load = (name = FIXTURE) => {
-    const cfg = fixture(name);
-    if (!cfg) throw new Error('no saved config named ' + name);
+  const load = async () => {
+    const cfg = await fixture();
     errs.length = 0;
     window.editor.load(cfg);
     return cfg;
@@ -98,8 +82,8 @@
    * invariant the fixture is built to exercise, so a regression anywhere in
    * save/load shows up as a named FAIL rather than a blank screen.
    */
-  const report = (name = FIXTURE) => {
-    const cfg = load(name);
+  const report = async () => {
+    const cfg = await load();
     const want = cfg._editorData.sceneObjects;
     const got = storedScene();
     const l = live();
@@ -126,7 +110,7 @@
     check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
     const failed = lines.filter((s) => s.startsWith('FAIL')).length;
-    return [`${name}: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+    return [`${FIXTURE}: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
   /**
@@ -182,7 +166,6 @@
   };
 
   window.__t = {
-    seed,
     fixture,
     storedScene,
     live,
@@ -193,9 +176,5 @@
     cameraReport,
     errs,
   };
-  const missing = !fixture();
-  return (
-    'harness ready: __t.report() | __t.cameraReport() | __t.load() | __t.seed() | __t.errs' +
-    (missing ? '\n!! ForAITEST missing from this browser — run: await __t.seed() then reload' : '')
-  );
+  return 'harness ready: await __t.report() | __t.cameraReport() | await __t.load() | __t.errs';
 })();

@@ -1,0 +1,354 @@
+{
+  "transform": {
+    "rotation": {
+      "x": 90
+    }
+  },
+  "startLifetime": {
+    "min": 3,
+    "max": 6
+  },
+  "startSpeed": {
+    "min": 0,
+    "max": 0
+  },
+  "startSize": {
+    "min": 0.8,
+    "max": 2.5
+  },
+  "startRotation": {
+    "min": -120.411,
+    "max": 241.542
+  },
+  "startColor": {
+    "min": {
+      "r": 0,
+      "g": 0,
+      "b": 0
+    },
+    "max": {
+      "r": 0,
+      "g": 0,
+      "b": 0
+    }
+  },
+  "simulationSpace": "WORLD",
+  "simulationBackend": "GPU",
+  "maxParticles": 200000,
+  "emission": {
+    "rateOverTime": 50000,
+    "bursts": []
+  },
+  "shape": {
+    "shape": "RECTANGLE",
+    "rectangle": {
+      "scale": {
+        "x": 12,
+        "y": 12
+      }
+    }
+  },
+  "renderer": {
+    "blending": "THREE.NormalBlending",
+    "discardBackgroundColor": true,
+    "backgroundColorTolerance": 0,
+    "backgroundColor": {
+      "r": 0,
+      "g": 0,
+      "b": 0
+    },
+    "transparent": false,
+    "depthWrite": true,
+    "rendererType": "MESH",
+    "mesh": {
+      "geometryType": "OCTAHEDRON",
+      "scale": {
+        "x": 0.06,
+        "y": 0.04,
+        "z": 0.1
+      },
+      "alignToVelocity": true,
+      "lit": true,
+      "emissive": 0.4
+    }
+  },
+  "noise": {
+    "isActive": true,
+    "useRandomOffset": true,
+    "strength": 0.27,
+    "frequency": 0.429,
+    "octaves": 2,
+    "positionAmount": -2.346,
+    "sizeAmount": 0.103,
+    "curl": true
+  },
+  "collisionPlanes": [
+    {
+      "isActive": true,
+      "mode": "KILL",
+      "position": {
+        "x": -5.4,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "dampen": 0.5,
+      "lifetimeLoss": 0
+    },
+    {
+      "isActive": true,
+      "mode": "KILL",
+      "position": {
+        "x": 5.4,
+        "y": 0,
+        "z": 0
+      },
+      "normal": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "dampen": 0.5,
+      "lifetimeLoss": 0
+    },
+    {
+      "isActive": true,
+      "mode": "KILL",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -5.4
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "dampen": 0.5,
+      "lifetimeLoss": 0
+    },
+    {
+      "isActive": true,
+      "mode": "KILL",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 6.4
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": -1
+      },
+      "dampen": 0.5,
+      "lifetimeLoss": 0
+    }
+  ],
+  "_editorData": {
+    "textureId": "VORTEX",
+    "simulation": {
+      "movements": "DISABLED",
+      "movementSpeed": 1,
+      "rotation": "DISABLED",
+      "rotationSpeed": 1
+    },
+    "showLocalAxes": true,
+    "showWorldAxes": true,
+    "showShape": false,
+    "showForceFields": false,
+    "showCollisionPlanes": true,
+    "frustumCulled": true,
+    "useIndividualUpdate": false,
+    "useLiveUpdate": false,
+    "enableBigNumbers": true,
+    "terrain": {
+      "textureId": "WIREFRAME",
+      "movements": "DISABLED",
+      "movementSpeed": 1,
+      "rotation": "DISABLED",
+      "rotationSpeed": 1
+    },
+    "metadata": {
+      "name": "ForAITEST",
+      "createdAt": 1787000000000,
+      "modifiedAt": 1787000000000,
+      "editorVersion": "2.10.0"
+    },
+    "sceneObjects": [
+      {
+        "id": "obj-fx-light",
+        "type": "POINT_LIGHT",
+        "name": "Point Light 1",
+        "visible": true,
+        "position": {
+          "x": -2.205987602345445,
+          "y": 5,
+          "z": -1.6600528068743903
+        },
+        "color": "#ffffff",
+        "intensity": 80,
+        "distance": 0,
+        "decay": 2
+      },
+      {
+        "id": "obj-fx-box1",
+        "type": "BOX",
+        "name": "Box 1",
+        "visible": true,
+        "position": {
+          "x": -5.94660345530312,
+          "y": 0.1,
+          "z": 0
+        },
+        "size": {
+          "x": 1.4,
+          "y": 2.95,
+          "z": 13.2
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "color": "#ffffff",
+        "roughness": 0.15,
+        "metalness": 0.9,
+        "emissive": "#000000",
+        "emissiveIntensity": 0,
+        "insideOut": false
+      },
+      {
+        "id": "obj-fx-box2",
+        "type": "BOX",
+        "name": "Box 2",
+        "visible": true,
+        "position": {
+          "x": -0.22491183115705882,
+          "y": 0.06565180074940927,
+          "z": 5.701674927607865
+        },
+        "size": {
+          "x": 12.55,
+          "y": 3,
+          "z": 1.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "color": "#ffffff",
+        "roughness": 0.15,
+        "metalness": 0.9,
+        "emissive": "#000000",
+        "emissiveIntensity": 0,
+        "insideOut": false
+      },
+      {
+        "id": "obj-fx-box3",
+        "type": "BOX",
+        "name": "Box 3",
+        "visible": true,
+        "position": {
+          "x": -0.30488749680338445,
+          "y": 0.06565180074940927,
+          "z": -6.14008750666903
+        },
+        "size": {
+          "x": 12.55,
+          "y": 3,
+          "z": 1.8
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "color": "#ffffff",
+        "roughness": 0.15,
+        "metalness": 0.9,
+        "emissive": "#000000",
+        "emissiveIntensity": 0,
+        "insideOut": false
+      },
+      {
+        "id": "obj-fx-box4",
+        "type": "BOX",
+        "name": "Box 4",
+        "visible": true,
+        "position": {
+          "x": -0.11655048462497852,
+          "y": -0.6337662314084649,
+          "z": -0.046663658505253114
+        },
+        "size": {
+          "x": 11.05,
+          "y": 0.05,
+          "z": 13.35
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "color": "#292929",
+        "roughness": 1,
+        "metalness": 0,
+        "emissive": "#ffffff",
+        "emissiveIntensity": 0,
+        "insideOut": false
+      },
+      {
+        "id": "obj-fx-sphere",
+        "type": "SPHERE",
+        "name": "Sphere 1",
+        "visible": true,
+        "position": {
+          "x": -4.416528392627818,
+          "y": 1,
+          "z": -0.38127368294431285
+        },
+        "size": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "color": "#000000",
+        "roughness": 0.9,
+        "metalness": 0,
+        "emissive": "#ff1f1f",
+        "emissiveIntensity": 1,
+        "insideOut": false
+      },
+      {
+        "id": "obj-fx-camera",
+        "type": "CAMERA",
+        "name": "Camera 2",
+        "visible": true,
+        "position": {
+          "x": -0.22,
+          "y": 19.34,
+          "z": -0.08
+        },
+        "rotation": {
+          "x": -90,
+          "y": 0,
+          "z": -0.3
+        },
+        "fov": 45,
+        "near": 0.1,
+        "far": 200,
+        "aspect": 1
+      }
+    ]
+  }
+}
