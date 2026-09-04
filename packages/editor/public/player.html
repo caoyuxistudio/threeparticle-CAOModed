@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Player</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="./favicon/favicon.ico" />
+    <style>
+      /*
+        The canvas is sized to the output camera's frame and centred; the bars
+        around it are this background showing through. Letterboxing this way
+        rather than with a scissor rectangle is deliberate — post processing
+        cannot be scissored without taking its own scene pass down with it.
+      */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #player-stage {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #player-stage canvas {
+        display: block;
+      }
+
+      .player-status {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        color: #777;
+        font: 400 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        letter-spacing: 0.3px;
+        text-align: center;
+        pointer-events: none;
+      }
+    </style>
+    <script defer src="./build/player.js"></script>
+  </head>
+  <body>
+    <div id="player-stage"></div>
+    <div class="player-status"></div>
+  </body>
+</html>

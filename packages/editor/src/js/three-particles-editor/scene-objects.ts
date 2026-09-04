@@ -23,6 +23,7 @@ import {
 } from './world';
 import type { SsrSettings, EnvironmentSettings } from './world';
 import { markAsEditorOnly } from './editor-layers';
+import { isPlayer } from './runtime-mode';
 
 const STORAGE_KEY = 'particle-system-editor/scene-objects';
 
@@ -208,6 +209,9 @@ const ensureTransformControls = (): TransformControls => {
 /** Attaches the drag gizmo to an object, or clears it when id is null. */
 export const selectSceneObject = (id: string | null): void => {
   selectedId = id;
+  // No gizmo in the player — and building one would ask for orbit controls that
+  // do not exist there.
+  if (isPlayer()) return;
   const controls = ensureTransformControls();
   const three = id ? live.get(id) : null;
   if (three) controls.attach(three);
@@ -568,7 +572,7 @@ const mount = (obj: SceneObject): THREE.Object3D => {
   }
   // A CameraHelper is a sibling rather than a child: it draws the frustum in
   // world space, so parenting it to the camera would move it with the lens.
-  if (obj.type === 'CAMERA') {
+  if (obj.type === 'CAMERA' && !isPlayer()) {
     const frustum = new THREE.CameraHelper(three as THREE.PerspectiveCamera);
     markAsEditorOnly(frustum);
     frustums.set(obj.id, frustum);
@@ -638,11 +642,31 @@ const persist = (): void => {
   // hide or delete a camera without the preview finding out.
   syncOutputCamera();
   syncEnvironment();
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(objects));
-  } catch {
-    /* quota — the scene still works for this session */
+  // The player receives scenes, it does not own them — and it shares an origin
+  // with the editor, so persisting here would overwrite the scene the editor is
+  // still working on in the other window.
+  if (!isPlayer()) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(objects));
+    } catch {
+      /* quota — the scene still works for this session */
+    }
   }
+  sceneWatchers.forEach((watcher) => watcher());
+};
+
+/**
+ * Called after every committed change to the scene, whatever made it.
+ *
+ * `onSceneChanged` is a single slot owned by the Scene panel; this is the list
+ * for everything else that needs to hear about a change — the player link being
+ * the first of them.
+ */
+const sceneWatchers = new Set<() => void>();
+
+export const watchScene = (watcher: () => void): (() => void) => {
+  sceneWatchers.add(watcher);
+  return () => sceneWatchers.delete(watcher);
 };
 
 export const getSceneObjects = (): SceneObject[] => objects;

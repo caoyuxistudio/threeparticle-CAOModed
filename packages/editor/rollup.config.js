@@ -73,13 +73,21 @@ function serve() {
   };
 }
 
-export default {
-  input: 'src/main.js',
+/**
+ * Two entry points share one plugin chain.
+ *
+ * The editor and the player are separate pages so that each gets its own copy
+ * of the module-level singletons the world is built on — one renderer, one
+ * scene, one set of scene objects per window. That only works if they are also
+ * separate bundles.
+ */
+const bundle = ({ input, file, cssFile, withServe }) => ({
+  input,
   output: {
     sourcemap: true,
     format: 'iife',
     name: 'app',
-    file: 'public/build/bundle.js',
+    file,
   },
 
   plugins: [
@@ -121,7 +129,7 @@ export default {
     }),
     // we'll extract any component CSS out into
     // a separate file - better for performance
-    css({ output: 'bundle.css' }),
+    css({ output: cssFile }),
 
     // If you have external dependencies installed from
     // npm, you'll most likely need these plugins. In
@@ -140,8 +148,9 @@ export default {
     commonjs(),
 
     // In dev mode, call `npm run start` once
-    // the bundle has been generated
-    !production && serve(),
+    // the bundle has been generated. Only the first bundle starts it; a second
+    // server on the same port would just fail.
+    !production && withServe && serve(),
 
     // Livereload disabled: it auto-refreshed the page on any file event under
     // `public/` (including iCloud/Finder touches), wiping unsaved editor state.
@@ -155,4 +164,19 @@ export default {
   watch: {
     clearScreen: false,
   },
-};
+});
+
+export default [
+  bundle({
+    input: 'src/main.js',
+    file: 'public/build/bundle.js',
+    cssFile: 'bundle.css',
+    withServe: true,
+  }),
+  bundle({
+    input: 'src/player.ts',
+    file: 'public/build/player.js',
+    cssFile: 'player.css',
+    withServe: false,
+  }),
+];

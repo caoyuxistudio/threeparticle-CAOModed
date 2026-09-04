@@ -1,7 +1,7 @@
 /**
- * Throwaway verification harness. Not part of the app, not committed
- * (public/__ai-* is gitignored). Nothing imports it; it is fetched and eval'd
- * from the console after a reload:
+ * Verification harness. Not part of the app — nothing imports it, and it ships
+ * only so that a session can pick it up without being handed it. It is fetched
+ * and eval'd from the console after a reload:
  *
  *   await fetch('/__ai-test.js').then(r=>r.text()).then(eval); __t.report()
  *
@@ -328,7 +328,142 @@
     return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
+
+  /**
+   * The link to the display window, exercised from this side of it.
+   *
+   * The display is a separate page with its own renderer, so what can be
+   * checked from here is the contract rather than the picture: that the editor
+   * answers a display announcing itself, that what it sends survives a
+   * structured clone — the live config carries the entries' own recreate
+   * callbacks, and posting one of those is exactly how this broke the first
+   * time — and that a panorama is not re-cloned onto the wire on every push.
+   */
+  const playerReport = async () => {
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+
+    const channel = new BroadcastChannel('three-particles-player');
+    const inbox = [];
+    channel.onmessage = (event) => inbox.push(event.data);
+
+    /** A channel never receives its own posts, so everything here is the editor's. */
+    const waitFor = async (type, ms = 4000) => {
+      const start = performance.now();
+      while (performance.now() - start < ms) {
+        const found = inbox.filter((m) => m?.type === type).pop();
+        if (found) return found;
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      return null;
+    };
+
+    // A tiny 2x1 PNG standing in for a panorama: large enough to be a real
+    // source string, small enough to read back in an assertion.
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 1;
+    canvas.getContext('2d').fillStyle = '#3070ff';
+    canvas.getContext('2d').fillRect(0, 0, 2, 1);
+    const panorama = canvas.toDataURL('image/png');
+
+    const withEnvironment = async (extra) => {
+      const cfg = await fixture();
+      cfg._editorData.sceneObjects = cfg._editorData.sceneObjects.filter(
+        (o) => o.type !== 'ENVIRONMENT'
+      );
+      cfg._editorData.sceneObjects.push({
+        id: 'obj-env-probe',
+        type: 'ENVIRONMENT',
+        name: 'Panorama probe',
+        visible: false,
+        position: { x: 0, y: 0, z: 0 },
+        environment: { source: panorama, format: 'ldr', intensity: 1, rotation: 0, blur: 0, showInViewport: false, showInCamera: false },
+      });
+      Object.assign(cfg._editorData.sceneObjects.find((o) => o.type === 'SPHERE'), extra);
+      window.editor.load(cfg);
+    };
+
+    // ── The handshake ────────────────────────────────────────────────────────
+    channel.postMessage({ type: 'hello' });
+    const snapshot = await waitFor('snapshot');
+    check('editor answers a display that announces itself', !!snapshot);
+
+    if (snapshot) {
+      const data = snapshot.config?._editorData ?? {};
+      check('snapshot carries the scene', Array.isArray(data.sceneObjects), `${data.sceneObjects?.length ?? 0} objects`);
+      check('snapshot carries the emitter', typeof snapshot.config?.duration === 'number' || !!snapshot.config?.emission);
+      // Uploaded textures live in localStorage, which the display shares.
+      check('snapshot leaves texture payloads at home', data.embeddedTextures === undefined);
+      // The emitter's canned motion is config, not scene, so it rides in
+      // _editorData — and the display runs it from the same numbers.
+      check(
+        'snapshot carries the emitter simulation',
+        typeof data.simulation?.movements === 'string' && typeof data.simulation?.movementSpeed === 'number',
+        `${data.simulation?.movements} @ ${data.simulation?.movementSpeed}`
+      );
+
+      // The clone already happened — a function anywhere in here would have
+      // thrown DataCloneError instead of arriving — but naming it makes the
+      // failure legible rather than a silent absence.
+      const functions = [];
+      const walk = (node, path, seen) => {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+        Object.keys(node).forEach((key) => {
+          const value = node[key];
+          if (typeof value === 'function') functions.push(`${path}.${key}`);
+          else if (value && typeof value === 'object') walk(value, `${path}.${key}`, seen);
+        });
+      };
+      walk(snapshot.config, 'config', new Set());
+      check('nothing on the wire is a function', functions.length === 0, functions.join(', '));
+    }
+
+    // ── Incremental pushes ───────────────────────────────────────────────────
+    inbox.length = 0;
+    await withEnvironment({ position: { x: 1.5, y: 1.5, z: 0 } });
+    const first = await waitFor('scene');
+    check('a scene change reaches the display', !!first);
+    const firstEnv = first?.objects?.find((o) => o.type === 'ENVIRONMENT');
+    check('a panorama the display has not seen travels in full', firstEnv?.environment?.source === panorama);
+
+    inbox.length = 0;
+    await withEnvironment({ position: { x: -1.5, y: 1.5, z: 0 } });
+    const second = await waitFor('scene');
+    const secondEnv = second?.objects?.find((o) => o.type === 'ENVIRONMENT');
+    check('the next push moves the object', second?.objects?.find((o) => o.type === 'SPHERE')?.position.x === -1.5);
+    check(
+      'an unchanged panorama travels as a sentinel',
+      typeof secondEnv?.environment?.source === 'string' &&
+        secondEnv.environment.source !== panorama &&
+        secondEnv.environment.source.length < 64,
+      `${secondEnv?.environment?.source?.length ?? 0} chars vs ${panorama.length}`
+    );
+
+    // ── The button ───────────────────────────────────────────────────────────
+    const button = document.querySelector('.player-window-toggle');
+    check('the toggle button exists', !!button);
+    if (button && window.__world?.getOutputCamera()) {
+      const box = button.getBoundingClientRect();
+      const canvasBox = window.__world.canvasBounds();
+      const preview = window.__world.previewRect();
+      check('the button sits outside the preview, not on it', box.right <= canvasBox.left + preview.x);
+      check('the button lines up with the preview top', Math.abs(box.top - (canvasBox.top + preview.y)) <= 1, `${Math.round(box.top)} vs ${Math.round(canvasBox.top + preview.y)}`);
+    }
+
+    // Stop the editor pushing at a display that was never really there.
+    channel.postMessage({ type: 'bye' });
+    channel.close();
+    await load();
+
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`player: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
   window.__t = {
+    playerReport,
     frameReport,
     environmentReport,
     fixture,

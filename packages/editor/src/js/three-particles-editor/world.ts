@@ -25,6 +25,7 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { TextureId } from './texture-config';
 import { getTexture } from './assets';
 import { markAsEditorOnly } from './editor-layers';
+import { isPlayer } from './runtime-mode';
 
 let scene: THREE.Scene;
 let renderer: WebGPURenderer;
@@ -383,12 +384,17 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   defaultBackground = new THREE.Color(0x000000);
   scene.background = defaultBackground;
 
-  mesh = new THREE.Mesh(new THREE.PlaneGeometry(50, 50, 50, 50));
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.receiveShadow = true;
-  markAsEditorOnly(mesh);
-  scene.add(mesh);
-  setTerrain();
+  // The ground grid is a working aid, not part of the piece, so the player does
+  // not build one at all — layer masking would hide it, but there is no reason
+  // to pay for a 50x50 plane in a window that can never show it.
+  if (!isPlayer()) {
+    mesh = new THREE.Mesh(new THREE.PlaneGeometry(50, 50, 50, 50));
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.receiveShadow = true;
+    markAsEditorOnly(mesh);
+    scene.add(mesh);
+    setTerrain();
+  }
 
   // No lights are created here on purpose. Everything that lights the scene is
   // added from the Scene panel, so an empty scene really is unlit — otherwise a
@@ -419,22 +425,27 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   // camera keeps its default mask and so sees the artwork layer alone.
   camera.layers.enableAll();
 
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enablePan = true;
-  controls.enableZoom = true;
-  controls.target.set(0, 0, 0);
-  controls.update();
+  // Nothing in the player is interactive: no orbiting, no FPS counter, and no
+  // preview box to drag — it *is* the preview.
+  if (!isPlayer()) {
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.target.set(0, 0, 0);
+    controls.update();
 
-  const statsContainer = document.querySelector('.stats');
-  if (!statsContainer) {
-    throw new Error('Stats container not found');
+    const statsContainer = document.querySelector('.stats');
+    if (!statsContainer) {
+      throw new Error('Stats container not found');
+    }
+
+    stats = new Stats();
+    statsContainer.appendChild(stats.dom);
+
+    installPreviewResize(renderer.domElement);
   }
 
-  stats = new Stats();
-  statsContainer.appendChild(stats.dom);
-
   window.addEventListener('resize', onWindowResize);
-  installPreviewResize(renderer.domElement);
 
   // TEMP DEBUG
   (window as any).__world = {
@@ -451,6 +462,10 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
 };
 
 const onWindowResize = (): void => {
+  if (isPlayer()) {
+    fitPlayerCanvas();
+    return;
+  }
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -487,6 +502,68 @@ export const updateWorld = (
   setBackdropFor('camera');
   renderPreview();
   stats.update();
+};
+
+/**
+ * Sizes the canvas to the output camera's frame, centred in the window.
+ *
+ * Letterboxing by shrinking the canvas rather than scissoring inside a
+ * full-window one is not a shortcut: post processing cannot be scissored — its
+ * internal scene pass obeys the same rectangle and the whole thing comes back
+ * black — and a canvas that is already the shape of the frame needs no
+ * rectangle at all. The bars are the page showing through.
+ */
+export const fitPlayerCanvas = (): void => {
+  if (!renderer) return;
+  const aspect = outputCamera?.aspect || 16 / 9;
+
+  let w = window.innerWidth;
+  let h = Math.round(w / aspect);
+  if (h > window.innerHeight) {
+    h = window.innerHeight;
+    w = Math.round(h * aspect);
+  }
+
+  renderer.setSize(w, h);
+  depthRenderTarget?.setSize(w, h);
+};
+
+/**
+ * One frame of the display window: the output camera, full canvas, nothing else.
+ *
+ * The editor's equivalent draws the viewport first and squeezes this view into
+ * a corner afterwards. Here it is the only pass, which is why the reflections
+ * can go straight to the canvas instead of through an offscreen target.
+ */
+export const renderPlayer = (
+  softParticlesEnabled = false,
+  particleContainer?: THREE.Object3D,
+  computeNode?: unknown
+): void => {
+  if (computeNode) {
+    (renderer as any).compute(computeNode);
+  }
+  if (!outputCamera) return;
+
+  setBackdropFor('camera');
+
+  if (softParticlesEnabled && depthRenderTarget) {
+    // Same feedback loop as the viewport: the particle shader reads the depth
+    // texture the pass would be writing.
+    if (particleContainer) particleContainer.visible = false;
+    renderer.setRenderTarget(depthRenderTarget);
+    renderer.render(scene, outputCamera);
+    renderer.setRenderTarget(null);
+    if (particleContainer) particleContainer.visible = true;
+    setBackdropFor('camera');
+  }
+
+  if (ssrSettings.enabled) {
+    if (pipelineCamera !== outputCamera) buildSsrPipeline(outputCamera);
+    postProcessing!.render();
+  } else {
+    renderer.render(scene, outputCamera);
+  }
 };
 
 const PREVIEW_MARGIN = 16;
@@ -533,7 +610,7 @@ let previewBoundsAt = 0;
  * preview computes has to be too, or the drawn box and the area that reacts to
  * the mouse end up offset by the height of that toolbar.
  */
-const canvasBounds = (): DOMRect => renderer.domElement.getBoundingClientRect();
+export const canvasBounds = (): DOMRect => renderer.domElement.getBoundingClientRect();
 
 /** A pointer event in canvas coordinates. */
 const toCanvasSpace = (event: PointerEvent): { x: number; y: number } => {
@@ -562,7 +639,7 @@ const freeViewportBounds = (): { left: number; right: number } => {
  * Rendering and hit-testing both read this, so a dragged handle cannot drift
  * away from the box it is supposed to be attached to.
  */
-const previewRect = (): { x: number; y: number; w: number; h: number } => {
+export const previewRect = (): { x: number; y: number; w: number; h: number } => {
   const free = freeViewportBounds();
   const aspect = outputCamera?.aspect || 16 / 9;
   const available = free.right - free.left - PREVIEW_MARGIN * 2;
@@ -744,6 +821,9 @@ export const resetCamera = (): void => {
 };
 
 export const setTerrain = (textureId?: string): void => {
+  // Loading a config calls this; in the player there is no plane to apply it to.
+  if (!mesh) return;
+
   if (!textureId || textureId === TextureId.WIREFRAME) {
     const material = new THREE.MeshBasicMaterial({
       wireframe: true,

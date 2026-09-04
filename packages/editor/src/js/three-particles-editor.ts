@@ -1,23 +1,23 @@
 import * as THREE from 'three';
 
-import {
-  MovementSimulations,
-  RotationSimulations,
-  createHelperEntries,
-} from './three-particles-editor/entries/helper-entries';
+import { createHelperEntries } from './three-particles-editor/entries/helper-entries';
+import { MovementSimulations, RotationSimulations } from './three-particles-editor/simulation';
 import {
   copyToClipboard,
   getObjectDiff,
   loadFromClipboard,
   loadParticleSystem,
+  serializeConfig,
 } from './three-particles-editor/save-and-load';
 import {
-  createParticleSystem,
-  getDefaultParticleSystemConfig,
-  updateParticleSystems,
-} from '@newkrok/three-particles';
+  installPlayerButton,
+  notifyParticleConfigChanged,
+  setSnapshotSource,
+  syncPlayerButton,
+} from './three-particles-editor/player-window';
+import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
-import { convertToNewFormat } from './three-particles-editor/config-converter';
+import { buildParticleSystem } from './three-particles-editor/particle-factory';
 import {
   createWorld,
   resetCamera,
@@ -52,7 +52,7 @@ import { createSubEmitterEntries } from './three-particles-editor/entries/sub-em
 import { createForceFieldEntries } from './three-particles-editor/entries/force-field-entries';
 import { createCollisionPlaneEntries } from './three-particles-editor/entries/collision-plane-entries';
 import { createTrailEntries } from './three-particles-editor/entries/trail-entries';
-import { createMeshEntries, createGeometry } from './three-particles-editor/entries/mesh-entries';
+import { createMeshEntries } from './three-particles-editor/entries/mesh-entries';
 import { generateDefaultName } from './utils/name-utils';
 
 type ConfigMetadata = {
@@ -359,6 +359,14 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
   particleSystemContainer = new Object3D();
   scene.add(particleSystemContainer);
 
+  // The display window reads the piece through the same serialiser that saving
+  // and copying use, so what it shows is what a save would produce.
+  setSnapshotSource(() => ({
+    config: serializeConfig(particleSystemConfig),
+    elapsed: clock.getElapsedTime(),
+  }));
+  installPlayerButton();
+
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pauseTime();
     else if (!isPaused) resumeTime();
@@ -426,6 +434,7 @@ const animate = (): void => {
   const softParticlesEnabled = !!activeConfig?.renderer?.softParticles?.enabled;
   const computeNode = particleSystem?.computeNode ?? null;
   updateWorld(softParticlesEnabled, particleSystemContainer, computeNode);
+  syncPlayerButton();
   requestAnimationFrame(animate);
 };
 
@@ -434,35 +443,6 @@ const getActiveConfig = (): any => {
     return expandedSubEmitterConfig;
   }
   return particleSystemConfig;
-};
-
-const resolveSubEmitterTextures = (config: any): void => {
-  if (!config.subEmitters) return;
-  config.subEmitters.forEach((subEmitter: any) => {
-    const subConfig = subEmitter.config;
-    if (subConfig?._editorData?.textureId) {
-      const texture = getTexture(subConfig._editorData.textureId);
-      if (texture) {
-        subConfig.map = texture.map;
-      }
-    }
-    // Recursively resolve nested sub-emitters
-    if (subConfig) resolveSubEmitterTextures(subConfig);
-  });
-};
-
-const resolveMeshGeometry = (config: any): void => {
-  if (config.renderer?.rendererType === 'MESH') {
-    if (!config.renderer.mesh) config.renderer.mesh = {};
-    if (!config.renderer.mesh.geometryType) config.renderer.mesh.geometryType = 'BOX';
-    config.renderer.mesh.geometry = createGeometry(config.renderer.mesh.geometryType);
-  }
-  // Recursively resolve for sub-emitters
-  if (config.subEmitters) {
-    config.subEmitters.forEach((subEmitter: any) => {
-      if (subEmitter.config) resolveMeshGeometry(subEmitter.config);
-    });
-  }
 };
 
 /**
@@ -478,6 +458,9 @@ const resolveMeshGeometry = (config: any): void => {
  */
 const recreateParticleSystem = (markAsDirty = true, liveUpdateKeys?: string[]): void => {
   const activeConfig = getActiveConfig();
+
+  // Throttled, and a no-op while no display window is open.
+  notifyParticleConfigChanged();
 
   // Live-update path — applies a partial config update via the engine's updateConfig API.
   // Falls through to full recreate when:
@@ -557,67 +540,11 @@ const doFullRecreate = (activeConfig: any, markAsDirty: boolean): void => {
     cycleData.totalPauseTime = 0;
   }
 
-  // Resolve textures for sub-emitters (map is not serialized, only textureId is)
-  resolveSubEmitterTextures(activeConfig);
-
-  // Resolve mesh geometries (geometry is not serialized, only geometryType is)
-  resolveMeshGeometry(activeConfig);
-
-  // Mesh particles use the engine's built-in default texture, not sprite textures
-  if (activeConfig.renderer?.rendererType === 'MESH') {
-    delete activeConfig.map;
-  }
-
-  // Inject depth texture for soft particles
-  if (activeConfig.renderer?.softParticles?.enabled) {
-    const depthTex = getDepthTexture();
-    if (depthTex) {
-      activeConfig.renderer.softParticles.depthTexture = depthTex;
-    }
-  }
-
-  // Convert old configuration format to new format before creating particle system
-  // convertToNewFormat deep-clones so it won't mutate activeConfig (preserves lil-gui refs)
-  const convertedConfig = convertToNewFormat(activeConfig);
-
-  // Restore non-serializable THREE.js objects lost during deep clone
-  if (activeConfig.map) convertedConfig.map = activeConfig.map;
-  if (activeConfig.particleColorInstance?.map && convertedConfig.particleColorInstance)
-    convertedConfig.particleColorInstance.map = activeConfig.particleColorInstance.map;
-  if (activeConfig.renderer?.softParticles?.depthTexture)
-    convertedConfig.renderer.softParticles.depthTexture =
-      activeConfig.renderer.softParticles.depthTexture;
-  if (activeConfig.renderer?.mesh?.geometry)
-    convertedConfig.renderer.mesh.geometry = activeConfig.renderer.mesh.geometry;
-  // Restore sub-emitter maps and geometries
-  if (activeConfig.subEmitters) {
-    const restoreSubEmitterRefs = (source: any[], target: any[]) => {
-      source.forEach((sub: any, i: number) => {
-        if (target[i]?.config && sub.config) {
-          if (sub.config.map) target[i].config.map = sub.config.map;
-          if (sub.config.renderer?.mesh?.geometry)
-            target[i].config.renderer.mesh.geometry = sub.config.renderer.mesh.geometry;
-          if (sub.config.subEmitters && target[i].config.subEmitters)
-            restoreSubEmitterRefs(sub.config.subEmitters, target[i].config.subEmitters);
-        }
-      });
-    };
-    if (convertedConfig.subEmitters)
-      restoreSubEmitterRefs(activeConfig.subEmitters, convertedConfig.subEmitters);
-  }
-
-  // WebGPU: POINTS rendererType uses gl_PointCoord which is not available in WGSL.
-  // Force INSTANCED when WebGPU is active (same approach as the three-particles demos).
-  // Applied to the converted copy so the editor config stays unchanged for serialization.
-  if (webGPUAvailable) {
-    const rt = convertedConfig.renderer?.rendererType;
-    if (!rt || rt === 'POINTS') {
-      if (!convertedConfig.renderer) convertedConfig.renderer = {};
-      convertedConfig.renderer.rendererType = 'INSTANCED';
-    }
-  }
-
-  particleSystem = createParticleSystem(convertedConfig);
+  // Shared with the player window so both interpret a config identically.
+  particleSystem = buildParticleSystem(activeConfig, {
+    webGPUAvailable,
+    depthTexture: getDepthTexture(),
+  });
 
   // Capture structural state at creation time so the live-update path can detect
   // when a full recreate is needed (e.g. WebGPU shader recompilation).
@@ -637,14 +564,6 @@ const doFullRecreate = (activeConfig: any, markAsDirty: boolean): void => {
     backendBadge.textContent = isGPU ? 'GPU' : 'CPU';
     backendBadge.style.background = isGPU ? '#2e7d32' : '#555';
   }
-
-  // Particles stay out of the shadow exchange on purpose. Their material drives
-  // the vertex stage through vertexNode, which the shadow pass neither runs
-  // (casting) nor can feed shadow coordinates through (receiving) — and letting
-  // them into the pass silently breaks shadows for every other object in the
-  // scene. Lighting still applies to them; only shadows are opted out.
-  particleSystem.instance.castShadow = false;
-  particleSystem.instance.receiveShadow = false;
 
   particleSystemContainer.add(particleSystem.instance);
   configEntries.forEach(
