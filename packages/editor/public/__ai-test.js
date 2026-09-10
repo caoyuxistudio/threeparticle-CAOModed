@@ -377,6 +377,20 @@
       check('the top corners ride on the lowered edge', Math.abs(b.max.y - (1.75 - 0.5)) < 0.01, b.max.y.toFixed(2));
     }
 
+    // "Top" is the screen's top. A frame lying flat under the fixture's
+    // top-down camera has its local +y pointing down the screen, so the
+    // offset and the top corners must land on the local -y edge there.
+    const flat = await build({ rotation: { x: 90, y: 0, z: 0 }, topOffset: 0.5, cornerRadius: { topLeft: 0.5, topRight: 0.5, bottomLeft: 0, bottomRight: 0 } });
+    flat.mesh.geometry.computeBoundingBox();
+    const fb = flat.mesh.geometry.boundingBox;
+    check('flat under a top-down camera, the offset takes the local -y edge', Math.abs(fb.min.y - (-2.35 + 0.5)) < 0.01 && Math.abs(fb.max.y - 2.35) < 0.01, `${fb.min.y.toFixed(2)}..${fb.max.y.toFixed(2)}`);
+    const flatMask = flat.mesh?.children.find((c) => c.name === 'frame-corners');
+    if (flatMask) {
+      flatMask.geometry.computeBoundingBox();
+      const mb = flatMask.geometry.boundingBox;
+      check('and the top corners with it', Math.abs(mb.min.y - (-1.75 + 0.5)) < 0.01 && mb.max.y < 0, `${mb.min.y.toFixed(2)}..${mb.max.y.toFixed(2)}`);
+    }
+
     await load();
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
     return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
@@ -557,9 +571,18 @@
       check('the viewport is at full strength while drawing', canvas.style.filter === '');
 
       link.setFocusOverride(false);
-      // One frame for the loop to notice, then the loop must go quiet.
-      await new Promise((r) => setTimeout(r, 200));
-      check('the loop applied the suspension', link.isSuspended() === true);
+      // One frame for the loop to notice, then the loop must go quiet. A hidden
+      // pane gets that frame about once a second, so this waits for it rather
+      // than assuming it.
+      const noticed = async (ms) => {
+        const t0 = performance.now();
+        while (performance.now() - t0 < ms) {
+          if (link.isSuspended()) return true;
+          await new Promise((r) => setTimeout(r, 40));
+        }
+        return link.isSuspended();
+      };
+      check('the loop applied the suspension', await noticed(4000));
       check('a blurred editor stops drawing', (await drewAFrame(600)) === false);
       check('the card says so', card?.style.display === 'flex');
       check('the frozen viewport is dimmed', canvas.style.filter.includes('brightness'));

@@ -63,7 +63,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 | `BOX` `SPHERE` | 基础几何体 |
 | `POINT_LIGHT` `DIRECTIONAL_LIGHT` | 灯 |
 | `LIGHT_PROBE` | 环境光探针，可烘焙 |
-| `FRAME` | **画框**。按内框长宽 + 边框粗细 + 深度调，正面和内框洞壁两套材质；开口可以**圆角**：四个角各自一个半径（面板上按全部 / 上一对 / 下一对调），开口本身仍是矩形，圆角外面用一块"遮罩"填上（子网格，遮罩色默认黑、洞壁沿用边缘材质），预设是苹果设备屏幕圆角占屏幕宽度的比例乘以开口宽度；`topOffset` 只把顶边（外沿、开口顶边、两个上角）往下挪，底边不动，用来对齐状态栏之类 |
+| `FRAME` | **画框**。按内框长宽 + 边框粗细 + 深度调，正面和内框洞壁两套材质；开口可以**圆角**：四个角各自一个半径（面板上按全部 / 上一对 / 下一对调），开口本身仍是矩形，圆角外面用一块"遮罩"填上（子网格，遮罩色默认黑、洞壁沿用边缘材质），预设是苹果设备屏幕圆角占屏幕宽度的比例乘以开口宽度；`topOffset` 只把顶边（外沿、开口顶边、两个上角）往下挪，底边不动，用来对齐状态栏之类。"顶"和"上角 / 下角"按**输出相机的屏幕上方**定（`screenTopSign`：画框局部 +y 与相机上方向反向就翻过来），平躺的画框在俯视相机下才不会上下颠倒；相机一动画框会重新同步 |
 | `CAMERA` | **输出相机**。作品最终是给这个机位构图的 |
 | `ENVIRONMENT` | **全景环境光**。JPEG/PNG/WebP/HDR/EXR，照明 + 反射 + 可选背景 |
 
@@ -135,7 +135,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是同一个场景换成视频 color source，竖幅相机。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **179/179**（含 `videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 17）
+- 控制台 harness `public/__ai-test.js`，当前基线 **181/181**（含 `videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 19）
 
 ---
 

@@ -20,6 +20,7 @@ import {
   defaultSsrSettings,
   setEnvironment,
   defaultEnvironmentSettings,
+  getOutputCamera,
 } from './world';
 import type { SsrSettings, EnvironmentSettings } from './world';
 import { EDITOR_LAYER, markAsEditorOnly } from './editor-layers';
@@ -420,28 +421,82 @@ const topOffsetOf = (obj: SceneObject): number => {
   return Math.min(innerH - 0.01, Math.max(0, obj.topOffset ?? 0));
 };
 
+/**
+ * Which of the frame's two horizontal edges is the *top* on the output
+ * camera's screen: +1 for the local +y edge, -1 for the local -y edge.
+ *
+ * A frame lying flat under a camera looking down has its local +y pointing
+ * away from the screen's up, so "the top edge" and "the top corners" would
+ * otherwise land at the bottom of the picture. Decided against the output
+ * camera, which is the view the piece is composed for; without one, local +y.
+ */
+const screenTopSign = (obj: SceneObject): 1 | -1 => {
+  const camera = getOutputCamera();
+  if (!camera) return 1;
+  const rotation = obj.rotation ?? { x: 0, y: 0, z: 0 };
+  const frameUp = new THREE.Vector3(0, 1, 0).applyEuler(
+    new THREE.Euler(
+      THREE.MathUtils.degToRad(rotation.x),
+      THREE.MathUtils.degToRad(rotation.y),
+      THREE.MathUtils.degToRad(rotation.z)
+    )
+  );
+  const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  return frameUp.dot(cameraUp) < 0 ? -1 : 1;
+};
+
+/** The frame's horizontal edges in local y, the screen-top pair brought down by the offset. */
+const frameEdges = (
+  obj: SceneObject
+): {
+  innerPlus: number;
+  innerMinus: number;
+  outerPlus: number;
+  outerMinus: number;
+  top: 1 | -1;
+} => {
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  const border = Math.max(0.01, obj.border ?? 0.6);
+  const outerH = innerH + border * 2;
+  const down = topOffsetOf(obj);
+  const top = screenTopSign(obj);
+  const edges = {
+    innerPlus: innerH / 2,
+    innerMinus: -innerH / 2,
+    outerPlus: outerH / 2,
+    outerMinus: -outerH / 2,
+    top,
+  };
+  if (top === 1) {
+    edges.innerPlus -= down;
+    edges.outerPlus -= down;
+  } else {
+    edges.innerMinus += down;
+    edges.outerMinus += down;
+  }
+  return edges;
+};
+
 const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
   const innerW = Math.max(0.01, obj.innerWidth ?? 6);
-  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
   const border = Math.max(0.01, obj.border ?? 0.6);
   const depth = Math.max(0.01, obj.depth ?? 0.5);
   const outerW = innerW + border * 2;
-  const outerH = innerH + border * 2;
-  const down = topOffsetOf(obj);
+  const edges = frameEdges(obj);
 
   const shape = new THREE.Shape();
-  shape.moveTo(-outerW / 2, -outerH / 2);
-  shape.lineTo(outerW / 2, -outerH / 2);
-  shape.lineTo(outerW / 2, outerH / 2 - down);
-  shape.lineTo(-outerW / 2, outerH / 2 - down);
+  shape.moveTo(-outerW / 2, edges.outerMinus);
+  shape.lineTo(outerW / 2, edges.outerMinus);
+  shape.lineTo(outerW / 2, edges.outerPlus);
+  shape.lineTo(-outerW / 2, edges.outerPlus);
   shape.closePath();
 
   // Wound the opposite way from the outline, which is how a path reads as a hole.
   const hole = new THREE.Path();
-  hole.moveTo(-innerW / 2, -innerH / 2);
-  hole.lineTo(-innerW / 2, innerH / 2 - down);
-  hole.lineTo(innerW / 2, innerH / 2 - down);
-  hole.lineTo(innerW / 2, -innerH / 2);
+  hole.moveTo(-innerW / 2, edges.innerMinus);
+  hole.lineTo(-innerW / 2, edges.innerPlus);
+  hole.lineTo(innerW / 2, edges.innerPlus);
+  hole.lineTo(innerW / 2, edges.innerMinus);
   hole.closePath();
   shape.holes.push(hole);
 
@@ -479,12 +534,17 @@ const cornerRadii = (obj: SceneObject): CornerRadius => {
  */
 const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => {
   const innerW = Math.max(0.01, obj.innerWidth ?? 6);
-  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
   const depth = Math.max(0.01, obj.depth ?? 0.5);
   const radii = cornerRadii(obj);
   const w = innerW / 2;
-  const h = innerH / 2;
-  const top = h - topOffsetOf(obj);
+  const edges = frameEdges(obj);
+  // "Top" corners are the pair on the screen's top edge, whichever local side
+  // that is (see screenTopSign).
+  const radiusFor = (sx: number, sy: number): number => {
+    const isTop = sy === edges.top;
+    if (sx < 0) return isTop ? radii.topLeft : radii.bottomLeft;
+    return isTop ? radii.topRight : radii.bottomRight;
+  };
 
   // Corner sign, the radius that belongs to it, and the arc that rounds it:
   // from the tangent point on the horizontal edge to the one on the vertical
@@ -492,24 +552,24 @@ const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => 
   const corners: Array<{
     sx: number;
     sy: number;
-    r: number;
     from: number;
     to: number;
     cw: boolean;
   }> = [
-    { sx: 1, sy: 1, r: radii.topRight, from: Math.PI / 2, to: 0, cw: true },
-    { sx: -1, sy: 1, r: radii.topLeft, from: Math.PI / 2, to: Math.PI, cw: false },
-    { sx: -1, sy: -1, r: radii.bottomLeft, from: -Math.PI / 2, to: Math.PI, cw: true },
-    { sx: 1, sy: -1, r: radii.bottomRight, from: -Math.PI / 2, to: 0, cw: false },
+    { sx: 1, sy: 1, from: Math.PI / 2, to: 0, cw: true },
+    { sx: -1, sy: 1, from: Math.PI / 2, to: Math.PI, cw: false },
+    { sx: -1, sy: -1, from: -Math.PI / 2, to: Math.PI, cw: true },
+    { sx: 1, sy: -1, from: -Math.PI / 2, to: 0, cw: false },
   ];
 
   const shapes: THREE.Shape[] = [];
-  corners.forEach(({ sx, sy, r, from, to, cw }) => {
+  corners.forEach(({ sx, sy, from, to, cw }) => {
+    const r = radiusFor(sx, sy);
     if (r <= 0) return;
     const cx = sx * w;
-    const cy = sy > 0 ? top : -h;
+    const cy = sy > 0 ? edges.innerPlus : edges.innerMinus;
     const ox = sx * (w - r);
-    const oy = sy > 0 ? top - r : -h + r;
+    const oy = cy - sy * r;
     const shape = new THREE.Shape();
     shape.moveTo(cx, cy);
     shape.lineTo(ox, cy);
@@ -533,6 +593,7 @@ const frameGeometryKey = (obj: SceneObject): string => {
     obj.border,
     obj.depth,
     topOffsetOf(obj),
+    screenTopSign(obj),
     c.topLeft,
     c.topRight,
     c.bottomLeft,
@@ -730,6 +791,20 @@ const applyToThree = (obj: SceneObject): void => {
     // be regenerated whenever any of the four values above move.
     cam.updateMatrixWorld();
     frustums.get(obj.id)?.update();
+    // A frame's "top" is decided against this camera; a turned camera may
+    // move it to the other edge.
+    resyncFramesToCamera();
+  }
+};
+
+let resyncingFrames = false;
+const resyncFramesToCamera = (): void => {
+  if (resyncingFrames) return;
+  resyncingFrames = true;
+  try {
+    objects.filter((o) => o.type === 'FRAME').forEach((o) => applyToThree(o));
+  } finally {
+    resyncingFrames = false;
   }
 };
 
