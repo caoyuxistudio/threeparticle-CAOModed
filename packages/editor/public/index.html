@@ -29,11 +29,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!--
-      Translucent: the page runs under the status bar, so the display can be
-      the whole screen. iOS 26 then lays the page out 62px short at the bottom;
-      world.ts notices that shape and paints the strip anyway.
+      Opaque. iOS 26 gives a Home Screen web app a view the screen minus the
+      status bar either way; translucent merely moves it up under the bar and
+      leaves the strip at the bottom instead. Below the bar, edge to edge, is
+      the better of the two.
     -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Particles" />
     <!-- Favicon -->    
     <link rel="icon" href="./favicon/favicon.ico" />

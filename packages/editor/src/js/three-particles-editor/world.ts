@@ -678,26 +678,23 @@ export type ViewportMetrics = {
 };
 
 /**
- * How tall the display really is, and where the extra lies.
+ * How tall the display really is: the window, and nothing more.
  *
- * Normally the window. On an iPhone opened from the Home Screen, iOS 26 lays
- * the page out the screen minus the status bar (measured: 894 of 956) while
- * CSS's large viewport is still the whole screen — the web view spans it,
- * the page does not. Where the missing strip lies depends on the status bar
- * style the app was installed with: translucent puts the page at the very
- * top (a top inset is reported) and the strip below; opaque puts the page
- * below the bar and the strip above. Either way the display is drawn the
- * large viewport's height and shifted to cover the strip.
+ * On an iPhone opened from the Home Screen, iOS 26 gives the page a web view
+ * the screen minus the status bar (measured: 894 of 956) even though CSS's
+ * large viewport says the whole screen. A translucent status bar moves that
+ * view up under the bar and leaves a strip at the bottom; an opaque one
+ * leaves the view below the bar. Drawing past the view was tried both ways:
+ * the strip stays black and the piece loses an edge instead. So the display
+ * is the view, edge to edge, and the strip is the platform's. The large
+ * viewport and the insets are still measured for the HUD.
  */
 export const viewportMetrics = (): ViewportMetrics => {
   const h = window.innerHeight;
-  if (!isStandalone()) return { height: h, top: 0, bottom: 0 };
-  const large = largeViewportHeight();
-  const missing = Math.round(large - h);
-  if (missing <= 0 || missing > 120) return { height: h, top: 0, bottom: 0 };
-  return safeAreaTop() > 0
-    ? { height: large, top: 0, bottom: missing }
-    : { height: large, top: missing, bottom: 0 };
+  void isStandalone;
+  void largeViewportHeight;
+  void safeAreaTop;
+  return { height: h, top: 0, bottom: 0 };
 };
 
 export const viewportHeight = (): number => viewportMetrics().height;
