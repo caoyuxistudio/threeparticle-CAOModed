@@ -451,6 +451,7 @@
         "edgeMetalness": 0.31,
         "edgeEmissive": "#000000",
         "edgeEmissiveIntensity": 0,
+        "topOffset": 0.58,
         "cornerRadius": {
           "topLeft": 0.5706818181818181,
           "topRight": 0.5706818181818181,

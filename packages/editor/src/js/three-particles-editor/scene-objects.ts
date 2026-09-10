@@ -363,7 +363,7 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeEmissiveIntensity: 0,
     cornerRadius: squareCorners(),
     cornerColor: '#000000',
-    topOffset: 0,
+    topOffset: 0.58,
   }),
   ENVIRONMENT: () => ({
     type: 'ENVIRONMENT',
