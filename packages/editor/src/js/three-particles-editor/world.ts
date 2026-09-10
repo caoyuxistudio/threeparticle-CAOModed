@@ -466,7 +466,11 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   // precision is the only lever available. Tone mapping already lands in
   // [0,1], so the extended-range canvas changes precision, not brightness.
   renderer = new WebGPURenderer({ antialias: true, outputType: THREE.HalfFloatType });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  // Phones report a pixel ratio of 3, and a 3× canvas with reflections is the
+  // difference between 20 fps and a usable frame rate on one. Two is where the
+  // eye stops telling, so that is the ceiling on a touch device; a desktop
+  // keeps whatever it has. The HUD can move it either way at run time.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, renderScaleCap));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = 0;
@@ -524,11 +528,34 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
     hasEnvironmentTexture,
     backdropFor,
     setSsrSettings,
+    setRenderScale,
+    getRenderScale,
+    getDrawingBufferSize,
     getSsrSettings,
     _ssr: () => ({ postProcessing, ssrPass, previewTarget, previewBlit, pipelineCamera }),
   };
 
   return scene;
+};
+
+/**
+ * Ceiling on the pixel ratio the canvas renders at. Infinity means the device's
+ * own; touch devices start at 2 (see createWorld). The performance HUD moves it.
+ */
+let renderScaleCap = navigator.maxTouchPoints > 0 ? 2 : Infinity;
+
+export const setRenderScale = (cap: number): void => {
+  renderScaleCap = cap;
+  if (!renderer) return;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
+  onWindowResize();
+};
+
+export const getRenderScale = (): number => renderer?.getPixelRatio() ?? 1;
+
+export const getDrawingBufferSize = (): { width: number; height: number } => {
+  const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+  return { width: size.x, height: size.y };
 };
 
 /**

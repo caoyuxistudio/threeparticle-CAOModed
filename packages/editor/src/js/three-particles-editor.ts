@@ -19,6 +19,7 @@ import {
   syncPlayerControls,
 } from './three-particles-editor/player-window';
 import { installPresentationControls } from './three-particles-editor/presentation';
+import { installPerfHud } from './three-particles-editor/perf-hud';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
 import { buildParticleSystem } from './three-particles-editor/particle-factory';
@@ -31,6 +32,11 @@ import {
   getDepthTexture,
   isPresenting,
   renderPlayer,
+  getRenderScale,
+  setRenderScale,
+  getDrawingBufferSize,
+  getSsrSettings,
+  setSsrSettings,
 } from './three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './three-particles-editor/assets';
 import {
@@ -381,7 +387,42 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
     elapsed: clock.getElapsedTime(),
   }));
   installPlayerControls();
-  installPresentationControls();
+
+  // The performance HUD: what a frame costs on *this* device, with the levers
+  // that change it. Toggled from the presentation bar or with P.
+  let particleBudget = 1;
+  const baseBudget = (): { maxParticles: number; rateOverTime: number } => ({
+    maxParticles: Math.round(particleSystemConfig.maxParticles / particleBudget),
+    rateOverTime: particleSystemConfig.emission.rateOverTime / particleBudget,
+  });
+  const hud = installPerfHud({
+    backend: webGPUAvailable ? 'webgpu' : 'webgl',
+    getRenderScale,
+    setRenderScale,
+    getDrawingBufferSize,
+    getSsr: getSsrSettings,
+    setSsr: setSsrSettings,
+    getParticles: () => ({
+      maxParticles: particleSystemConfig.maxParticles,
+      rateOverTime: particleSystemConfig.emission.rateOverTime,
+      budget: particleBudget,
+    }),
+    setParticleBudget: (factor) => {
+      const base = baseBudget();
+      particleBudget = factor;
+      particleSystemConfig.maxParticles = Math.round(base.maxParticles * factor);
+      particleSystemConfig.emission.rateOverTime = base.rateOverTime * factor;
+      recreateParticleSystem(false);
+    },
+    getVideoReadback: () => {
+      const id = particleSystemConfig._editorData?.colorInstanceTextureId;
+      const texture: any = id ? getTexture(id) : null;
+      return texture?.map?.userData?.colorInstanceReadback ?? null;
+    },
+    getPieceName: () => particleSystemConfig._editorData?.metadata?.name ?? 'Untitled',
+  });
+  (window as any).__perfHud = hud;
+  installPresentationControls(hud);
 
   // TEMP DEBUG — the same kind of seam as window.__world. The harness lives in
   // a page that cannot lose focus for real, so it drives that input from here.

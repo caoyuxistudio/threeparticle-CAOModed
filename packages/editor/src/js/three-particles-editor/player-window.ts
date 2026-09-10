@@ -22,6 +22,7 @@ import {
   forWire,
   throttleTrailing,
   type PlayerMessage,
+  LINK_TIMEOUT_MS,
 } from './player-link';
 import { showInfoSnackbar, showSuccessSnackbar } from '../stores/snackbar-store';
 import { togglePresentation } from './presentation';
@@ -49,6 +50,23 @@ let playerWindow: Window | null = null;
  * itself either way. Pushes follow this flag, the button follows both.
  */
 let linked = false;
+/** When the display last said anything; a link goes stale after LINK_TIMEOUT_MS. */
+let lastHeardAt = 0;
+
+/**
+ * True while a display is known to be there. A display this editor opened is
+ * watched through its window handle elsewhere; one opened by hand, or one that
+ * died without a `bye`, is known only by its voice — and silence for long
+ * enough means it is gone.
+ */
+const isLinked = (): boolean => {
+  if (linked && Date.now() - lastHeardAt > LINK_TIMEOUT_MS) {
+    linked = false;
+    unwatchScene?.();
+    unwatchScene = null;
+  }
+  return linked;
+};
 let button: HTMLButtonElement | null = null;
 let presentButton: HTMLButtonElement | null = null;
 let snapshotSource: (() => { config: any; elapsed: number }) | null = null;
@@ -84,7 +102,7 @@ const pushSnapshot = (): void => {
 };
 
 const pushParticles = throttleTrailing((): void => {
-  if (!linked) return;
+  if (!isLinked()) return;
   const config = snapshotSource?.().config;
   if (!config) return;
   post({ type: 'particles', config: forWire(config, { withScene: false }) });
@@ -121,7 +139,7 @@ const sceneForWire = (): any[] =>
   });
 
 const pushScene = throttleTrailing((): void => {
-  if (!linked) return;
+  if (!isLinked()) return;
   post({ type: 'scene', objects: sceneForWire() });
 }, PUSH_THROTTLE_MS);
 
@@ -146,8 +164,17 @@ const ensureChannel = (): void => {
   channel = new BroadcastChannel(PLAYER_CHANNEL);
   channel.onmessage = (event: MessageEvent<PlayerMessage>) => {
     const message = event.data;
-    if (message?.type === 'hello') {
+    if (message?.type === 'ping') {
+      lastHeardAt = Date.now();
+      // A display that pinged before it said hello (the editor reloaded under
+      // it) is still a display.
+      if (!linked) {
+        linked = true;
+        unwatchScene = unwatchScene ?? watchScene(() => pushScene());
+      }
+    } else if (message?.type === 'hello') {
       linked = true;
+      lastHeardAt = Date.now();
       // Anything that touches the scene — a dragged light, a resized frame, an
       // SSR slider — lands in persist(), so one subscription covers the lot.
       unwatchScene = unwatchScene ?? watchScene(() => pushScene());
@@ -229,7 +256,7 @@ export const closePlayerWindow = (): void => {
 };
 
 export const togglePlayerWindow = (): void => {
-  if (isPlayerWindowOpen() || linked) closePlayerWindow();
+  if (isPlayerWindowOpen() || isLinked()) closePlayerWindow();
   else openPlayerWindow();
 };
 
@@ -332,7 +359,7 @@ const syncButton = (): void => {
     presentButton.style.top = `${Math.round(canvas.top + y + BUTTON_SIZE + BUTTON_GAP)}px`;
   }
 
-  const open = isPlayerWindowOpen() || linked;
+  const open = isPlayerWindowOpen() || isLinked();
   button.textContent = open ? 'close_fullscreen' : 'open_in_new';
   button.style.background = open ? '#b34a2c' : '#2b2b2b';
   button.style.color = open ? '#fff' : '#ddd';
@@ -388,7 +415,7 @@ export const setFocusOverride = (value: boolean | null): void => {
 export const isEditorSuspended = (): boolean =>
   // A presenting editor *is* the display; there is nothing to yield to.
   !isPresenting() &&
-  shouldSuspendEditor(isPlayerWindowOpen() || linked, focusOverride ?? document.hasFocus());
+  shouldSuspendEditor(isPlayerWindowOpen() || isLinked(), focusOverride ?? document.hasFocus());
 
 /**
  * Above the canvas, under every panel.

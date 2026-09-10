@@ -90,7 +90,17 @@ export type PlayerMessage =
   /** Editor → player: close yourself. */
   | { type: 'shutdown' }
   /** Player → editor: I am going away; stop pushing. */
-  | { type: 'bye' };
+  | { type: 'bye' }
+  /**
+   * Player → editor: still here. A display that vanishes without its `bye` —
+   * a tab killed outright, a crashed page — would otherwise leave the editor
+   * suspended for good; the editor drops a link that has gone quiet.
+   */
+  | { type: 'ping' };
+
+/** How often a display says it is alive, and how long silence means it is not. */
+export const PING_INTERVAL_MS = 2000;
+export const LINK_TIMEOUT_MS = 6000;
 
 /**
  * Stands in for a panorama the display already has.

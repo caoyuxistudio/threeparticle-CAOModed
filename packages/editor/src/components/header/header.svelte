@@ -14,43 +14,6 @@
     return {};
   };
 
-  // Initialize theme from localStorage or system preference
-  let lightTheme = true;
-
-  // Function to get saved theme preference
-  const getSavedTheme = () => {
-    if (typeof window === 'undefined') return true;
-
-    const savedTheme = localStorage.getItem('threeParticlesEditorTheme');
-    if (savedTheme !== null) {
-      return savedTheme === 'light';
-    }
-
-    // Fall back to system preference if no saved preference
-    return window.matchMedia('(prefers-color-scheme: light)').matches;
-  };
-
-  const switchTheme = () => {
-    lightTheme = !lightTheme;
-
-    // Save theme preference to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('threeParticlesEditorTheme', lightTheme ? 'light' : 'dark');
-    }
-
-    // Update theme in the DOM
-    let themeLink = document.head.querySelector('#theme') as HTMLLinkElement;
-    if (!themeLink) {
-      themeLink = document.createElement('link') as HTMLLinkElement;
-      themeLink.rel = 'stylesheet';
-      themeLink.id = 'theme';
-    }
-    themeLink.href = `./build/static/smui${lightTheme ? '' : '-dark'}.css`;
-    document.head
-      .querySelector('link[href="./build/static/smui-dark.css"]')
-      ?.insertAdjacentElement('afterend', themeLink);
-  };
-
   let open = false;
   let aboutModalOpen = false;
   let mobileMenuOpen = false;
@@ -234,26 +197,6 @@
   };
 
   onMount(() => {
-    // Initialize theme from localStorage or system preference
-    const savedTheme = getSavedTheme();
-
-    // Only apply the theme if it's different from the current state
-    if (savedTheme !== lightTheme) {
-      lightTheme = savedTheme;
-
-      // Apply the theme without toggling
-      let themeLink = document.head.querySelector('#theme') as HTMLLinkElement;
-      if (!themeLink) {
-        themeLink = document.createElement('link') as HTMLLinkElement;
-        themeLink.rel = 'stylesheet';
-        themeLink.id = 'theme';
-      }
-      themeLink.href = `./build/static/smui${lightTheme ? '' : '-dark'}.css`;
-      document.head
-        .querySelector('link[href="./build/static/smui-dark.css"]')
-        ?.insertAdjacentElement('afterend', themeLink);
-    }
-
     // Initialize config info
     updateConfigInfo();
 
@@ -374,20 +317,9 @@
         <Icon class="material-icons">content_paste</Icon><Label>Paste</Label>
       </Button>
     </div>
-    <div class="right-section">
-      <Button onclick={switchTheme} variant="raised">
-        <Icon class="material-icons">{lightTheme ? 'dark_mode' : 'light_mode'}</Icon>
-        <Label>{lightTheme ? 'Dark mode' : 'Light mode'}</Label>
-      </Button>
-    </div>
   {:else}
     <!-- Mobile layout -->
     <div class="mobile-controls">
-      <!-- Theme toggle button -->
-      <button class="icon-button" onclick={switchTheme}>
-        <span class="material-icons">{lightTheme ? 'dark_mode' : 'light_mode'}</span>
-      </button>
-
       <!-- Menu button -->
       <button
         type="button"
@@ -422,7 +354,7 @@
 
       <!-- Mobile dropdown menu -->
       {#if mobileMenuOpen}
-        <div class="mobile-menu" class:dark-theme={!lightTheme}>
+        <div class="mobile-menu dark-theme">
           <button
             class="menu-item"
             onclick={() => {

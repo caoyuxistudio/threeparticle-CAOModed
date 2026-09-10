@@ -30,8 +30,14 @@ import {
   getScene,
   renderPlayer,
   toggleStats,
+  getDrawingBufferSize,
+  getRenderScale,
+  getSsrSettings,
+  setRenderScale,
+  setSsrSettings,
 } from './js/three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
+import { installPerfHud } from './js/three-particles-editor/perf-hud';
 import { ensureVideoTexture, loadVideoTextures } from './js/three-particles-editor/video-textures';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
 import { loadParticleSystem } from './js/three-particles-editor/save-and-load';
@@ -45,6 +51,7 @@ import { applySimulation, resetSimulation } from './js/three-particles-editor/si
 import { TextureId } from './js/three-particles-editor/texture-config';
 import {
   KEEP_EXISTING,
+  PING_INTERVAL_MS,
   PLAYER_CHANNEL,
   readPlayerSnapshot,
   type PlayerMessage,
@@ -252,6 +259,12 @@ const listen = (): void => {
   // rather than only after it opened a window itself.
   const hello = () => channel.postMessage({ type: 'hello' } satisfies PlayerMessage);
   hello();
+  // Alive, every couple of seconds, so an editor is never left waiting on a
+  // display that is gone. Timers keep running in a hidden tab, if slower.
+  setInterval(
+    () => channel.postMessage({ type: 'ping' } satisfies PlayerMessage),
+    PING_INTERVAL_MS
+  );
 
   // No answer within a moment means no editor is awake to give one. Show the
   // stored piece, and keep asking now and then in case one wakes up.
@@ -330,12 +343,58 @@ const installPresentationControls = (): void => {
     buttonTimer = setTimeout(() => fullscreenButton.classList.remove('is-visible'), 3000);
   };
   document.addEventListener('pointerup', (event) => {
-    if (event.pointerType === 'touch' && event.target !== fullscreenButton) showButton();
+    if (event.pointerType !== 'touch') return;
+    if (event.target === fullscreenButton || event.target === perfButton) return;
+    showButton();
+    perfButton.classList.add('is-visible');
+    setTimeout(() => perfButton.classList.remove('is-visible'), 3000);
   });
   fullscreenButton.addEventListener('click', (event) => {
     event.stopPropagation();
     toggleFullscreen();
     fullscreenButton.classList.remove('is-visible');
+  });
+
+  // Next to it: the performance HUD — the way a phone reports what a frame
+  // costs, and tries the levers that change it.
+  let particleBudget = 1;
+  const hud = installPerfHud({
+    backend: webGPUAvailable ? 'webgpu' : 'webgl',
+    getRenderScale,
+    setRenderScale,
+    getDrawingBufferSize,
+    getSsr: getSsrSettings,
+    setSsr: setSsrSettings,
+    getParticles: () => ({
+      maxParticles: particleSystemConfig.maxParticles ?? 0,
+      rateOverTime: particleSystemConfig.emission?.rateOverTime ?? 0,
+      budget: particleBudget,
+    }),
+    setParticleBudget: (factor) => {
+      if (!particleSystemConfig.emission) return;
+      const baseMax = Math.round(particleSystemConfig.maxParticles / particleBudget);
+      const baseRate = particleSystemConfig.emission.rateOverTime / particleBudget;
+      particleBudget = factor;
+      particleSystemConfig.maxParticles = Math.round(baseMax * factor);
+      particleSystemConfig.emission.rateOverTime = baseRate * factor;
+      recreateParticleSystem();
+    },
+    getVideoReadback: () => {
+      const id = particleSystemConfig._editorData?.colorInstanceTextureId;
+      const texture: any = id ? getTexture(id) : null;
+      return texture?.map?.userData?.colorInstanceReadback ?? null;
+    },
+    getPieceName: () => particleSystemConfig._editorData?.metadata?.name ?? 'Untitled',
+  });
+  (window as any).__perfHud = hud;
+  const perfButton = document.createElement('button');
+  perfButton.className = 'player-fullscreen player-perf';
+  perfButton.type = 'button';
+  perfButton.textContent = 'Perf';
+  document.body.appendChild(perfButton);
+  perfButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    hud.toggle();
   });
 
   let idle: ReturnType<typeof setTimeout> | null = null;

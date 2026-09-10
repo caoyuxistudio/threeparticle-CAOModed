@@ -87,6 +87,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - **演示模式**（播放窗口按钮正下方那个 `fullscreen` 按钮，`presentation.ts`）：不开第二个页面，**这个窗口自己变成显示端**——全部面板 display:none，视口和角落预览都不画，输出相机按自己的画幅 letterbox 直出画布（走的就是 `renderPlayer`），能 requestFullscreen 就一起要。手机上这是唯一可行的形态（第二个 tab 会把编辑器冻住）；桌面上是「看一眼作品」的快捷键。Esc、全屏被浏览器退出、或点一下屏幕浮出的 Exit 都能回来；浮出的条上还有 FPS 开关。进去时取消选中（手柄的射线用的是编辑器相机）、关掉 orbit，出来时全部复原。`postProcessing.outputColorTransform` 在演示时为 true（直出画布），退出后恢复 false（预览 RT 那条路），别把这两处弄反。
 - 共用的那份逻辑抽在 `particle-factory.ts`（config → 粒子系统）和 `simulation.ts`（发射器的内置运动），两边调同一个函数，不会漂移。
 - **显示端有帧数表**，窗口左上角，`S` 隐藏。它存在的理由就是两个窗口画同一份东西一定比一个贵，而唯一诚实的读数在真正要看的那个窗口里。
+- **显示端每 2 秒发一次 `ping`，编辑器 6 秒没听到就当它没了**（`isLinked()`），解除挂起、停止推送。没有这个，手动打开的播放页被直接杀掉（没来得及发 `bye`）会让编辑器永久挂起、视频永久暂停——实测踩过。harness 的 playerReport 因此在检查期间自己模拟 ping。
 - **编辑器失焦就停止绘制**。显示窗口开着、编辑器不是当前窗口时，编辑器的帧循环整个跳过：省掉深度 pass、视口、以及预览那一遍完整的反射管线。画布调暗，中间浮一张 **Move to Player View** 卡片，点它把显示窗口调到前面；点视口任何地方就恢复。
   - 停的是**绘制**，不是工作。面板是 DOM，照常可用；参数改动走 `persist()` 而不是帧循环，所以挂起状态下编辑器就是个控制台——滑块在这边，画面在那边。所以调暗的是画布本身，不是盖一层全窗口的罩子：罩子会把 lil-gui 一起压暗，而那正是还能用的那一半。
   - 挂起同时把模拟时钟按 PAUSE 的那套记账停掉，否则回来那一帧 `cycleData.now` 会跳过整段挂起时间，发射器一次性全吐出来。会记住你自己是不是本来就按了 PAUSE。
@@ -111,12 +112,20 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **Opacity over lifetime 有了自己的一节**，紧跟在 Size over lifetime 下面，同一套 Edit Curve。它接管了 `opacityOverLifetime`；渐变编辑器（原来叫 Color & Opacity）改成只管颜色，每个色标的 alpha 滑块隐藏了，旧 config 里的 alpha 数据原样保留但不再被编辑。两个编辑器写同一个字段时，谁最后动谁赢，这是拆开的原因。注意 `renderer.transparent` 关着的时候 alpha 不参与混合，曲线唯一可见的效果是低于丢弃阈值处的硬切——要淡入淡出必须开 transparent（密集的云再考虑关 depthWrite）。
 
+**手机上的性能工作流**。手机没有能模拟的东西——iOS 模拟器跑在 Mac 的 GPU 上，帧率毫无参考价值，DevTools 也只能限 CPU 不能限 GPU。所以仪器搬到手机上去：
+- **Perf HUD**（编辑器演示模式的浮条上有 Perf 按钮，播放页点一下屏幕也有，键盘 `P`）显示两秒滚动窗口的 fps / 最差帧、实际渲染像素和 scale、粒子预算、SSR 参数、视频读回模式和耗时、设备信息，**Copy report** 把这些复制成文本，贴回对话就是一次测量。
+- HUD 上的按钮一次只动一个变量：**scale**（像素比上限 0.75 / 1 / 1.5 / 2 / 设备原生）、**SSR 开关**、**SSR res**、**particles 预算 25% / 50% / 100%**。都是运行时临时的，不写进 config。用法就是每按一档记一个 fps，贴回来。
+- **触摸设备的像素比默认封顶 2**（`world.ts` 的 `renderScaleCap`）。iPhone 报 3，3× 画布加 SSR 是 20 帧的头号嫌疑；2 已经是肉眼分不出的上限，桌面不受影响。
+- 帧率的唯一可信读数是手机自己屏幕上的那个数；这里的面板测不了它。
+
+**界面只剩 dark**。light 主题的切换按钮和 localStorage 偏好都删了，`index.html` 无条件只链 `smui-dark.css`（light 的 css 还在编译，只是不再链接）。
+
 ### 当前状态
 
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是同一个场景换成视频 color source，竖幅相机。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **158/158**（含 `videoReport` 30、`gizmoReport` 12、`playerReport` 40、`presentReport` 21）
+- 控制台 harness `public/__ai-test.js`，当前基线 **164/164**（含 `videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 26）
 
 ---
 
@@ -218,7 +227,7 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 ## 6. 还欠的账
 
 - 新增的功能代码基本没有单元测试，提交时绕过了覆盖率门禁（浏览器 harness 补了一部分，但不是一回事）
-- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦）和 `window.__videoTextures`（绕过文件对话框），四个调试出口，harness 依赖它们，正式发布前要处理
+- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦）、`window.__videoTextures`（绕过文件对话框）和 `window.__perfHud`，五个调试出口，harness 依赖它们，正式发布前要处理
 - 粒子目前不能投射/接收阴影：粒子材质用 `material.vertexNode` 驱动顶点阶段，而阴影 pass 不跑那一段
 - 超过 4MB 的全景图存不进 localStorage，当前会话可用但刷新即失
 - 只有发射器的内置运动（`simulation.ts`）在两个窗口间对了相位；粒子本身各自独立模拟，永远不会逐帧一致

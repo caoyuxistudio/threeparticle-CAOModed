@@ -18,11 +18,14 @@
  */
 import { getOrbitControls, isPresenting, setPresenting } from './world';
 import { selectSceneObject } from './scene-objects';
+import type { PerfHud } from './perf-hud';
 
 const BAR_HIDE_MS = 3000;
 
 let bar: HTMLElement | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
+/** The performance HUD, when the page has one; the bar gets a button for it. */
+let perfHud: PerfHud | null = null;
 /** Whether *we* asked for fullscreen, so its ending is ours to react to. */
 let requestedFullscreen = false;
 
@@ -90,6 +93,20 @@ const ensureBar = (): HTMLElement => {
   });
 
   bar.append(exit, fps);
+
+  if (perfHud) {
+    const perf = document.createElement('button');
+    perf.type = 'button';
+    perf.className = 'presentation-bar__perf';
+    perf.textContent = 'Perf';
+    perf.addEventListener('click', (event) => {
+      event.stopPropagation();
+      perfHud?.toggle();
+      showBar();
+    });
+    bar.appendChild(perf);
+  }
+
   document.body.appendChild(bar);
   return bar;
 };
@@ -135,7 +152,8 @@ export const togglePresentation = (): void => {
 };
 
 /** Escape, the end of fullscreen, and taps — installed once at start-up. */
-export const installPresentationControls = (): void => {
+export const installPresentationControls = (hud: PerfHud | null = null): void => {
+  perfHud = hud;
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && isPresenting()) exitPresentation();
   });

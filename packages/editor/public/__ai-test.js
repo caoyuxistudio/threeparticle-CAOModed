@@ -409,6 +409,9 @@
 
     // ── The handshake ────────────────────────────────────────────────────────
     channel.postMessage({ type: 'hello' });
+    // A live display keeps saying so; without this the editor would drop the
+    // link partway through the checks below, as it should for a dead one.
+    const pinger = setInterval(() => channel.postMessage({ type: 'ping' }), 2000);
     const snapshot = await waitFor('snapshot');
     check('editor answers a display that announces itself', !!snapshot);
 
@@ -551,9 +554,17 @@
       check('and takes the card away', card?.style.display === 'none');
       check('and the dim with it', canvas.style.filter === '');
       check('and the counter with it', editorStats?.style.opacity === '');
+
+      // A display that goes silent — killed without its bye — must not leave
+      // the editor suspended. Stop answering and wait past the timeout.
+      clearInterval(pinger);
+      link.setFocusOverride(false);
+      await new Promise((r) => setTimeout(r, 6500));
+      check('a display that fell silent releases the editor', link.isSuspended() === false);
       link.setFocusOverride(null);
     }
 
+    clearInterval(pinger);
     // Stop the editor pushing at a display that was never really there.
     channel.postMessage({ type: 'bye' });
     channel.close();
@@ -891,6 +902,26 @@
     await settle(50);
     const bar = document.querySelector('.presentation-bar');
     check('a tap shows the exit bar', !!bar && bar.classList.contains('is-visible'));
+
+    // The performance HUD rides on the bar: numbers, and levers that work.
+    const perfButton = bar?.querySelector('.presentation-bar__perf');
+    check('the bar offers the performance HUD', !!perfButton);
+    const hud = window.__perfHud;
+    perfButton?.click();
+    await settle(700);
+    check('the HUD is shown', !!hud && hud.isShown() && !!document.querySelector('.perf-hud') && !document.querySelector('.perf-hud').hidden);
+    const text = hud ? hud.report() : '';
+    check('the report names the piece and the pixels', /piece: WIP-Test/.test(text) && /pixels: \d+×\d+/.test(text) && /^fps: /m.test(text));
+    const beforeScale = w.renderer.getPixelRatio();
+    const css = [canvas.clientWidth, canvas.clientHeight];
+    w.setRenderScale(1);
+    await frames(1);
+    const buffer = w.renderer.getDrawingBufferSize(new w.THREE.Vector2());
+    check('the scale lever changes the drawing buffer', Math.abs(buffer.x - css[0]) <= 1 && Math.abs(buffer.y - css[1]) <= 1, `${buffer.x}x${buffer.y} at scale 1 for ${css[0]}x${css[1]} css`);
+    w.setRenderScale(beforeScale >= (window.devicePixelRatio || 1) ? Infinity : beforeScale);
+    await frames(1);
+    check('and back', Math.abs(w.renderer.getPixelRatio() - beforeScale) < 1e-6);
+    hud?.hide();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await frames(2);
