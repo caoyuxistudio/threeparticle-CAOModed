@@ -741,7 +741,7 @@ export const setPreviewScale = (ratio: number): void => {
  * layout every frame would thrash, so the answer is cached briefly.
  */
 const PREVIEW_BOUNDS_TTL_MS = 250;
-let previewBounds = { left: 0, right: 0 };
+let previewBounds: { left: number; right: number; top: number } = { left: 0, right: 0, top: 0 };
 let previewBoundsAt = 0;
 
 /**
@@ -761,7 +761,10 @@ const toCanvasSpace = (event: PointerEvent): { x: number; y: number } => {
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 };
 
-export const freeViewportBounds = (): { left: number; right: number } => {
+/** Below this much room between the panels, the layout is a phone's. */
+const NARROW_FREE_WIDTH = 220;
+
+export const freeViewportBounds = (): { left: number; right: number; top: number } => {
   const now = performance.now();
   if (now - previewBoundsAt < PREVIEW_BOUNDS_TTL_MS) return previewBounds;
   previewBoundsAt = now;
@@ -769,10 +772,25 @@ export const freeViewportBounds = (): { left: number; right: number } => {
   const canvas = canvasBounds();
   const rightPanel = document.querySelector('.right-panel');
   const leftPanel = document.querySelector('.panel-content');
-  previewBounds = {
-    left: leftPanel ? leftPanel.getBoundingClientRect().right - canvas.left : 0,
-    right: rightPanel ? rightPanel.getBoundingClientRect().left - canvas.left : canvas.width,
-  };
+  const left = leftPanel ? leftPanel.getBoundingClientRect().right - canvas.left : 0;
+  let right = rightPanel ? rightPanel.getBoundingClientRect().left - canvas.left : canvas.width;
+  let top = 0;
+
+  // A phone in portrait: the control panel's column spans the full height and
+  // leaves no room beside it, so the preview would land under a panel and its
+  // buttons with it — which is how presentation mode became unreachable
+  // without turning the phone sideways. There the preview takes the canvas's
+  // full width and sits below the panel's (collapsed) title bar instead.
+  if (right - left < NARROW_FREE_WIDTH) {
+    right = canvas.width;
+    const gui = document.querySelector('.right-panel .lil-gui.root');
+    if (gui) {
+      const rect = gui.getBoundingClientRect();
+      if (rect.height < 200) top = Math.max(0, rect.bottom - canvas.top);
+    }
+  }
+
+  previewBounds = { left, right, top };
   return previewBounds;
 };
 
@@ -791,13 +809,13 @@ export const previewRect = (): { x: number; y: number; w: number; h: number } =>
   let h = Math.round(w / aspect);
 
   // A tall output frame would otherwise run off the bottom of the canvas.
-  const maxH = canvasBounds().height - PREVIEW_MARGIN * 2;
+  const maxH = canvasBounds().height - free.top - PREVIEW_MARGIN * 2;
   if (h > maxH) {
     h = maxH;
     w = Math.round(h * aspect);
   }
 
-  return { x: Math.round(free.right - w - PREVIEW_MARGIN), y: PREVIEW_MARGIN, w, h };
+  return { x: Math.round(free.right - w - PREVIEW_MARGIN), y: PREVIEW_MARGIN + free.top, w, h };
 };
 
 /** True when a point in canvas coordinates is inside the resize grip. */

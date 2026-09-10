@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { togglePresentation } from '../../js/three-particles-editor/presentation';
   import Button, { Label, Icon } from '@smui/button';
   import Dialog, { Title, Content, Actions } from '@smui/dialog';
   import AboutModal from '../about-modal/about-modal.svelte';
@@ -405,6 +406,18 @@
             <span class="material-icons">content_paste</span>
             <span>Paste</span>
           </button>
+          <!-- The same as the button beside the preview, for a screen too
+               narrow to show the preview at all. -->
+          <button
+            class="menu-item"
+            onclick={() => {
+              mobileMenuOpen = false;
+              togglePresentation();
+            }}
+          >
+            <span class="material-icons">fullscreen</span>
+            <span>Full screen</span>
+          </button>
         </div>
       {/if}
     </div>
@@ -432,6 +445,9 @@
 
 <style lang="scss">
   .wrapper {
+    /* Opened from a phone's Home Screen the page runs under the status bar;
+       keep the toolbar below it. Zero everywhere else. */
+    padding-top: env(safe-area-inset-top);
     width: 100%;
     background: var(--mdc-theme-background);
     display: flex;

@@ -85,7 +85,7 @@
 <style lang="scss">
   .wrapper {
     width: 100%;
-    height: calc(100% - 43px);
+    height: calc(100% - 43px - env(safe-area-inset-top));
     max-height: 100%;
     max-width: 100%;
     background: #ccc;

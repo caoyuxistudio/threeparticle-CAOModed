@@ -122,6 +122,8 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **iPhone 上去掉 Safari 的栏**（Safari 里进演示模式时会弹一次提示说这件事）：iPhone 的 Safari 没有元素全屏 API（iPad 才有），`requestFullscreen` 会被拒绝，演示模式在 Safari 里只能做到页面级全屏，底栏还在。唯一的路是 **添加到主屏幕**：两个页面都带了 `apple-mobile-web-app-capable`、`black-translucent` 状态栏和 `viewport-fit=cover`，manifest 是 `standalone`，从主屏幕图标打开就是无边框的 app 窗口，440×956 全部可用。HUD、演示浮条、播放页按钮都按 `env(safe-area-inset-*)` 避开灵动岛和 Home 指示条。
 
+**手机竖屏的布局**：两侧面板之间不足 220px 时算窄屏，预览窗改为占画布整个宽度、放在右侧面板折叠后的标题条下面，旁边两个按钮跟着——否则竖屏时它们全被面板盖住，只有横屏才点得到演示模式。手机顶栏的汉堡菜单里也有 **Full screen**，和按钮等价。主屏幕模式下页面顶到状态栏底下，工具栏加了 `env(safe-area-inset-top)` 的顶部内边距，内容区高度相应扣掉；Safari 和桌面上这个值是 0。
+
 **界面只剩 dark**。light 主题的切换按钮和 localStorage 偏好都删了，`index.html` 无条件只链 `smui-dark.css`（light 的 css 还在编译，只是不再链接）。
 
 ### 当前状态
