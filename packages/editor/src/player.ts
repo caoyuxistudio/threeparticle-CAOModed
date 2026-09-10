@@ -37,6 +37,7 @@ import { buildParticleSystem } from './js/three-particles-editor/particle-factor
 import { loadParticleSystem } from './js/three-particles-editor/save-and-load';
 import {
   getSceneObjects,
+  readStoredSceneObjects,
   replaceSceneObjects,
   updateSceneObject,
 } from './js/three-particles-editor/scene-objects';
@@ -45,6 +46,7 @@ import { TextureId } from './js/three-particles-editor/texture-config';
 import {
   KEEP_EXISTING,
   PLAYER_CHANNEL,
+  readPlayerSnapshot,
   type PlayerMessage,
 } from './js/three-particles-editor/player-link';
 
@@ -82,6 +84,14 @@ let hasContent = false;
  * off wall time, so they do not drift apart.
  */
 let simulationOrigin: number | null = null;
+/**
+ * When the piece on screen was last replaced, by either route. The stored
+ * snapshot is applied only when it is newer than this, so a live push is not
+ * applied a second time from storage on the next resume.
+ */
+let lastAppliedAt = 0;
+/** True once a live editor has spoken; retries of the hello stop then. */
+let heardEditor = false;
 
 const status = (): HTMLElement | null => document.querySelector('.player-status');
 
@@ -180,6 +190,29 @@ const applyConfig = (config: any): void => {
   }
 };
 
+// ─── The stored piece ────────────────────────────────────────────────────────
+
+/**
+ * Shows what the editor last left in storage, if it is newer than what is on
+ * screen. This is how a display works without a live editor: one opened on a
+ * phone, where the editor's tab froze the moment this one came to the front;
+ * one opened from a pasted link with the editor long closed; or this one
+ * waking up after being frozen itself while the editor kept working.
+ */
+const applyStoredSnapshot = (): boolean => {
+  const stored = readPlayerSnapshot();
+  if (!stored || stored.savedAt <= lastAppliedAt) return false;
+  lastAppliedAt = stored.savedAt;
+  // The editor's clock at the time of writing, so the emitter's canned motion
+  // continues from where the editor had it rather than from zero.
+  simulationOrigin = stored.savedAt - stored.elapsed * 1000;
+  applyConfig(stored.config);
+  // The scene is persisted separately, by scene-objects.ts, on every change.
+  replaceSceneObjects(readStoredSceneObjects());
+  showStatus(getOutputCamera() ? '' : 'This piece has no visible output camera.');
+  return true;
+};
+
 // ─── The link ────────────────────────────────────────────────────────────────
 
 const channel = new BroadcastChannel(PLAYER_CHANNEL);
@@ -190,9 +223,13 @@ const listen = (): void => {
     if (!message) return;
 
     if (message.type === 'snapshot') {
+      heardEditor = true;
+      lastAppliedAt = Date.now();
       simulationOrigin = Date.now() - message.elapsed * 1000;
       applyConfig(message.config);
     } else if (message.type === 'particles') {
+      heardEditor = true;
+      lastAppliedAt = Date.now();
       // No sceneObjects key, so the loader leaves the scene alone — the whole
       // reason the emitter and the scene travel separately.
       applyConfig(message.config);
@@ -213,7 +250,26 @@ const listen = (): void => {
   // The editor cannot know when this page is ready, so the page says so. This
   // is also what a reload does, which is why the editor listens from start-up
   // rather than only after it opened a window itself.
-  channel.postMessage({ type: 'hello' } satisfies PlayerMessage);
+  const hello = () => channel.postMessage({ type: 'hello' } satisfies PlayerMessage);
+  hello();
+
+  // No answer within a moment means no editor is awake to give one. Show the
+  // stored piece, and keep asking now and then in case one wakes up.
+  setTimeout(() => {
+    if (!hasContent) applyStoredSnapshot();
+  }, 1200);
+  const retry = setInterval(() => {
+    if (heardEditor) clearInterval(retry);
+    else hello();
+  }, 5000);
+
+  // Coming back from the background: on a phone the editor kept working while
+  // this tab was frozen, and its latest piece is in storage, not on the wire.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    applyStoredSnapshot();
+    if (!heardEditor) hello();
+  });
 
   // Stop the editor pushing into a window that is going away.
   window.addEventListener('pagehide', () => {
@@ -230,9 +286,26 @@ const listen = (): void => {
  * the actual wall.
  */
 const installPresentationControls = (): void => {
+  const root = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void> | void;
+  };
+  const doc = document as Document & {
+    webkitFullscreenElement?: Element | null;
+    webkitExitFullscreen?: () => Promise<void> | void;
+  };
+  const canFullscreen = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+
   const toggleFullscreen = (): void => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen();
+    if (!canFullscreen) {
+      // iPhone browsers have no element fullscreen; the way to lose the chrome
+      // there is the Home Screen.
+      showStatus('Full screen is not available here — add this page to the Home Screen.');
+      setTimeout(() => showStatus(''), 4000);
+      return;
+    }
+    const active = document.fullscreenElement ?? doc.webkitFullscreenElement;
+    if (active) void (document.exitFullscreen ?? doc.webkitExitFullscreen)?.call(document);
+    else void (root.requestFullscreen ?? root.webkitRequestFullscreen)?.call(root);
   };
 
   document.addEventListener('keydown', (event) => {
@@ -242,6 +315,28 @@ const installPresentationControls = (): void => {
     if (event.key === 's' || event.key === 'S') toggleStats();
   });
   document.addEventListener('dblclick', toggleFullscreen);
+
+  // No keyboard and no double-click on a phone: a tap brings up a button for
+  // a few seconds, and the button does what F does.
+  const fullscreenButton = document.createElement('button');
+  fullscreenButton.className = 'player-fullscreen';
+  fullscreenButton.type = 'button';
+  fullscreenButton.textContent = 'Full screen';
+  document.body.appendChild(fullscreenButton);
+  let buttonTimer: ReturnType<typeof setTimeout> | null = null;
+  const showButton = (): void => {
+    fullscreenButton.classList.add('is-visible');
+    if (buttonTimer) clearTimeout(buttonTimer);
+    buttonTimer = setTimeout(() => fullscreenButton.classList.remove('is-visible'), 3000);
+  };
+  document.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'touch' && event.target !== fullscreenButton) showButton();
+  });
+  fullscreenButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleFullscreen();
+    fullscreenButton.classList.remove('is-visible');
+  });
 
   let idle: ReturnType<typeof setTimeout> | null = null;
   const wake = (): void => {
@@ -340,6 +435,8 @@ const start = async (): Promise<void> => {
     getSceneObjects,
     getOutputCamera,
     hasContent: () => hasContent,
+    heardEditor: () => heardEditor,
+    applyStoredSnapshot,
     // The emitter's own transform, so the canned motion can be checked from
     // outside without reading pixels.
     getEmitterTransform: () => ({

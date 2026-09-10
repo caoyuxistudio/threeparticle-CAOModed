@@ -81,6 +81,9 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - **BroadcastChannel 实时同步**。改一个滑块或拖一盏灯，120ms 节流后推过去。粒子 config 和场景走两条消息：场景按 id 做增量 `updateSceneObject`，画框几何和全景 PMREM 的缓存因此不会被打掉。
 - **贴图不上线**。同源共享 localStorage，显示端自己读，所以消息只有几 KB。将来 Player 独立成站再把 `embeddedTextures` 塞回去。
 - **显示端只读**。它的 `persist()` 不写 localStorage——同源，否则会覆盖你正在编辑的场景。
+- **点开显示窗口时会把它的链接复制到剪贴板**并弹 snackbar 提示（剪贴板不可用时只显示链接）。
+- **编辑器每次推送也会把最新的发射器 config 存进 localStorage**（`particle-system-editor/player-snapshot`，含 `elapsed` 和 `savedAt`；场景本来就由 scene-objects 持久化）。显示端 hello 后 1.2s 没人应答就读它，之后每 5s 再 hello 一次直到有活的编辑器；从后台回到前台时也会读一次，比屏幕上的新就换。这是**手机**上唯一能工作的方式：iOS 上 `window.open` 开的是 tab，后台 tab 整个冻结，编辑器和显示端永远不可能同时活着，靠 BroadcastChannel 握手必然失败；靠存储就是「在这个 tab 改、切到那个 tab 看」。同样也让粘贴链接在编辑器关掉后仍能显示最后一版。
+- **手机上的全屏**：显示端单击（触摸）会浮出一个 Full screen 按钮 3 秒，点它等于按 F；iPhone 的浏览器没有元素全屏 API 时会提示改用「添加到主屏幕」。`touch-action: manipulation` 关掉了双击缩放。
 - 共用的那份逻辑抽在 `particle-factory.ts`（config → 粒子系统）和 `simulation.ts`（发射器的内置运动），两边调同一个函数，不会漂移。
 - **显示端有帧数表**，窗口左上角，`S` 隐藏。它存在的理由就是两个窗口画同一份东西一定比一个贵，而唯一诚实的读数在真正要看的那个窗口里。
 - **编辑器失焦就停止绘制**。显示窗口开着、编辑器不是当前窗口时，编辑器的帧循环整个跳过：省掉深度 pass、视口、以及预览那一遍完整的反射管线。画布调暗，中间浮一张 **Move to Player View** 卡片，点它把显示窗口调到前面；点视口任何地方就恢复。
@@ -110,7 +113,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 ### 当前状态
 
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的仍是那张山水画；测试视频 73MB 进不了仓库，要用视频就在 Textures 面板加
-- 控制台 harness `public/__ai-test.js`，当前基线 **132/132**（含 `videoReport` 30 条、`gizmoReport` 12 条）
+- 控制台 harness `public/__ai-test.js`，当前基线 **137/137**（含 `videoReport` 30 条、`gizmoReport` 12 条、`playerReport` 40 条）
 
 ---
 
@@ -218,4 +221,5 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - 视频在两个窗口里各自播放，相位不对齐（跟粒子一样）；要对齐得把 `currentTime` 塞进快照，还没做
 - 本地上传的视频进不了 config（只有名字），换个浏览器就丢；URL 来源的能随 `embeddedVideos` 走。Player 独立成站时视频只能是 URL
 - Chrome 会把隐藏 tab 里的静音视频暂停掉，所以显示窗口必须是窗口不能是 tab——这条本来就有，视频让它更硬
+- 手机端没验证过。已知边界：WebGPU 要 iOS 26 以上的 WebKit（iPhone 上的 Chrome 也是 WebKit）；两个 tab 只能活一个，显示端靠存储的快照工作（见上）；200k 个 mesh 粒子加 SSR 在手机 GPU 上的帧率要在显示端左上角的计数器里读
 - 库的 jest 覆盖率门禁本来就没过（statements 79.0% / 85 分支 83.3%），新加的 sampler 模块自己有 10 条测试，但没把总数拉过线

@@ -15,12 +15,15 @@
 import {
   PLAYER_CHANNEL,
   PLAYER_URL,
+  playerUrl,
+  writePlayerSnapshot,
   PLAYER_WINDOW_NAME,
   KEEP_EXISTING,
   forWire,
   throttleTrailing,
   type PlayerMessage,
 } from './player-link';
+import { showInfoSnackbar, showSuccessSnackbar } from '../stores/snackbar-store';
 import {
   getOutputCamera,
   isPreviewVisible,
@@ -84,6 +87,15 @@ const pushParticles = throttleTrailing((): void => {
   post({ type: 'particles', config: forWire(config, { withScene: false }) });
 }, PUSH_THROTTLE_MS);
 
+/**
+ * Whether or not a display is listening: the stored copy is for the one that
+ * is not — frozen in a background tab, or not opened yet.
+ */
+const storeSnapshot = throttleTrailing((): void => {
+  const source = snapshotSource?.();
+  if (source) writePlayerSnapshot(source.config, source.elapsed);
+}, PUSH_THROTTLE_MS);
+
 /** The panorama each object was last seen carrying, keyed by object id. */
 const sentPanoramas = new Map<string, string>();
 
@@ -116,6 +128,7 @@ const pushScene = throttleTrailing((): void => {
  */
 export const notifyParticleConfigChanged = (): void => {
   pushParticles();
+  storeSnapshot();
 };
 
 /**
@@ -142,8 +155,35 @@ const ensureChannel = (): void => {
   };
 };
 
+/**
+ * Puts the display's address on the clipboard and says so. Opening the window
+ * is the moment someone is most likely to want the link somewhere else — a
+ * phone, a second machine — and the clipboard call is only allowed inside the
+ * click anyway.
+ */
+const copyPlayerLink = (): void => {
+  const url = playerUrl();
+  const say = (copied: boolean) =>
+    copied
+      ? showSuccessSnackbar(`Player link copied: ${url}`, 5000)
+      : showInfoSnackbar(`Player link: ${url}`, 8000);
+  if (!navigator.clipboard?.writeText) {
+    say(false);
+    return;
+  }
+  navigator.clipboard.writeText(url).then(
+    () => say(true),
+    () => say(false)
+  );
+};
+
 export const openPlayerWindow = (): void => {
   ensureChannel();
+  copyPlayerLink();
+  // Before the window exists: a display that cannot reach a live editor (a
+  // phone freezes the tab it came from) reads this instead.
+  const source = snapshotSource?.();
+  if (source) writePlayerSnapshot(source.config, source.elapsed);
 
   const aspect = getOutputCamera()?.aspect || 16 / 9;
   const width = Math.min(1280, Math.round(window.screen.availWidth * 0.6));

@@ -426,6 +426,14 @@
         `${data.simulation?.movements} @ ${data.simulation?.movementSpeed}`
       );
 
+      // The editor also leaves its latest piece in storage, for a display that
+      // cannot reach a live editor — a phone freezes the tab it came from.
+      const stored = JSON.parse(localStorage.getItem('particle-system-editor/player-snapshot') || 'null');
+      check('a stored snapshot accompanies the live one', !!stored?.config && typeof stored.savedAt === 'number', stored ? `saved ${Date.now() - stored.savedAt}ms ago` : 'none');
+      check('the stored snapshot is the same piece', stored?.config?._editorData?.metadata?.name === snapshot.config?._editorData?.metadata?.name, `${stored?.config?._editorData?.metadata?.name}`);
+      check('the stored snapshot leaves the scene to scene-objects', stored?.config?._editorData?.sceneObjects === undefined);
+      check('the stored snapshot leaves texture payloads at home', stored?.config?._editorData?.embeddedTextures === undefined);
+
       // The clone already happened — a function anywhere in here would have
       // thrown DataCloneError instead of arriving — but naming it makes the
       // failure legible rather than a silent absence.
@@ -451,9 +459,14 @@
     const firstEnv = first?.objects?.find((o) => o.type === 'ENVIRONMENT');
     check('a panorama the display has not seen travels in full', firstEnv?.environment?.source === panorama);
 
+    // An emitter change refreshes the stored copy too, live display or not.
+    const storedBefore = JSON.parse(localStorage.getItem('particle-system-editor/player-snapshot') || 'null')?.savedAt ?? 0;
     inbox.length = 0;
     await withEnvironment({ position: { x: -1.5, y: 1.5, z: 0 } });
     const second = await waitFor('scene');
+    await new Promise((r) => setTimeout(r, 300));
+    const storedAfter = JSON.parse(localStorage.getItem('particle-system-editor/player-snapshot') || 'null')?.savedAt ?? 0;
+    check('an emitter change refreshes the stored snapshot', storedAfter > storedBefore, `${storedAfter - storedBefore}ms later`);
     const secondEnv = second?.objects?.find((o) => o.type === 'ENVIRONMENT');
     check('the next push moves the object', second?.objects?.find((o) => o.type === 'SPHERE')?.position.x === -1.5);
     check(

@@ -21,6 +21,52 @@ export const PLAYER_WINDOW_NAME = 'three-particles-player';
 
 export const PLAYER_URL = 'player.html';
 
+/** The display's address, absolute, as a person would paste it elsewhere. */
+export const playerUrl = (): string => new URL(PLAYER_URL, window.location.href).href;
+
+/**
+ * The editor's latest piece, kept where a display can find it without the
+ * editor being awake.
+ *
+ * The channel needs both pages running at the same moment, and on a phone
+ * that is exactly what does not happen: a tab in the background is frozen, so
+ * a display opened from the editor comes up to an editor that can no longer
+ * answer its hello. The editor therefore also leaves its latest emitter here
+ * on every push — the scene is already persisted by scene-objects.ts — and a
+ * display that hears nothing, or that wakes up again, reads it back. The same
+ * thing makes a pasted link show the last piece even with the editor closed.
+ */
+export const SNAPSHOT_KEY = 'particle-system-editor/player-snapshot';
+
+export type StoredSnapshot = {
+  config: any;
+  /** The editor's clock when this was written; see `snapshot.elapsed`. */
+  elapsed: number;
+  savedAt: number;
+};
+
+export const writePlayerSnapshot = (config: any, elapsed: number): void => {
+  try {
+    const stored: StoredSnapshot = {
+      config: forWire(config, { withScene: false }),
+      elapsed,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(stored));
+  } catch {
+    /* quota — the live channel still works */
+  }
+};
+
+export const readPlayerSnapshot = (): StoredSnapshot | null => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || 'null');
+    return parsed && typeof parsed === 'object' && parsed.config ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 export type PlayerMessage =
   /** Player → editor: I am up, send me everything. */
   | { type: 'hello' }

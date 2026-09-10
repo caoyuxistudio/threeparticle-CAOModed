@@ -804,14 +804,19 @@ export const bakeLightProbe = async (id: string): Promise<void> => {
   }
 };
 
-/** Rebuilds every stored object into the current scene. Call once on startup. */
-export const initSceneObjects = (): void => {
+/** The scene as last persisted by the editor — what the player reads when no editor answers. */
+export const readStoredSceneObjects = (): SceneObject[] => {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    objects = Array.isArray(raw) ? raw : [];
+    return Array.isArray(raw) ? raw : [];
   } catch {
-    objects = [];
+    return [];
   }
+};
+
+/** Rebuilds every stored object into the current scene. Call once on startup. */
+export const initSceneObjects = (): void => {
+  objects = readStoredSceneObjects();
 
   objects.forEach(mount);
   syncOutputCamera();
