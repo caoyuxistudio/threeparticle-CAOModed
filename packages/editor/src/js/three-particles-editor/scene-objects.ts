@@ -970,8 +970,15 @@ export const readStoredSceneObjects = (): SceneObject[] => {
   }
 };
 
-/** Rebuilds every stored object into the current scene. Call once on startup. */
+/**
+ * Rebuilds every stored object into the current scene. Meant to run once at
+ * start-up — and safe to run again: whatever is mounted is unmounted first,
+ * so a second call cannot leave orphan copies in the scene that no list
+ * entry can reach.
+ */
 export const initSceneObjects = (): void => {
+  objects.forEach((o) => unmount(o.id));
+  live.forEach((_three, id) => unmount(id));
   objects = readStoredSceneObjects();
 
   objects.forEach(mount);

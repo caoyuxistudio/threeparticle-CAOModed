@@ -1,21 +1,17 @@
-import * as THREE from "three";
+import * as THREE from 'three';
 
-import { textureConfigs } from "./texture-config";
+import { textureConfigs } from './texture-config';
 
 const textureLoader = new THREE.TextureLoader();
-
-
-
 
 export const getTexture = (id: string) =>
   textureConfigs.find(({ id: configId }) => configId === id);
 
-
-const loadTextures = ({ 
-  textureConfigs, 
-  onComplete 
-}: { 
-  textureConfigs: any[]; 
+const loadTextures = ({
+  textureConfigs,
+  onComplete,
+}: {
+  textureConfigs: any[];
   onComplete: () => void;
 }) => {
   if (textureConfigs.length === 0) {
@@ -30,7 +26,13 @@ const loadTextures = ({
   // editor without a panel, and after an upload it means the caller's
   // `onComplete` (which persists the library) never runs, so the image silently
   // vanishes on the next reload.
+  // Once, whatever fires: a load that also reports an error, or a browser that
+  // delivers an event twice, would otherwise fork the chain — and everything
+  // waiting on `onComplete` (the whole editor boot) would run twice.
+  let moved = false;
   const next = () => {
+    if (moved) return;
+    moved = true;
     if (textureConfigs.length > 1)
       loadTextures({ textureConfigs: textureConfigs.slice(1), onComplete });
     else onComplete();
@@ -55,12 +57,11 @@ const loadTextures = ({
   );
 };
 
-
-export const loadCustomAssets = ({ 
-  textures, 
-  onComplete 
-}: { 
-  textures: { id: string; url: string; }[]; 
+export const loadCustomAssets = ({
+  textures,
+  onComplete,
+}: {
+  textures: { id: string; url: string }[];
   onComplete: () => void;
 }) => {
   if (textures.length === 0) {
@@ -74,7 +75,6 @@ export const loadCustomAssets = ({
     onComplete,
   });
 };
-
 
 export const initAssets = (onComplete: () => void) =>
   loadTextures({ textureConfigs: [...textureConfigs], onComplete });

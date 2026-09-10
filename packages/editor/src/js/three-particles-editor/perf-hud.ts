@@ -32,6 +32,8 @@ export type PerfActions = {
     height: number;
   } | null;
   getPieceName: () => string;
+  /** Page-specific facts, appended to the report. */
+  extra?: () => Array<[string, string]>;
 };
 
 const STYLE_ID = 'perf-hud-style';
@@ -247,6 +249,7 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
         'device',
         `${nav.hardwareConcurrency ?? '?'} cores, ${nav.deviceMemory ?? '?'} GB, touch ${navigator.maxTouchPoints}`,
       ],
+      ...(actions.extra?.() ?? []),
       ['ua', navigator.userAgent],
     ];
   };

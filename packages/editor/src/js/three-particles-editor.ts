@@ -47,7 +47,7 @@ import {
   removeVideo,
   setVideoSourcesPaused,
 } from './three-particles-editor/video-textures';
-import { initSceneObjects } from './three-particles-editor/scene-objects';
+import { initSceneObjects, getSceneObjects } from './three-particles-editor/scene-objects';
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { Object3D } from 'three';
@@ -334,7 +334,18 @@ const pauseTime = (): void => {
   }
 };
 
+/** Boot guard, and the counters the HUD reports so a double boot can be seen from a phone. */
+let booted = false;
+const bootStats = { attempts: 0, chains: 0, loops: 0 };
+
 export const createParticleSystemEditor = async (targetQuery: string): Promise<void> => {
+  bootStats.attempts += 1;
+  if (booted) {
+    // eslint-disable-next-line no-console
+    console.warn('createParticleSystemEditor called again; ignoring');
+    return;
+  }
+  booted = true;
   clock = new THREE.Clock();
 
   // Register WebGPU TSL materials only when the browser supports WebGPU
@@ -420,6 +431,20 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
       return texture?.map?.userData?.colorInstanceReadback ?? null;
     },
     getPieceName: () => particleSystemConfig._editorData?.metadata?.name ?? 'Untitled',
+    // What a phone cannot otherwise tell us: whether the editor booted once.
+    extra: () => {
+      const scene = (window as any).__world?.scene;
+      const meshes = scene ? scene.children.filter((o: any) => o.isMesh || o.isLight).length : 0;
+      return [
+        [
+          'boot',
+          `attempts ${bootStats.attempts}, chains ${bootStats.chains}, loops ${bootStats.loops}, ` +
+            `canvases ${document.querySelectorAll('#three-particles-editor canvas').length}, ` +
+            `panels ${document.querySelectorAll('.lil-gui.root').length}, ` +
+            `scene meshes+lights ${meshes} for ${getSceneObjects().length} objects`,
+        ],
+      ];
+    },
   });
   (window as any).__perfHud = hud;
   installPresentationControls(hud);
@@ -473,6 +498,15 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
         // Videos a config may name as its colour source. Waited for like the
         // images are, so the first build already finds them by name.
         void loadVideoTextures().then(() => {
+          // Once. A texture chain that fired twice would otherwise mount the
+          // scene twice — leaving copies no panel entry can delete — build two
+          // panels, and run two frame loops.
+          bootStats.chains += 1;
+          if (bootStats.chains > 1) {
+            // eslint-disable-next-line no-console
+            console.warn('editor boot chain ran again; ignoring');
+            return;
+          }
           // Boxes, lights and probes saved from a previous session.
           initSceneObjects();
           isInitializing = true;
@@ -480,6 +514,7 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
           createCurveEditor();
           recreateParticleSystem(false);
           isInitializing = false;
+          bootStats.loops += 1;
           animate();
         });
       },
