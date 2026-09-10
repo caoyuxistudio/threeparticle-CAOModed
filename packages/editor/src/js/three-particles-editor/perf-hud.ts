@@ -278,6 +278,7 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
       units,
       `safe t${inset('--safe-top')} r${inset('--safe-right')} b${inset('--safe-bottom')} l${inset('--safe-left')}`,
       standalone ? 'standalone' : 'browser',
+      `gap ${getComputedStyle(document.documentElement).getPropertyValue('--viewport-gap').trim() || '0px'}`,
       `canvas ${document.querySelector('canvas')?.clientWidth ?? 0}×${document.querySelector('canvas')?.clientHeight ?? 0}`,
     ].join(', ');
   };

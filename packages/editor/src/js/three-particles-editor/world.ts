@@ -568,6 +568,7 @@ export const isPresenting = (): boolean => presenting;
 
 export const setPresenting = (on: boolean): void => {
   presenting = on;
+  if (!on) restoreOutputCameraPreset();
   if (postProcessing) {
     // Straight to the canvas now, so the output transform belongs in the quad
     // again — the same rule buildSsrPipeline applies for the player.
@@ -645,22 +646,86 @@ const outputAspect = (): number => {
     }
     return aspect;
   }
-  return outputCamera.aspect || 16 / 9;
+  // The composed frame, whatever the camera is aimed at right now.
+  return outputCamera.userData.presetAspect || outputCamera.aspect || 16 / 9;
 };
 
+const isStandalone = (): boolean =>
+  window.matchMedia?.('(display-mode: standalone)').matches ||
+  (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+const safeAreaTop = (): number =>
+  parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
+
+/**
+ * How tall the display really is.
+ *
+ * Normally the window. On an iPhone opened from the Home Screen with a
+ * translucent status bar, iOS 26 hands the page a layout viewport that is
+ * the screen minus the status bar — yet places it at the very top, under the
+ * bar. The strip that height at the bottom is inside the web view but below
+ * everything the page lays out. When that exact shape shows up (standalone,
+ * a top inset, and a shortfall equal to it) the display takes the screen's
+ * height and paints the strip too.
+ */
+export const viewportHeight = (): number => {
+  const h = window.innerHeight;
+  const top = safeAreaTop();
+  if (isStandalone() && top > 0 && screen.height > h && screen.height - h <= top + 1) {
+    return screen.height;
+  }
+  return h;
+};
+
+/** What the display adds below the layout viewport; the bars sit above it. */
+export const viewportGap = (): number => viewportHeight() - window.innerHeight;
+
+/**
+ * Points the output camera at the window so that the composed frame *covers*
+ * it: the window's aspect, and a field of view that keeps the composition's
+ * height when the window is narrower than the frame, or its width when the
+ * window is wider — cropping the rest rather than leaving bars.
+ */
+const coverOutputCamera = (windowAspect: number): void => {
+  if (!outputCamera) return;
+  const presetAspect: number = outputCamera.userData.presetAspect || windowAspect;
+  const presetFov: number = outputCamera.userData.presetFov ?? outputCamera.fov;
+  outputCamera.aspect = windowAspect;
+  if (windowAspect < presetAspect) {
+    outputCamera.fov = presetFov;
+  } else {
+    const halfHeight =
+      Math.tan(THREE.MathUtils.degToRad(presetFov / 2)) * (presetAspect / windowAspect);
+    outputCamera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(halfHeight));
+  }
+  outputCamera.updateProjectionMatrix();
+};
+
+/** The camera back to its composed frame, after presenting. */
+const restoreOutputCameraPreset = (): void => {
+  if (!outputCamera) return;
+  const presetAspect: number = outputCamera.userData.presetAspect || 0;
+  outputCamera.aspect = presetAspect || window.innerWidth / window.innerHeight;
+  if (outputCamera.userData.presetFov !== undefined)
+    outputCamera.fov = outputCamera.userData.presetFov;
+  outputCamera.updateProjectionMatrix();
+};
+
+/**
+ * Sizes the canvas to the whole display and aims the camera to cover it.
+ *
+ * No letterbox: the frame the piece was composed in is a target, not a mask,
+ * and a display of another shape shows the composition cropped at the edges
+ * rather than bars. The player and presentation mode both come through here.
+ */
 export const fitPlayerCanvas = (): void => {
   if (!renderer) return;
-  const aspect = outputAspect();
-
-  let w = window.innerWidth;
-  let h = Math.round(w / aspect);
-  if (h > window.innerHeight) {
-    h = window.innerHeight;
-    w = Math.round(h * aspect);
-  }
-
+  const w = window.innerWidth;
+  const h = viewportHeight();
+  document.documentElement.style.setProperty('--viewport-gap', `${h - window.innerHeight}px`);
   renderer.setSize(w, h);
   depthRenderTarget?.setSize(w, h);
+  coverOutputCamera(w / h);
 };
 
 /**

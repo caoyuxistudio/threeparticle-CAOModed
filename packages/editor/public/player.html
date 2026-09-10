@@ -7,14 +7,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!--
-      Opaque, not translucent. With black-translucent, iOS 26 lays the web view
-      out from the very top of the screen but sizes it as if it began below the
-      status bar — the page overlaps the status bar and a status-bar-high strip
-      at the bottom belongs to nobody (measured: screen 956, page 894, top inset
-      62). Opaque black puts the page below the bar at exactly the height it
-      was given, and on a black page the bar is invisible anyway.
+      Translucent: the page runs under the status bar, so the display can be
+      the whole screen. iOS 26 then lays the page out 62px short at the bottom;
+      world.ts notices that shape and paints the strip anyway.
     -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Player" />
     <link rel="apple-touch-icon" href="./favicon/apple-touch-icon.png" />
     <link rel="icon" href="./favicon/favicon.ico" />
@@ -47,7 +44,7 @@
       .player-fullscreen {
         position: fixed;
         right: calc(16px + env(safe-area-inset-right));
-        bottom: calc(16px + env(safe-area-inset-bottom));
+        bottom: calc(16px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
         padding: 12px 18px;
         border: 1px solid rgba(255, 255, 255, 0.35);
         border-radius: 8px;
@@ -65,12 +62,12 @@
       }
 
       .player-perf {
-        bottom: calc(72px + env(safe-area-inset-bottom));
+        bottom: calc(72px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
       }
 
       #player-stage {
         width: 100%;
-        height: 100%;
+        height: calc(100% + var(--viewport-gap, 0px));
         display: flex;
         align-items: center;
         justify-content: center;

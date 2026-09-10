@@ -738,6 +738,9 @@ body.presenting .player-suspend-card {
 body.presenting #three-particles-editor {
   position: fixed;
   inset: 0;
+  bottom: auto;
+  /* Reaches into the strip iOS 26 leaves below the layout viewport (world.ts). */
+  height: calc(100% + var(--viewport-gap, 0px));
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -769,7 +772,7 @@ body.presenting .stats.is-hidden {
 .presentation-bar {
   position: fixed;
   right: calc(16px + env(safe-area-inset-right));
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  bottom: calc(16px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
   z-index: 1002;
   display: flex;
   gap: 8px;

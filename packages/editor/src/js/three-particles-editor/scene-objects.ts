@@ -561,6 +561,9 @@ const applyToThree = (obj: SceneObject): void => {
     // sizes a canvas or the preview, so the frame follows a resize too.
     const fitWindow = obj.aspect === 0;
     cam.userData.fitWindow = fitWindow;
+    // The composed frame: what the preview shows, and what a display covers.
+    cam.userData.presetAspect = fitWindow ? 0 : (obj.aspect ?? 16 / 9);
+    cam.userData.presetFov = cam.fov;
     cam.aspect = fitWindow ? window.innerWidth / window.innerHeight : (obj.aspect ?? 16 / 9);
     cam.updateProjectionMatrix();
     // The frustum outline is generated from the projection matrix, so it has to

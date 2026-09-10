@@ -877,13 +877,15 @@
     check('the player buttons are hidden', hidden(toggle) && hidden(present));
     check('the frame counter stays', !hidden(document.querySelector('.stats')));
 
-    // The canvas takes the camera's shape inside the window, like the player.
-    const aspect = cam?.aspect || 16 / 9;
-    let ew = window.innerWidth, eh = Math.round(ew / aspect);
-    if (eh > window.innerHeight) { eh = window.innerHeight; ew = Math.round(eh * aspect); }
-    check('the canvas is letterboxed to the camera', Math.abs(canvas.clientWidth - ew) <= 1 && Math.abs(canvas.clientHeight - eh) <= 1, `${canvas.clientWidth}x${canvas.clientHeight} vs ${ew}x${eh}`);
-    const box = canvas.getBoundingClientRect();
-    check('and centred in the window', Math.abs(box.left + box.width / 2 - window.innerWidth / 2) <= 1 && Math.abs(box.top + box.height / 2 - window.innerHeight / 2) <= 1);
+    // The canvas covers the window; the camera is aimed so the composed frame
+    // covers it too, cropped rather than barred.
+    check('the canvas covers the window', Math.abs(canvas.clientWidth - window.innerWidth) <= 1 && Math.abs(canvas.clientHeight - window.innerHeight) <= 1, `${canvas.clientWidth}x${canvas.clientHeight} in ${window.innerWidth}x${window.innerHeight}`);
+    const windowAspectNow = window.innerWidth / window.innerHeight;
+    check('the camera takes the window\'s aspect while presenting', Math.abs((cam?.aspect ?? 0) - windowAspectNow) < 1e-3, `${cam?.aspect.toFixed(3)} vs ${windowAspectNow.toFixed(3)}`);
+    const presetAspect = cam?.userData.presetAspect || windowAspectNow;
+    const presetFov = cam?.userData.presetFov ?? cam?.fov;
+    const expectedFov = windowAspectNow < presetAspect ? presetFov : (180 / Math.PI) * 2 * Math.atan(Math.tan((presetFov * Math.PI) / 360) * (presetAspect / windowAspectNow));
+    check('the field of view covers the composed frame', Math.abs((cam?.fov ?? 0) - expectedFov) < 0.01, `${cam?.fov.toFixed(2)} vs ${expectedFov.toFixed(2)} (preset ${presetFov}, aspect ${presetAspect.toFixed(3)})`);
 
     check('the output goes through the encode once', w._ssr().postProcessing?.outputColorTransform === true);
     check('frames keep coming', await frames(3));
@@ -927,6 +929,7 @@
     await frames(2);
     check('Escape leaves presentation', !document.body.classList.contains('presenting'));
     check('the canvas is back to the window', Math.abs(canvas.clientWidth - sizeBefore[0]) <= 1 && Math.abs(canvas.clientHeight - sizeBefore[1]) <= 1, `${canvas.clientWidth}x${canvas.clientHeight}`);
+    check('the camera is back to its composed frame', Math.abs((cam?.aspect ?? 0) - (cam?.userData.presetAspect || window.innerWidth / window.innerHeight)) < 1e-3 && Math.abs((cam?.fov ?? 0) - (cam?.userData.presetFov ?? 0)) < 1e-6, `${cam?.aspect.toFixed(3)} fov ${cam?.fov}`);
     check('the encode goes back to the blit', w._ssr().postProcessing?.outputColorTransform === false);
     check('orbit controls are back', w.controls.enabled === true);
     check('the buttons are back', !hidden(document.querySelector('.presentation-toggle')));
