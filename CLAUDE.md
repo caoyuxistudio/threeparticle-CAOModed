@@ -122,7 +122,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **显示端是 cover 不是 contain**（`fitPlayerCanvas`）：画布永远铺满窗口，相机取窗口的比例，视场按"覆盖预设构图"来算——窗口比预设窄就保留构图的高度裁两侧，比预设宽就保留宽度裁上下。预设（含 iPhone 那两个）只决定构图，编辑器预览按预设显示，退出演示时把相机恢复到预设。不留 letterbox 是有意的：目标是实打实的全屏。
 
-**iOS 26 主屏幕模式的极限**（实测 iPhone 17 Pro Max、iOS 26）：网页视图永远只有"屏幕减状态栏"那么高（894 / 956），CSS 的 `100lvh` 却报 956。`black-translucent` 把视图整个挪到状态栏底下、底部留 62px 黑；`black` 让视图待在状态栏下面、顶部是黑色状态栏。两种都试过把画布画出视图外：那一段就是不显示，只会裁掉画面一边。所以现在是不透明状态栏 + 画布等于视图，cover 模式保证视图内没黑边；`display: fullscreen`（`display_override` 退回 standalone）是留给 iOS 的一个机会，若它认就会连状态栏一起去掉。相机预设 **iPhone 17 Pro Max · app** = 440×894 就是这个视图。HUD 的 `viewport:` 一行报 doc / visual / screen / 各 vh 单位 / 安全区 / gap，再遇到视口问题先看它。
+**iOS 27 beta 主屏幕模式的极限**（实测 iPhone 17 Pro Max、iOS 27 beta）：网页视图永远只有"屏幕减状态栏"那么高（894 / 956），CSS 的 `100lvh` 却报 956。`black-translucent` 把视图整个挪到状态栏底下、底部留 62px 黑；`black` 让视图待在状态栏下面、顶部是黑色状态栏。两种都试过把画布画出视图外：那一段就是不显示，只会裁掉画面一边。所以现在是不透明状态栏 + 画布等于视图，cover 模式保证视图内没黑边；`display: fullscreen`（`display_override` 退回 standalone）是留给 iOS 的一个机会，若它认就会连状态栏一起去掉。相机预设 **iPhone 17 Pro Max · app** = 440×894 就是这个视图。HUD 的 `viewport:` 一行报 doc / visual / screen / 各 vh 单位 / 安全区 / gap，再遇到视口问题先看它。
 
 **iPhone 上去掉 Safari 的栏**（Safari 里进演示模式时会弹一次提示说这件事）：iPhone 的 Safari 没有元素全屏 API（iPad 才有），`requestFullscreen` 会被拒绝，演示模式在 Safari 里只能做到页面级全屏，底栏还在。唯一的路是 **添加到主屏幕**：两个页面都带了 `apple-mobile-web-app-capable`、`black-translucent` 状态栏和 `viewport-fit=cover`，manifest 是 `standalone`，从主屏幕图标打开就是无边框的 app 窗口，440×956 全部可用。HUD、演示浮条、播放页按钮都按 `env(safe-area-inset-*)` 避开灵动岛和 Home 指示条。
 
@@ -245,5 +245,5 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - 本地上传的视频进不了 config（只有名字），换个浏览器就丢；URL 来源的能随 `embeddedVideos` 走。Player 独立成站时视频只能是 URL
 - 整个项目没有云端：My Saved Configs、上传的图片和视频、场景、播放页快照全在那台浏览器的 localStorage / IndexedDB 里，换设备就是空白。跨设备只有两条路：Copy/Paste config JSON（图片内嵌、视频走 URL），或者像 WIP-Test-2 那样做成仓库里的 example
 - Chrome 会把隐藏 tab 里的静音视频暂停掉，所以显示窗口必须是窗口不能是 tab——这条本来就有，视频让它更硬
-- 手机端没验证过。已知边界：WebGPU 要 iOS 26 以上的 WebKit（iPhone 上的 Chrome 也是 WebKit）；两个 tab 只能活一个，显示端靠存储的快照工作（见上）；200k 个 mesh 粒子加 SSR 在手机 GPU 上的帧率要在显示端左上角的计数器里读
+- 手机端没验证过。已知边界：WebGPU 要 iOS 27 beta 以上的 WebKit（iPhone 上的 Chrome 也是 WebKit）；两个 tab 只能活一个，显示端靠存储的快照工作（见上）；200k 个 mesh 粒子加 SSR 在手机 GPU 上的帧率要在显示端左上角的计数器里读
 - 库的 jest 覆盖率门禁本来就没过（statements 79.0% / 85 分支 83.3%），新加的 sampler 模块自己有 10 条测试，但没把总数拉过线

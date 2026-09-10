@@ -680,7 +680,7 @@ export type ViewportMetrics = {
 /**
  * How tall the display really is: the window, and nothing more.
  *
- * On an iPhone opened from the Home Screen, iOS 26 gives the page a web view
+ * On an iPhone opened from the Home Screen, iOS 27 beta gives the page a web view
  * the screen minus the status bar (measured: 894 of 956) even though CSS's
  * large viewport says the whole screen. A translucent status bar moves that
  * view up under the bar and leaves a strip at the bottom; an opaque one
