@@ -22,7 +22,7 @@ import {
   defaultEnvironmentSettings,
 } from './world';
 import type { SsrSettings, EnvironmentSettings } from './world';
-import { markAsEditorOnly } from './editor-layers';
+import { EDITOR_LAYER, markAsEditorOnly } from './editor-layers';
 import { isPlayer } from './runtime-mode';
 
 const STORAGE_KEY = 'particle-system-editor/scene-objects';
@@ -165,6 +165,11 @@ const ensureTransformControls = (): TransformControls => {
 
   const controls = new TransformControls(getCamera(), getRendererDomElement());
   controls.setSpace('world');
+  // The gizmo lives on the furniture layer so the output camera never sees it
+  // (below). TransformControls finds its own handles with a raycaster that,
+  // like every raycaster, looks at layer 0 only — so a gizmo on layer 1 could
+  // be drawn but never hovered or dragged. Let its raycaster see that layer.
+  controls.getRaycaster().layers.enable(EDITOR_LAYER);
 
   // Orbiting while dragging an axis would fight the gizmo.
   controls.addEventListener('dragging-changed', (event) => {

@@ -306,6 +306,16 @@ const buildSsrPipeline = (camera: THREE.PerspectiveCamera): void => {
 
   postProcessing = new PostProcessing(renderer);
   postProcessing.outputNode = debugNodes[ssrSettings.debug];
+  // PostProcessing bakes the renderer's output transform (tone mapping and the
+  // linear-to-sRGB encode) into its quad, whatever it is rendering into. The
+  // player draws straight to the canvas, so that is right there. The editor
+  // renders it into the preview target and blits that texture to the canvas
+  // afterwards — a second encode on already-encoded values, which lifted every
+  // mid-tone (a mean of 44 became 114) and bled the saturation out: the "grey
+  // particles" that only ever appeared with reflections on. So here the quad
+  // writes linear light and the blit's own output stage does the one encode.
+  // Tone mapping would be skipped with it; the project runs none.
+  postProcessing.outputColorTransform = isPlayer();
   pipelineCamera = camera;
   applySsrUniforms();
 };
@@ -321,6 +331,9 @@ const ensurePreviewTarget = (w: number, h: number): THREE.RenderTarget => {
 
   if (!previewTarget) {
     previewTarget = new THREE.RenderTarget(tw, th, {
+      // Linear light lives here (see buildSsrPipeline); 8 bits of linear would
+      // band in the darks the way an image with no gamma does.
+      type: THREE.HalfFloatType,
       depthTexture: new THREE.DepthTexture(tw, th),
     });
   } else if (previewTarget.width !== tw || previewTarget.height !== th) {

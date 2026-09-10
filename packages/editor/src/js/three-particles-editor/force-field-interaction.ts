@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { getCamera, getRendererDomElement, getOrbitControls } from './world';
 import { getForceFieldCenterMeshes, getForceFieldHelpers } from './force-field-helper';
-import { markAsEditorOnly } from './editor-layers';
+import { EDITOR_LAYER, markAsEditorOnly } from './editor-layers';
 
 let transformControls: TransformControls | null = null;
 let activeForceFieldIndex: number | null = null;
@@ -13,6 +13,10 @@ let isDragging = false;
 let scene: THREE.Scene | null = null;
 
 const raycaster = new THREE.Raycaster();
+// The helpers and the gizmo live on the furniture layer (see markAsEditorOnly
+// below); a raycaster looks at layer 0 unless told otherwise, and one that
+// cannot see the handles makes them un-clickable while still drawing them.
+raycaster.layers.enable(EDITOR_LAYER);
 const mouse = new THREE.Vector2();
 
 const hitsTransformControls = (event: PointerEvent): boolean => {
@@ -27,6 +31,7 @@ const hitsTransformControls = (event: PointerEvent): boolean => {
 
   const camera = getCamera();
   const tcRaycaster = new THREE.Raycaster();
+  tcRaycaster.layers.enable(EDITOR_LAYER);
   tcRaycaster.setFromCamera(mouseVec, camera);
 
   const gizmo = transformControls.getHelper();
@@ -107,6 +112,9 @@ export const initForceFieldInteraction = (
   const orbitControls = getOrbitControls();
 
   transformControls = new TransformControls(camera, domElement);
+  // Same reason as the raycasters above: the gizmo's own picking must see the
+  // layer the gizmo is drawn on.
+  transformControls.getRaycaster().layers.enable(EDITOR_LAYER);
   transformControls.setMode('translate');
   transformControls.setSize(0.8);
 
