@@ -1,17 +1,31 @@
 <script>
   import { loadCustomAssets } from './../../../js/three-particles-editor/assets';
   import { textureConfigs } from './../../../js/three-particles-editor/texture-config';
+  import {
+    VIDEO_TEXTURES_CHANGED,
+    addVideoFile,
+    ensureVideoTexture,
+    readVideoEntries,
+    removeVideo,
+    renameVideo,
+  } from './../../../js/three-particles-editor/video-textures';
+  import { getTexture } from './../../../js/three-particles-editor/assets';
   import FileUploader from './../library/file-uploader.svelte';
+  import VideoUploader from './video-uploader.svelte';
   import { Svroller } from 'svrollbar';
   import { Input } from '@smui/textfield';
   import Paper from '@smui/paper';
   import { Icon } from '@smui/common';
   import TextureItem from './texture-item.svelte';
-  import { showErrorSnackbar } from './../../../js/stores/snackbar-store';
+  import { showErrorSnackbar, showSuccessSnackbar } from './../../../js/stores/snackbar-store';
 
   const STORAGE_KEY = 'particle-system-editor/image-textures';
 
   let rawList = $state(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []);
+  // Videos keep their own list (and their bytes in IndexedDB); this panel is
+  // where the two kinds of colour source meet.
+  let videoList = $state(readVideoEntries());
+  let addingVideo = $state(false);
   let filter = $state('');
   let currentTextureId = $state(getCurrentId());
 
@@ -19,8 +33,46 @@
     return window.editor?.getCurrentParticleSystemConfig()._editorData.colorInstanceTextureId;
   }
 
-  const filtered = $derived(
-    rawList.filter(({ name }) => name.toLowerCase().includes(filter.toLowerCase()))
+  // The list can change under this panel: a loaded config importing a URL
+  // video, another window of the editor, the harness. Re-read it whenever the
+  // module says so, and on cross-window storage events.
+  $effect(() => {
+    const refresh = () => {
+      videoList = readVideoEntries();
+      currentTextureId = getCurrentId();
+    };
+    const onStorage = (event) => {
+      if (event.key === null || event.key === 'particle-system-editor/video-textures') refresh();
+    };
+    window.addEventListener(VIDEO_TEXTURES_CHANGED, refresh);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(VIDEO_TEXTURES_CHANGED, refresh);
+      window.removeEventListener('storage', onStorage);
+    };
+  });
+
+  // One list for the panel: videos first (newest first), then images (newest
+  // first). Keys are prefixed so an image and a video can never collide.
+  const items = $derived(
+    [
+      ...videoList.map((entry) => ({
+        key: `v${entry.id}`,
+        id: entry.id,
+        name: entry.name,
+        url: entry.thumbnail || '',
+        kind: 'video',
+        meta: entry,
+      })),
+      ...rawList.map((entry) => ({
+        key: `i${entry.id}`,
+        id: entry.id,
+        name: entry.name,
+        url: entry.url,
+        kind: 'image',
+        meta: null,
+      })),
+    ].filter(({ name }) => name.toLowerCase().includes(filter.toLowerCase()))
   );
 
   // Returns false when the write was rejected (quota) so callers can roll back
@@ -58,6 +110,59 @@
       textures: [{ id: entry.name, url }],
       onComplete: () => {},
     });
+  };
+
+  const addVideo = async (file) => {
+    addingVideo = true;
+    try {
+      const entry = await addVideoFile(file);
+      videoList = readVideoEntries();
+      showSuccessSnackbar(`Video added as ${entry.name}`);
+    } catch (error) {
+      showErrorSnackbar(error?.message || 'Failed to add the video');
+    } finally {
+      addingVideo = false;
+    }
+  };
+
+  const removeVideoEntry = async (id) => {
+    const entry = videoList.find((e) => e.id === id);
+    if (entry && getCurrentId() === entry.name) {
+      window.editor.setColorInstanceTexture(undefined);
+      currentTextureId = undefined;
+    }
+    await removeVideo(id);
+    videoList = readVideoEntries();
+  };
+
+  const renameVideoEntry = async ({ id, name }) => {
+    const entry = videoList.find((e) => e.id === id);
+    if (!entry || entry.name === name || !name) return;
+    const wasCurrent = getCurrentId() === entry.name;
+    await renameVideo(id, name);
+    if (wasCurrent) {
+      window.editor.getCurrentParticleSystemConfig()._editorData.colorInstanceTextureId = name;
+      currentTextureId = name;
+    }
+    videoList = readVideoEntries();
+  };
+
+  const useVideo = async (id) => {
+    const entry = videoList.find((e) => e.id === id);
+    if (!entry) return;
+    // A card can outlive its video (removed elsewhere, or a failed decode).
+    // Binding a name nothing answers to would silently leave the particles
+    // colourless, so make sure the source is really there first.
+    if (!getTexture(entry.name)) {
+      const record = await ensureVideoTexture(entry.name).catch(() => null);
+      if (!record) {
+        showErrorSnackbar(`"${entry.name}" is no longer available — add it again.`);
+        videoList = readVideoEntries();
+        return;
+      }
+    }
+    window.editor.setColorInstanceTexture(entry.name);
+    currentTextureId = entry.name;
   };
 
   const remove = (id) => {
@@ -103,16 +208,43 @@
     <Input bind:value={filter} placeholder="Search" class="solo-input" />
   </Paper>
   <FileUploader {add} />
+  <VideoUploader add={addVideo} />
   <div class="current">
-    Instance texture: <b>{currentTextureId || 'None'}</b>
+    Instance source: <b>{currentTextureId || 'None'}</b>
+    {#if addingVideo}<span class="busy">— storing video…</span>{/if}
   </div>
 </div>
-<Svroller width="100%" height="calc(100% - 120px)">
-  {#each filtered as item (item.id)}
-    <TextureItem {...item} {remove} {rename} {use} inUse={item.name === currentTextureId} />
+<Svroller width="100%" height="calc(100% - 168px)">
+  {#each items as item (item.key)}
+    {#if item.kind === 'video'}
+      <TextureItem
+        id={item.id}
+        name={item.name}
+        url={item.url}
+        kind="video"
+        meta={item.meta}
+        remove={removeVideoEntry}
+        rename={renameVideoEntry}
+        use={useVideo}
+        inUse={item.name === currentTextureId}
+      />
+    {:else}
+      <TextureItem
+        id={item.id}
+        name={item.name}
+        url={item.url}
+        {remove}
+        {rename}
+        {use}
+        inUse={item.name === currentTextureId}
+      />
+    {/if}
   {/each}
-  {#if filtered.length === 0}
-    <div class="empty">No image textures yet — click "Add Image" to upload one.</div>
+  {#if items.length === 0}
+    <div class="empty">
+      No colour sources yet — "Add Image" or "Add Video" to upload one. A video plays on a
+      loop and the particles sample whichever frame is showing when they are born.
+    </div>
   {/if}
 </Svroller>
 
@@ -125,6 +257,10 @@
     padding: 8px 16px 0;
     font-size: 12px;
     opacity: 0.8;
+  }
+
+  .busy {
+    opacity: 0.7;
   }
 
   .empty {

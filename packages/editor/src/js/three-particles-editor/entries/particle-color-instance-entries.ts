@@ -13,10 +13,12 @@ type ParticleColorInstanceEntriesResult = {
 };
 
 /**
- * "Particle Color Instance" — maps an image onto the emitter's X/Z plane so
- * every particle samples its start color from the pixel under its spawn
- * position. The texture id is persisted in _editorData.colorInstanceTextureId
- * (the THREE.Texture itself is not serializable).
+ * "Particle Color Instance" — maps an image or a video onto the emitter's X/Z
+ * plane so every particle samples its start color from the pixel under its
+ * spawn position. The source id is persisted in
+ * _editorData.colorInstanceTextureId (the THREE.Texture itself is not
+ * serializable); a video keeps playing on a loop and the library re-reads it
+ * as frames arrive.
  */
 export const createParticleColorInstanceEntries = ({
   parentFolder,
@@ -37,6 +39,7 @@ export const createParticleColorInstanceEntries = ({
   if (!config.area) config.area = { x: 0, z: 0 };
   if (config.useLuminanceForNoise === undefined) config.useLuminanceForNoise = false;
   if (config.luminanceNoiseAmount === undefined) config.luminanceNoiseAmount = 0;
+  if (config.sampleSize === undefined) config.sampleSize = 0;
 
   const applyTexture = (textureId: string | undefined): void => {
     const texture = textureId ? getTexture(textureId) : null;
@@ -49,7 +52,7 @@ export const createParticleColorInstanceEntries = ({
 
   folder.add(config, 'isActive').onChange(recreateParticleSystem).listen();
 
-  folder.add(displayConfig, 'selectedTexture').name('Selected Image').listen().disable();
+  folder.add(displayConfig, 'selectedTexture').name('Selected Source').listen().disable();
 
   folder
     .add(
@@ -68,7 +71,7 @@ export const createParticleColorInstanceEntries = ({
       },
       'selectImage'
     )
-    .name('Choose Image...');
+    .name('Choose Image / Video...');
 
   const areaFolder = folder.addFolder('area (0 = auto from shape)');
   areaFolder
@@ -95,6 +98,14 @@ export const createParticleColorInstanceEntries = ({
   folder
     .add(config, 'luminanceNoiseAmount', -1, 1, 0.01)
     .name('luminance amount')
+    .onChange(recreateParticleSystem)
+    .listen();
+
+  // Only a video pays per frame, and this is the lever on what it pays: the
+  // grid every new frame is read back into. 0 leaves the library's default.
+  folder
+    .add(config, 'sampleSize', 0, 1024, 64)
+    .name('video sample size (0 = 512)')
     .onChange(recreateParticleSystem)
     .listen();
 

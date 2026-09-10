@@ -8,8 +8,11 @@
  * What travels is plain config data, never THREE objects. Textures are the one
  * thing deliberately left out: uploaded images live in localStorage, which the
  * player already shares, so re-sending the data URLs would double every message
- * for nothing. The day the player becomes a standalone site on its own origin,
- * `embeddedTextures` goes back into the snapshot and nothing else changes.
+ * for nothing. Videos go one step further — their bytes are in IndexedDB, also
+ * shared — and only their name travels; the player fetches a name it does not
+ * know by itself. The day the player becomes a standalone site on its own
+ * origin, `embeddedTextures` goes back into the snapshot and nothing else
+ * changes (a video would have to be a URL by then; see `embeddedVideos`).
  */
 export const PLAYER_CHANNEL = 'three-particles-player';
 

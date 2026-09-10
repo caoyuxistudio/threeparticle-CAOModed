@@ -66,6 +66,8 @@ const ensureMeshConfig = (particleSystemConfig: any): void => {
   if (mesh.alignToVelocity === undefined) mesh.alignToVelocity = false;
   if (mesh.lit === undefined) mesh.lit = false;
   if (mesh.emissive === undefined) mesh.emissive = 0;
+  if (mesh.roughness === undefined) mesh.roughness = 0.65;
+  if (mesh.metalness === undefined) mesh.metalness = 0;
   mesh.geometry = createGeometry(mesh.geometryType);
 };
 
@@ -147,6 +149,24 @@ export const createMeshEntries = ({
       folder
         .add(mesh, 'emissive', 0, 4, 0.01)
         .name('emissive (needs lit)')
+        .onChange(recreateParticleSystem)
+        .listen()
+    );
+
+    // The surface itself. The particle's colour is its albedo already (start
+    // colour, gradient, or the pixel a Color Instance sampled); these decide
+    // how the lights sit on it. Matte and non-metal is the shipped look.
+    controllers.push(
+      folder
+        .add(mesh, 'roughness', 0, 1, 0.01)
+        .name('roughness (needs lit)')
+        .onChange(recreateParticleSystem)
+        .listen()
+    );
+    controllers.push(
+      folder
+        .add(mesh, 'metalness', 0, 1, 0.01)
+        .name('metalness (needs lit)')
         .onChange(recreateParticleSystem)
         .listen()
     );

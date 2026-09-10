@@ -88,10 +88,29 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
   - 挂起同时把模拟时钟按 PAUSE 的那套记账停掉，否则回来那一帧 `cycleData.now` 会跳过整段挂起时间，发射器一次性全吐出来。会记住你自己是不是本来就按了 PAUSE。
   - 省不掉的是两个 WebGPU device 和两份贴图的显存——那是两个页面实例的固有成本，只有下面说的「Player 脱离编辑器」才去得掉。
 
+**视频作为 color source**（Textures 面板的 **Add Video**）。`particleColorInstance` 原来只吃一张图：粒子出生时在 CPU 上查一次像素，拿到起始颜色和亮度→噪声系数。现在同一个入口也吃视频，静音循环播放，粒子出生时采的是当时正在播的那一帧。
+
+- **为什么不用 GPU 纹理**。库里 color source 的全部用途就是出生那一刻的 CPU 像素查表，视频从头到尾不需要上传成 GPU 纹理，`importExternalTexture` / `copyExternalImageToTexture` 那些优化跟这条路径无关。解码走浏览器硬件（macOS 上是 VideoToolbox），主线程零成本；唯一的开销是**把当前帧读回 CPU**。
+- **读回的做法**（`packages/three-particles/src/js/effects/three-particles/color-instance-sampler.ts`）：
+  - 只在视频**真的出了新帧**时读（`requestVideoFrameCallback`，跟视频帧率走，不跟渲染帧率走）；只在**有粒子出生**时才需要（没人采样就不读）。
+  - 读进一个有上限的网格（`particleColorInstance.sampleSize`，默认 512，2048² 的视频也只读 1MB），静态图仍按原尺寸只读一次。
+  - 第一帧在主线程用 canvas 同步读一次（保证一开始就有颜色），之后每帧 `new VideoFrame(video)`（只是个句柄）转交给一个 **Worker**，在 `OffscreenCanvas` 里缩放、`getImageData`、把 buffer 转移回来。主线程每帧只剩 0.0–0.2ms。
+  - 实测（2048²、30fps、编辑器满负荷渲染时）：worker 内每帧中位数 6ms，那是等共享 GPU 队列的同步停顿，落在 worker 自己的线程上；如果留在主线程就是每秒 30 次 × 6ms。`willReadFrequently: true` 的 CPU 路径每帧 12ms（先把整帧 2048² 转成 RGBA），WebCodecs `copyTo` 全分辨率 13–17ms，都更差。
+  - 开销发布在 `map.userData.colorInstanceReadback`（count / lastMs / workerMs / mode），harness 和任何人都能读。
+- **存储分开放**。元数据（名字、时长、缩略图）在 localStorage `particle-system-editor/video-textures`，跟图片列表并排；**字节在 IndexedDB**（库 `three-particles-editor`，store `videos`，key = 名字）。一分钟 H.264 有几十 MB，localStorage 装不下；IndexedDB 同源共享，显示窗口直接读，线上不传字节。也支持 **URL 来源**：只存地址，保存 config 时写进 `_editorData.embeddedVideos`，别处加载能自动补上；本地上传的视频只能以名字随 config 走（跟内置贴图一样）。
+- **播放元素不能藏死**：放在一个 2px、opacity 0.01 的固定容器里而不是 `display:none`——不参与合成的视频不会触发 `requestVideoFrameCallback`；也不能从 DOM 里拿掉——按规范移除即暂停。编辑器挂起时把视频一起 `pause()`，回来再 `play()`。
+- 显示窗口启动时读同一份列表；编辑器在它开着之后才加的视频，它按名字自己去 IndexedDB 取（`ensureVideoTexture`）。
+- 调试出口 `window.__videoTextures`（addFile / addUrl / remove / entries / get），harness 靠它绕过文件对话框。
+- Textures 面板自己持有一份列表拷贝，所以注册表每次写入都会在 `window` 上发 `video-textures-changed`，面板监听它刷新（也监听跨窗口的 `storage`）。点 **Use** 前会先确认名字真的有注册，没有就尝试从 IndexedDB 重新注册，再不行明确报错——曾经有过一张过期卡片被点中、粒子静默变黑的事。
+
+**粒子面板的两处小改**：Particle Color Instance 现在紧跟在 Noise 下面（它的亮度→curl 系数本来就是 Noise 的一部分）；Mesh 一节在 lit 模式下多了 `roughness`（默认 0.65）和 `metalness`（默认 0）两个滑块，存在 `renderer.mesh` 里随 config 走。粒子的颜色本身就是它的 albedo（起始色 / 渐变 / Color Instance 采到的像素），这两个滑块决定灯光怎么落在上面；metalness > 0 的粒子会被 SSR 视为反射面。
+
+**Opacity over lifetime 有了自己的一节**，紧跟在 Size over lifetime 下面，同一套 Edit Curve。它接管了 `opacityOverLifetime`；渐变编辑器（原来叫 Color & Opacity）改成只管颜色，每个色标的 alpha 滑块隐藏了，旧 config 里的 alpha 数据原样保留但不再被编辑。两个编辑器写同一个字段时，谁最后动谁赢，这是拆开的原因。注意 `renderer.transparent` 关着的时候 alpha 不参与混合，曲线唯一可见的效果是低于丢弃阈值处的硬切——要淡入淡出必须开 transparent（密集的云再考虑关 depthWrite）。
+
 ### 当前状态
 
-- 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在
-- 控制台 harness `public/__ai-test.js`，当前基线 **86/86**
+- 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的仍是那张山水画；测试视频 73MB 进不了仓库，要用视频就在 Textures 面板加
+- 控制台 harness `public/__ai-test.js`，当前基线 **132/132**（含 `videoReport` 30 条、`gizmoReport` 12 条）
 
 ---
 
@@ -137,6 +156,14 @@ __t.cameraReport()          // 相机 / layer / 预览
 await __t.environmentReport()
 await __t.frameReport()
 await __t.playerReport()    // 显示窗口的通信契约 + 编辑器挂起
+await __t.videoReport()     // 视频 color source：存储、循环、读回、清理
+await __t.gizmoReport()     // 场景物体的拖拽手柄：合成指针事件真的拖一次
+```
+
+`videoReport` 要能 fetch 到 `./assets-local/AnimateDiff_00013.mp4`。那是个指向仓库旁边 `assets4test/` 的软链，目录整个 gitignore，新机器上要重建：
+
+```bash
+ln -sfn "$PWD/assets4test/AnimateDiff_00013.mp4" packages/editor/public/assets-local/AnimateDiff_00013.mp4
 ```
 
 加新功能就往对应的 report 里加断言。
@@ -149,6 +176,8 @@ await __t.playerReport()    // 显示窗口的通信契约 + 编辑器挂起
 
 挂起相关的断言只能验结构（帧数确实不再前进、焦点回来确实恢复、卡片层级低于面板），**省了多少帧验不了**，别写成好像验过了。
 
+同理，`videoReport` 里标着「needs frames / needs a visible window」的几条依赖 rAF 和 `requestVideoFrameCallback`，面板隐藏时会假失败；读回的**成本数字**（worker 里几毫秒、主线程零点几毫秒）是在真实负载下另外量的，harness 只断言量级。
+
 ### 技术栈
 
 three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
@@ -159,11 +188,17 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 
 **WebGPU 的 viewport 原点是左上角**，和 WebGL 的左下相反。
 
+**放到 layer 1 的东西，射线检测也要跟着改**。`Raycaster.layers` 默认只看 layer 0，TransformControls 内部找手柄用的也是一个 Raycaster。把手柄 `markAsEditorOnly` 之后如果不给对应的 raycaster `layers.enable(EDITOR_LAYER)`，手柄画得出来但 hover 不亮、拖不动，而且没有任何报错——场景物体、力场、碰撞面三套手柄都这样坏过一轮。新加任何家具层上的可点击物，配套的 raycaster 一起改。
+
 **TSL 会吞掉 shader 里的异常**。表现是"没报错也没效果"，所有输入单独看都对。SSR 卡了两天就是这个——传进去的节点缺 `.sample()` 方法，每次采样都抛异常。遇到这类情况，直接往 shader 内部插探针读它自己看到的值，不对称的地方就是 bug。
 
 **post-processing 不能被 scissor 裁到角落**——它内部的 scene pass 会跟着被裁，整个画布变黑。预览是先渲进离屏 RT 再贴过去的。
 
+**PostProcessing 往离屏 RT 里渲染时也会烤进输出变换**（tone mapping + linear→sRGB），不管目标是不是画布。预览把它渲进 RT 再用 MeshBasicNodeMaterial 贴到画布上，贴的那一步渲染器又编码一次——中间调被抬高、饱和度流失，粒子看起来发灰发白，而且只在开 SSR 时出现（实测均值 44 变 114）。现在编辑器里 `postProcessing.outputColorTransform = isPlayer()`：预览 RT 存线性光（HalfFloat），贴回时只编码一次；显示端直出画布，保留变换。以后要加 tone mapping 记得预览这条路会跳过它。
+
 **roughness 上限就是 1**，抬滑块上限没有意义（着色模型和 SSR 的 lod 计算都会截断）。要更模糊用相机的 `resolution`（降分辨率追踪，更省不是更费）或 `blur`。
+
+**canvas 读回三件事**：`getContext('2d')` 不显式写 `willReadFrequently: false`，Chrome 会在几次 `getImageData` 之后把整个 canvas 降到 CPU（对视频意味着每帧先在 CPU 上转换整帧）；GPU canvas 的 `getImageData` 是等 GPU 队列的同步停顿，页面渲染越重停得越久，所以读回要么不在主线程做，要么别做；隐藏文档里 rAF 和 `requestVideoFrameCallback` 都不跑，`display:none` 的视频也不触发后者。
 
 ### 工作习惯
 
@@ -176,7 +211,11 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 ## 6. 还欠的账
 
 - 新增的功能代码基本没有单元测试，提交时绕过了覆盖率门禁（浏览器 harness 补了一部分，但不是一回事）
-- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦），三个调试出口，harness 依赖它们，正式发布前要处理
+- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦）和 `window.__videoTextures`（绕过文件对话框），四个调试出口，harness 依赖它们，正式发布前要处理
 - 粒子目前不能投射/接收阴影：粒子材质用 `material.vertexNode` 驱动顶点阶段，而阴影 pass 不跑那一段
 - 超过 4MB 的全景图存不进 localStorage，当前会话可用但刷新即失
 - 只有发射器的内置运动（`simulation.ts`）在两个窗口间对了相位；粒子本身各自独立模拟，永远不会逐帧一致
+- 视频在两个窗口里各自播放，相位不对齐（跟粒子一样）；要对齐得把 `currentTime` 塞进快照，还没做
+- 本地上传的视频进不了 config（只有名字），换个浏览器就丢；URL 来源的能随 `embeddedVideos` 走。Player 独立成站时视频只能是 URL
+- Chrome 会把隐藏 tab 里的静音视频暂停掉，所以显示窗口必须是窗口不能是 tab——这条本来就有，视频让它更硬
+- 库的 jest 覆盖率门禁本来就没过（statements 79.0% / 85 分支 83.3%），新加的 sampler 模块自己有 10 条测试，但没把总数拉过线

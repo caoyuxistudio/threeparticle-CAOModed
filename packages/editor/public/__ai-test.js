@@ -107,6 +107,28 @@
     const wantTex = cfg._editorData.colorInstanceTextureId;
     const gotTex = ed.colorInstanceTextureId;
     check('colour texture bound', !!gotTex, `${wantTex} -> ${gotTex}`);
+
+    // Opacity over lifetime is its own section, right under Size, and the
+    // gradient editor no longer reaches into it.
+    // Top-level sections only: a section's own sub-folders have titles too.
+    const titles = [...document.querySelectorAll('.lil-gui.root > .children > .lil-gui > .title')].map((t) => t.textContent.trim());
+    const iSize = titles.indexOf('Size over lifetime');
+    const iOpacity = titles.indexOf('Opacity over lifetime');
+    check('opacity section sits under size', iSize >= 0 && iOpacity === iSize + 1, `${iSize} -> ${iOpacity}`);
+    const cfgLive = window.editor.getCurrentParticleSystemConfig();
+    const gradientFolder = [...document.querySelectorAll('.lil-gui')].find((g) => g.querySelector(':scope > .title')?.textContent.trim() === 'Color over lifetime (Gradient)');
+    const enableBox = gradientFolder?.querySelector('.controller input[type=checkbox]');
+    check('gradient editor is colour only', !!gradientFolder && !!enableBox);
+    if (enableBox) {
+      const opacityBefore = cfgLive.opacityOverLifetime?.isActive;
+      const colorBefore = cfgLive.colorOverLifetime?.isActive;
+      enableBox.click();
+      const colorToggled = cfgLive.colorOverLifetime?.isActive === !colorBefore;
+      const opacityUntouched = cfgLive.opacityOverLifetime?.isActive === opacityBefore;
+      enableBox.click();
+      check('gradient toggle drives colour', colorToggled && cfgLive.colorOverLifetime?.isActive === colorBefore);
+      check('gradient toggle leaves opacity alone', opacityUntouched);
+    }
     check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
     const failed = lines.filter((s) => s.startsWith('FAIL')).length;
@@ -528,7 +550,253 @@
     return [`player: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
+  /**
+   * A video as the colour source, end to end: stored the way an upload is,
+   * playing on a loop, read back by the library as frames arrive, and gone
+   * without a trace afterwards.
+   *
+   * The readback assertions need frames: emission happens inside the render
+   * loop, and rVFC only fires in a visible document. In an automated pane the
+   * frame-dependent lines can fail for that reason alone — they say so.
+   */
+  const videoReport = async () => {
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+    const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+    const waitFor = async (pred, ms) => {
+      const start = performance.now();
+      while (performance.now() - start < ms) {
+        if (pred()) return true;
+        await settle(50);
+      }
+      return !!pred();
+    };
+    const VIDEO_URL = './assets-local/AnimateDiff_00013.mp4';
+
+    const api = window.__videoTextures;
+    check('editor exposes the video registry', !!api);
+    if (!api) return ['video: 0/1 passed', ...lines].join('\n');
+
+    // Leftovers from an interrupted run would otherwise pile up in IndexedDB.
+    for (const stale of api.entries().filter((e) => e.url === VIDEO_URL || e.size === 73618914)) {
+      await api.remove(stale.id);
+    }
+
+    const response = await fetch(VIDEO_URL);
+    check('test video is served', response.ok, `HTTP ${response.status}`);
+    if (!response.ok) return [`video: ${lines.length - 1}/${lines.length} passed`, ...lines].join('\n');
+    const blob = await response.blob();
+
+    // ── The upload path, minus the file dialog ────────────────────────────
+    const t0 = performance.now();
+    let entry = null;
+    try {
+      entry = await api.addFile(new File([blob], 'AnimateDiff_00013.mp4', { type: 'video/mp4' }));
+    } catch (error) {
+      check('upload stores and decodes', false, String(error));
+    }
+    if (entry) {
+      check('upload stores and decodes', entry.width === 2048 && entry.height === 2048, `${entry.width}x${entry.height} in ${Math.round(performance.now() - t0)}ms`);
+      check('duration is known', entry.duration > 47 && entry.duration < 48, `${entry.duration?.toFixed(2)}s`);
+      check('entry persisted in the list', api.entries().some((e) => e.id === entry.id));
+      check('thumbnail captured', typeof entry.thumbnail === 'string' && entry.thumbnail.startsWith('data:image/webp'), `${entry.thumbnail?.length ?? 0} chars`);
+      check('the list stays small (bytes are not in localStorage)', (localStorage.getItem('particle-system-editor/video-textures') || '').length < 64 * 1024);
+      const stored = await new Promise((resolve) => {
+        const open = indexedDB.open('three-particles-editor');
+        open.onerror = () => resolve(null);
+        open.onsuccess = () => {
+          const db = open.result;
+          try {
+            const get = db.transaction('videos').objectStore('videos').get(entry.name);
+            get.onsuccess = () => { resolve(get.result); db.close(); };
+            get.onerror = () => { resolve(null); db.close(); };
+          } catch { resolve(null); }
+        };
+      });
+      check('bytes are in IndexedDB', stored instanceof Blob && stored.size === blob.size, `${stored?.size ?? 0} bytes`);
+    }
+
+    const tex = entry && api.get(entry.name);
+    const video = tex?.video;
+    check('registered under its name with a video-backed map', !!tex?.map && tex.map.image instanceof HTMLVideoElement);
+    if (video) {
+      check('video loops', video.loop === true);
+      check('video is muted (autoplay-safe)', video.muted === true);
+      check('video element is in the document and renderable', video.isConnected && getComputedStyle(video).display !== 'none');
+      check('video is playing', await waitFor(() => !video.paused && video.readyState >= 2, 3000), `paused ${video.paused}, readyState ${video.readyState}`);
+    }
+
+    // ── As the colour source ──────────────────────────────────────────────
+    if (entry && tex) {
+      window.editor.setColorInstanceTexture(entry.name);
+      const cfg = window.editor.getCurrentParticleSystemConfig();
+      check('config points at the video by name', cfg._editorData.colorInstanceTextureId === entry.name);
+      check('particleColorInstance is on with the video map', cfg.particleColorInstance?.isActive === true && cfg.particleColorInstance.map === tex.map);
+
+      const statsOf = () => tex.map.userData.colorInstanceReadback;
+      const first = await waitFor(() => (statsOf()?.count ?? 0) > 0, 4000);
+      check('first frame read back on emission (needs frames)', first, JSON.stringify(statsOf() ?? null));
+      if (first) {
+        const st = statsOf();
+        check('readback grid is bounded to 512', st.width <= 512 && st.height <= 512, `${st.width}x${st.height}`);
+        check('frames are being watched', st.live === true);
+        const before = st.count;
+        const more = await waitFor(() => statsOf().count > before + 3, 3000);
+        check('readbacks follow the video, not the render loop (needs a visible window)', more, `${statsOf().count - before} more in ≤3s`);
+        check('a readback per video frame, not per spawn', statsOf().count < 400, `${statsOf().count} total`);
+        // After the first frame the reading leaves the main thread. What the
+        // main thread still pays is wrapping the frame and posting it.
+        const after = statsOf();
+        check('reading moved off the main thread', after.mode === 'worker', `mode ${after.mode}`);
+        check('the hand-over is cheap on the main thread', after.mode === 'worker' && after.lastMs < 2, `${after.lastMs.toFixed(2)}ms`);
+        check('the worker reports its own time', after.mode !== 'worker' || after.workerMs > 0, `${after.workerMs.toFixed(2)}ms in the worker`);
+      }
+
+      cfg.particleColorInstance.sampleSize = 256;
+      window.editor.reset();
+      const resized = await waitFor(() => statsOf()?.width === 256, 3000);
+      check('sample size lever reaches the grid (needs frames)', resized, `${statsOf()?.width ?? 0}`);
+      cfg.particleColorInstance.sampleSize = 0;
+
+      if (video && video.duration) {
+        video.currentTime = Math.max(0, video.duration - 0.3);
+        const wrapped = await waitFor(() => video.currentTime < 1 && !video.paused, 3000);
+        check('loops back to the start (needs playback)', wrapped, `t=${video.currentTime.toFixed(2)} paused=${video.paused}`);
+      }
+
+      // The wire: the name travels, the bytes do not.
+      const wire = JSON.stringify(window.__playerLink ? cfg._editorData : {});
+      check('nothing video-sized in the editor data', wire.length < 1024 * 1024, `${wire.length} chars`);
+    }
+
+    // ── Cleanup ───────────────────────────────────────────────────────────
+    if (entry) {
+      await api.remove(entry.id);
+      check('removal unregisters the name', !api.get(entry.name));
+      check('removal drops the list entry', !api.entries().some((e) => e.id === entry.id));
+      check('removal detaches the element', !video || !video.isConnected);
+    }
+    await load();
+    check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
+
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`video: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
+  /**
+   * The drag gizmo, exercised the way a hand would: select an object from the
+   * Scene panel, hover its handle, drag it, and expect it to have moved.
+   *
+   * The handles sit on the furniture layer so the output camera never sees
+   * them; the first time that was done, TransformControls' own raycaster —
+   * which looks at layer 0 like every raycaster — stopped finding them, and
+   * every handle in the editor could be shown but not moved. Pointer events
+   * here are synthetic but real DOM events on the canvas, which is exactly
+   * what TransformControls listens to.
+   */
+  const gizmoReport = async () => {
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+    const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+    const w = window.__world;
+    const T = w.THREE;
+
+    /** Frames are irregular in an automated pane, so wait for them rather than count. */
+    const frames = async (n, ms = 3000) => {
+      const link = window.__playerLink;
+      const start = link.frames();
+      const t0 = performance.now();
+      while (performance.now() - t0 < ms) {
+        if (link.frames() >= start + n) return true;
+        await settle(30);
+      }
+      return false;
+    };
+
+    await load();
+    await frames(2);
+
+    // Select the sphere from the panel, like a user would.
+    const previousTab = [...document.querySelectorAll('[role=tab]')].find((t) => t.getAttribute('aria-selected') === 'true');
+    const sceneTab = [...document.querySelectorAll('[role=tab]')].find((t) => /scene/i.test(t.textContent));
+    sceneTab?.click();
+    await settle(300);
+    const item = [...document.querySelectorAll('.item')].find((el) => /sphere/i.test(el.querySelector('.title')?.textContent || ''));
+    const selectButton = item?.querySelector('button[title="Show drag axes in the viewport"]');
+    check('the Scene panel offers a handle toggle for the sphere', !!selectButton);
+    selectButton?.click();
+    await frames(2);
+
+    const root = w.scene.children.find((o) => o.isTransformControlsRoot);
+    const controls = root?.controls;
+    check('selecting attaches the gizmo', !!controls?.object, controls?.object?.type ?? 'nothing attached');
+
+    if (controls?.object) {
+      // Layer contract: drawn only for the editor, but findable by its own raycaster.
+      const artwork = new T.Layers();
+      artwork.set(0);
+      const leaks = [];
+      root.traverse((o) => { if (o.layers.test(artwork)) leaks.push(o.type); });
+      check('gizmo stays off the artwork layer', leaks.length === 0, leaks.slice(0, 3).join(','));
+      check('gizmo raycaster can see the furniture layer', controls.getRaycaster().layers.test(root.layers));
+
+      const canvas = w.renderer.domElement;
+      // A real pointermove reports button -1; TransformControls ignores moves
+      // that claim a button, so the synthetic ones have to say the same.
+      const fire = (type, x, y) =>
+        canvas.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerType: 'mouse', pointerId: 1, button: type === 'pointermove' ? -1 : 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true, bubbles: true, cancelable: true }));
+      const clientOf = (v) => {
+        const p = v.clone().project(w.camera);
+        const b = w.canvasBounds();
+        return [b.left + ((p.x + 1) / 2) * b.width, b.top + ((1 - p.y) / 2) * b.height];
+      };
+      const origin = controls.object.getWorldPosition(new T.Vector3());
+      const [cx, cy] = clientOf(origin);
+      const b = w.canvasBounds();
+      check('the selected object is on screen', cx > b.left && cx < b.right && cy > b.top && cy < b.bottom, `${Math.round(cx)},${Math.round(cy)}`);
+
+      // Hover a spiral around the centre until a handle lights up.
+      let hit = null;
+      for (let r = 0; r <= 80 && !hit; r += 4) {
+        for (let a = 0; a < 360 && !hit; a += 30) {
+          const x = cx + r * Math.cos((a * Math.PI) / 180);
+          const y = cy + r * Math.sin((a * Math.PI) / 180);
+          fire('pointermove', x, y);
+          if (controls.axis) hit = { x, y, axis: controls.axis };
+        }
+      }
+      check('hovering a handle highlights an axis', !!hit, hit ? `${hit.axis} at ${Math.round(hit.x - cx)},${Math.round(hit.y - cy)}` : 'nothing within 80px');
+
+      if (hit) {
+        const before = controls.object.position.clone();
+        const stored = () => storedScene().find((o) => o.type === 'SPHERE')?.position;
+        const storedBefore = JSON.stringify(stored());
+        fire('pointerdown', hit.x, hit.y);
+        check('pressing a handle starts a drag', controls.dragging === true);
+        fire('pointermove', hit.x + 40, hit.y + 25);
+        fire('pointermove', hit.x + 80, hit.y + 50);
+        const during = controls.object.position.clone();
+        fire('pointerup', hit.x + 80, hit.y + 50);
+        const moved = during.distanceTo(before);
+        check('dragging moves the object', moved > 0.05, `${moved.toFixed(3)} units`);
+        check('the drag ends on release', controls.dragging === false);
+        check('the stored scene follows the drag', JSON.stringify(stored()) !== storedBefore);
+        check('orbit controls are back after the drag', w.controls.enabled === true);
+      }
+    }
+
+    previousTab?.click();
+    await load();
+    check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`gizmo: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
   window.__t = {
+    gizmoReport,
+    videoReport,
     playerReport,
     frameReport,
     environmentReport,
@@ -542,5 +810,5 @@
     cameraReport,
     errs,
   };
-  return 'harness ready: await __t.report() | __t.cameraReport() | await __t.load() | __t.errs';
+  return 'harness ready: await __t.report() | __t.cameraReport() | await __t.videoReport() | await __t.gizmoReport() | await __t.load() | __t.errs';
 })();

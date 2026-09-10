@@ -167,6 +167,9 @@ const openColorPicker = (index: number): void => {
 
   opacityRow.appendChild(opacityLabel);
   opacityRow.appendChild(opacityInput);
+  // Alpha stays in the stop data for old configs but is not edited here any
+  // more: opacity has its own curve (Opacity over lifetime, under Size).
+  opacityRow.style.display = 'none';
 
   picker.appendChild(colorRow);
   picker.appendChild(opacityRow);

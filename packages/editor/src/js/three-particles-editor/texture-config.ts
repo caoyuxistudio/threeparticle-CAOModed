@@ -41,10 +41,14 @@ export const TextureId = {
 
 type TextureConfig = {
   id: string;
+  /** For a video this is a thumbnail, and it may be empty. */
   url: string;
   isParticleTexture?: boolean;
   tiles?: THREE.Vector2;
   map?: THREE.Texture;
+  /** Absent means image. Videos are registered by video-textures.ts. */
+  kind?: 'video';
+  video?: HTMLVideoElement;
 };
 
 export const textureConfigs: TextureConfig[] = [

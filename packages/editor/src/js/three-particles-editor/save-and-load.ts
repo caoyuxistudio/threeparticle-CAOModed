@@ -6,6 +6,7 @@ import { ObjectUtils } from '@newkrok/three-utils';
 import { setTerrain } from './world';
 import { getTexture, loadCustomAssets } from './assets';
 import { getSceneObjects, replaceSceneObjects } from './scene-objects';
+import { findVideoEntry, importVideoEntry } from './video-textures';
 
 const { deepMerge } = ObjectUtils;
 import { showSuccessSnackbar } from '../stores/snackbar-store';
@@ -129,11 +130,34 @@ const collectEmbeddedTextures = (editorData) => {
  * Saving and copying both go through this so what the save dialog shows is
  * exactly what gets stored.
  */
+/**
+ * A video cannot ride along the way an image does — a minute of H.264 is tens
+ * of megabytes — but one that came from a URL can be named by it, and that is
+ * enough for the config to play anywhere the address resolves. A locally
+ * uploaded video travels as its name only, like a built-in texture would.
+ */
+const collectEmbeddedVideos = (editorData) => {
+  const id = editorData?.colorInstanceTextureId;
+  const entry = id ? findVideoEntry(id) : undefined;
+  if (!entry || entry.source !== 'url' || !entry.url) return undefined;
+  return {
+    [entry.name]: {
+      url: entry.url,
+      width: entry.width,
+      height: entry.height,
+      duration: entry.duration,
+    },
+  };
+};
+
 export const serializeConfig = (particleSystemConfig) => {
   const editorData = { ...particleSystemConfig._editorData };
   const embeddedTextures = collectEmbeddedTextures(editorData);
   if (embeddedTextures) editorData.embeddedTextures = embeddedTextures;
   else delete editorData.embeddedTextures;
+  const embeddedVideos = collectEmbeddedVideos(editorData);
+  if (embeddedVideos) editorData.embeddedVideos = embeddedVideos;
+  else delete editorData.embeddedVideos;
 
   // The scene the emitter sits in — its lights, boxes and probes. It lives in
   // scene-objects.ts rather than on the config, so it is read from there at
@@ -304,6 +328,38 @@ const importEmbeddedTextures = (
   return { pending: true, renamed };
 };
 
+/**
+ * Registers the URL videos a config names that this browser has not seen.
+ * Same collision rule as the images: a name already taken by a *different*
+ * address is imported under a fresh one and the reference rewritten.
+ */
+const importEmbeddedVideos = (
+  embedded,
+  onReady: () => void
+): { renamed: Record<string, string> } => {
+  const renamed: Record<string, string> = {};
+  if (!embedded || typeof embedded !== 'object') return { renamed };
+
+  const pending: Promise<unknown>[] = [];
+  Object.entries(embedded).forEach(([name, info]: [string, any]) => {
+    const url = info?.url;
+    if (typeof url !== 'string' || !url) return;
+    const existing = findVideoEntry(name);
+    if (existing && (existing.source !== 'url' || existing.url === url)) return;
+    let target = name;
+    if (existing) {
+      do {
+        target = `${name}-${Math.random().toString(36).slice(2, 8)}`;
+      } while (findVideoEntry(target));
+      renamed[name] = target;
+    }
+    pending.push(importVideoEntry(target, info));
+  });
+
+  if (pending.length > 0) void Promise.all(pending).then(onReady);
+  return { renamed };
+};
+
 export const loadParticleSystem = ({
   config,
   particleSystemConfig,
@@ -399,11 +455,20 @@ export const loadParticleSystem = ({
     }
   );
 
+  const { renamed: renamedVideos } = importEmbeddedVideos(
+    particleSystemConfig._editorData?.embeddedVideos,
+    () => {
+      applyTextures();
+      recreateParticleSystem(false);
+    }
+  );
+
   // Point the config at the names the images actually landed under.
   const editorData = particleSystemConfig._editorData;
   (['textureId', 'colorInstanceTextureId'] as const).forEach((key) => {
     const id = editorData?.[key];
     if (id && renamed[id]) editorData[key] = renamed[id];
+    if (id && renamedVideos[id]) editorData[key] = renamedVideos[id];
   });
 
   applyTextures();

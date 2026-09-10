@@ -6,3 +6,8 @@ coverage/
 *.log
 .vscode/
 .idea/
+
+# Local-only test media (symlinked, never deployed)
+packages/editor/public/assets-local/
+# The test media folder beside the packages (73MB video); never part of the repo
+assets4test/

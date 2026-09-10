@@ -31,7 +31,8 @@ import {
   renderPlayer,
   toggleStats,
 } from './js/three-particles-editor/world';
-import { initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
+import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
+import { ensureVideoTexture, loadVideoTextures } from './js/three-particles-editor/video-textures';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
 import { loadParticleSystem } from './js/three-particles-editor/save-and-load';
 import {
@@ -164,6 +165,19 @@ const applyConfig = (config: any): void => {
   });
   hasContent = true;
   showStatus(getOutputCamera() ? '' : 'This piece has no visible output camera.');
+
+  // A video uploaded after this window opened is on disk but not yet in hand:
+  // fetch it by name and build again once it plays. Images cannot arrive this
+  // way — they are read once at start-up — which is a limit this leaves alone.
+  const source = particleSystemConfig._editorData?.colorInstanceTextureId;
+  if (source && !getTexture(source)) {
+    void ensureVideoTexture(source).then((video) => {
+      if (!video || particleSystemConfig._editorData?.colorInstanceTextureId !== source) return;
+      if (particleSystemConfig.particleColorInstance)
+        particleSystemConfig.particleColorInstance.map = video.map;
+      recreateParticleSystem();
+    });
+  }
 };
 
 // ─── The link ────────────────────────────────────────────────────────────────
@@ -311,8 +325,10 @@ const start = async (): Promise<void> => {
         ({ name, url }: { name: string; url: string }) => ({ id: name, url })
       ),
       onComplete: () => {
-        listen();
-        animate();
+        void loadVideoTextures().then(() => {
+          listen();
+          animate();
+        });
       },
     });
   });

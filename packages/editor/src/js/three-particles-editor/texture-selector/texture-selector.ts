@@ -1,6 +1,7 @@
 import { TextureId } from '../texture-config';
 import { getTexture } from '../assets';
 import { getTextureAddedDate } from '../texture-metadata';
+import { VIDEO_TEXTURES_KEY, findVideoEntry, getVideoBlob } from '../video-textures';
 
 type TextureSelectorOptions = {
   currentTextureId: string;
@@ -121,14 +122,26 @@ const setupModalControls = (): void => {
 const downloadTexture = async (textureId: string, textureName: string): Promise<void> => {
   try {
     const texture = getTexture(textureId);
-    if (!texture || !texture.url) return;
+    if (!texture) return;
 
-    const response = await fetch(texture.url);
-    const blob = await response.blob();
+    let blob: Blob | undefined;
+    let extension = 'png';
+    if (texture.kind === 'video') {
+      // The thumbnail is what `url` holds for a video; the bytes are elsewhere.
+      const entry = findVideoEntry(textureId);
+      blob =
+        entry?.source === 'url' && entry.url
+          ? await (await fetch(entry.url)).blob()
+          : await getVideoBlob(textureId);
+      extension = 'mp4';
+    } else if (texture.url) {
+      blob = await (await fetch(texture.url)).blob();
+    }
+    if (!blob) return;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${textureName}.png`;
+    a.download = `${textureName}.${extension}`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -163,6 +176,8 @@ const renderTextureGrid = (): void => {
   const customAssetList = [
     ...readList('particle-system-editor/library'),
     ...readList('particle-system-editor/image-textures'),
+    // Videos too: a colour source is whichever of the two the piece wants.
+    ...readList(VIDEO_TEXTURES_KEY),
   ];
 
   // Custom textures (newest first - reverse order), de-duplicated by name.
@@ -258,6 +273,16 @@ const renderTextureGrid = (): void => {
     img.src = texture.url;
     img.className = 'texture-selector-image';
     previewContainer.appendChild(img);
+
+    if (texture.kind === 'video') {
+      const badge = document.createElement('div');
+      badge.className = 'texture-selector-video-badge';
+      badge.textContent = 'VIDEO';
+      badge.style.cssText =
+        'position:absolute;top:6px;left:6px;padding:1px 6px;border-radius:3px;' +
+        'font-size:9px;font-weight:700;letter-spacing:0.5px;color:#fff;background:#7e57c2;';
+      previewContainer.appendChild(badge);
+    }
 
     // Add circle preview overlay
     const circlePreview = document.createElement('div');

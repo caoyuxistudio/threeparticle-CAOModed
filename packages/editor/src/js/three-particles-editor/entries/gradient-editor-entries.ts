@@ -1,7 +1,10 @@
 /**
  * Gradient Editor Entries
  *
- * Unified color and opacity over lifetime editor using a visual gradient interface
+ * Colour over lifetime, edited as a visual gradient. Opacity used to ride along
+ * on the stops' alpha; it now has its own section with its own curve (Opacity
+ * over lifetime, under Size), so this editor writes colour only. Two editors
+ * writing one field meant whichever was touched last silently won.
  */
 
 import type { ParticleSystemConfig } from '@newkrok/three-particles';
@@ -27,6 +30,16 @@ type GradientEditorEntriesParams = {
 
 let isInitialized = false;
 
+/** A flat alpha of 1, for seeding gradient stops now that alpha is not edited here. */
+const OPAQUE_CURVE: BezierCurve = {
+  type: 'BEZIER',
+  scale: 1,
+  bezierPoints: [
+    { x: 0, y: 1, percentage: 0 },
+    { x: 1, y: 1, percentage: 1 },
+  ],
+} as BezierCurve;
+
 /**
  * Initializes gradient editor data in _editorData if not present
  */
@@ -45,12 +58,13 @@ const ensureGradientDataExists = (config: ParticleSystemConfig): void => {
       config.colorOverLifetime?.b &&
       config.opacityOverLifetime?.lifetimeCurve
     ) {
-      // Convert existing bezier curves to gradient
+      // Convert existing colour curves to gradient stops. Alpha is not this
+      // editor's to show any more, so the stops are seeded fully opaque.
       editorData.gradientStops = bezierCurvesToGradient(
         config.colorOverLifetime.r as BezierCurve,
         config.colorOverLifetime.g as BezierCurve,
         config.colorOverLifetime.b as BezierCurve,
-        config.opacityOverLifetime.lifetimeCurve as BezierCurve,
+        OPAQUE_CURVE,
         5 // Sample 5 stops
       );
     } else {
@@ -84,21 +98,16 @@ const ensureConfigStructures = (config: ParticleSystemConfig): void => {
 };
 
 /**
- * Updates bezier curves from gradient stops
+ * Updates the colour curves from gradient stops. Opacity is left alone — it
+ * belongs to the Opacity over lifetime section.
  */
 const updateBeziersFromGradient = (config: ParticleSystemConfig, stops: GradientStop[]): void => {
   const curves = gradientToBezierCurves(stops);
 
-  // Update color over lifetime
   if (config.colorOverLifetime) {
     config.colorOverLifetime.r = curves.r;
     config.colorOverLifetime.g = curves.g;
     config.colorOverLifetime.b = curves.b;
-  }
-
-  // Update opacity over lifetime
-  if (config.opacityOverLifetime) {
-    config.opacityOverLifetime.lifetimeCurve = curves.alpha;
   }
 };
 
@@ -110,7 +119,7 @@ export const createGradientEditorEntries = ({
   particleSystemConfig,
   recreateParticleSystem,
 }: GradientEditorEntriesParams): Record<string, unknown> => {
-  const folder = parentFolder.addFolder('Color & Opacity (Gradient)');
+  const folder = parentFolder.addFolder('Color over lifetime (Gradient)');
   folder.close();
 
   ensureConfigStructures(particleSystemConfig);
@@ -118,7 +127,6 @@ export const createGradientEditorEntries = ({
 
   const editorData = (particleSystemConfig as any)._editorData;
 
-  // Combined enabled toggle
   const uiState = {
     enabled: particleSystemConfig.colorOverLifetime?.isActive || false,
   };
@@ -129,9 +137,6 @@ export const createGradientEditorEntries = ({
     .onChange((value: boolean) => {
       if (particleSystemConfig.colorOverLifetime) {
         particleSystemConfig.colorOverLifetime.isActive = value;
-      }
-      if (particleSystemConfig.opacityOverLifetime) {
-        particleSystemConfig.opacityOverLifetime.isActive = value;
       }
       recreateParticleSystem();
     })
@@ -154,12 +159,9 @@ export const createGradientEditorEntries = ({
               // Update bezier curves
               updateBeziersFromGradient(particleSystemConfig, stops);
 
-              // Auto-enable color and opacity when gradient is edited
+              // Auto-enable colour when the gradient is edited
               if (particleSystemConfig.colorOverLifetime) {
                 particleSystemConfig.colorOverLifetime.isActive = true;
-              }
-              if (particleSystemConfig.opacityOverLifetime) {
-                particleSystemConfig.opacityOverLifetime.isActive = true;
               }
               uiState.enabled = true;
 

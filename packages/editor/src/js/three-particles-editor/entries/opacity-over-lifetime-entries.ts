@@ -11,6 +11,17 @@ type OpacityOverLifeTimeEntriesParams = {
   recreateParticleSystem: () => void;
 };
 
+/**
+ * "Opacity over lifetime" — the alpha twin of Size over lifetime, with the same
+ * curve editor. This section owns `opacityOverLifetime`; the gradient editor
+ * next to it is colour only.
+ *
+ * What a curve does on screen depends on the renderer: with
+ * `renderer.transparent` off the alpha is not blended, and the only visible
+ * effect is the hard cut where it drops below the discard threshold — the
+ * popping this section exists to remove. For a fade, turn `transparent` on
+ * (and, for a dense cloud, consider `depthWrite` off).
+ */
 export const createOpacityOverLifeTimeEntries = ({
   parentFolder,
   particleSystemConfig,

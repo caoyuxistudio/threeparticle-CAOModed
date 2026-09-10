@@ -30,6 +30,14 @@ import {
   getDepthTexture,
 } from './three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './three-particles-editor/assets';
+import {
+  addVideoFile,
+  addVideoUrl,
+  loadVideoTextures,
+  readVideoEntries,
+  removeVideo,
+  setVideoSourcesPaused,
+} from './three-particles-editor/video-textures';
 import { initSceneObjects } from './three-particles-editor/scene-objects';
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -48,6 +56,7 @@ import { createRendererEntries } from './three-particles-editor/entries/renderer
 import { createRotationOverLifeTimeEntries } from './three-particles-editor/entries/rotation-over-lifetime-entries';
 import { createShapeEntries } from './three-particles-editor/entries/shape-entries';
 import { createSizeOverLifeTimeEntries } from './three-particles-editor/entries/size-over-lifetime-entries';
+import { createOpacityOverLifeTimeEntries } from './three-particles-editor/entries/opacity-over-lifetime-entries';
 import { createTextureSheetAnimationEntries } from './three-particles-editor/entries/texture-sheet-animation-entries';
 import { createTransformEntries } from './three-particles-editor/entries/transform-entries';
 import { createVelocityOverLifeTimeEntries } from './three-particles-editor/entries/velocity-over-lifetime-entries';
@@ -416,17 +425,37 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
         })
       ),
       onComplete: () => {
-        // Boxes, lights and probes saved from a previous session.
-        initSceneObjects();
-        isInitializing = true;
-        createPanel();
-        createCurveEditor();
-        recreateParticleSystem(false);
-        isInitializing = false;
-        animate();
+        // Videos a config may name as its colour source. Waited for like the
+        // images are, so the first build already finds them by name.
+        void loadVideoTextures().then(() => {
+          // Boxes, lights and probes saved from a previous session.
+          initSceneObjects();
+          isInitializing = true;
+          createPanel();
+          createCurveEditor();
+          recreateParticleSystem(false);
+          isInitializing = false;
+          animate();
+        });
       },
     });
   });
+
+  // The harness has no file dialog; this is how it gets a video in.
+  (window as any).__videoTextures = {
+    addFile: addVideoFile,
+    addUrl: addVideoUrl,
+    // Mirrors what the Textures panel does on delete: a removed video must not
+    // stay bound as the colour source, whichever door it left through.
+    remove: async (id: number) => {
+      const entry = await removeVideo(id);
+      if (entry && particleSystemConfig._editorData.colorInstanceTextureId === entry.name)
+        window.editor.setColorInstanceTexture(undefined);
+      return entry;
+    },
+    entries: readVideoEntries,
+    get: (name: string) => getTexture(name),
+  };
 };
 
 /**
@@ -447,6 +476,9 @@ const applyPlayerSuspension = (): boolean => {
   const suspend = isEditorSuspended();
   if (suspend !== suspendedByPlayer) {
     suspendedByPlayer = suspend;
+    // A suspended editor spawns nothing, so nothing samples its videos; their
+    // decoding is the one cost still running, and it stops here too.
+    setVideoSourcesPaused(suspend);
     if (suspend) {
       pausedBeforeSuspension = isPaused;
       pauseTime();
@@ -919,13 +951,6 @@ const createPanel = (config: any = particleSystemConfig): void => {
     })
   );
   configEntries.push(
-    createParticleColorInstanceEntries({
-      parentFolder: panel,
-      particleSystemConfig: config,
-      recreateParticleSystem,
-    })
-  );
-  configEntries.push(
     createGradientEditorEntries({
       parentFolder: panel,
       particleSystemConfig: config,
@@ -935,6 +960,13 @@ const createPanel = (config: any = particleSystemConfig): void => {
   );
   configEntries.push(
     createSizeOverLifeTimeEntries({
+      parentFolder: panel,
+      particleSystemConfig: config,
+      recreateParticleSystem: () => recreateParticleSystem(true, ['sizeOverLifetime']),
+    })
+  );
+  configEntries.push(
+    createOpacityOverLifeTimeEntries({
       parentFolder: panel,
       particleSystemConfig: config,
       recreateParticleSystem: () => recreateParticleSystem(true, ['sizeOverLifetime']),
@@ -952,6 +984,13 @@ const createPanel = (config: any = particleSystemConfig): void => {
       parentFolder: panel,
       particleSystemConfig: config,
       recreateParticleSystem: () => recreateParticleSystem(true, ['noise']),
+    })
+  );
+  configEntries.push(
+    createParticleColorInstanceEntries({
+      parentFolder: panel,
+      particleSystemConfig: config,
+      recreateParticleSystem,
     })
   );
   configEntries.push(
