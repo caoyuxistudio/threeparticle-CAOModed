@@ -224,6 +224,9 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
         `${buffer.width}×${buffer.height} @ scale ${actions.getRenderScale().toFixed(2)} (device ${dpr})`,
       ],
       ['window', `${window.innerWidth}×${window.innerHeight}`],
+      // The whole viewport story, for a phone: what the page was given, what
+      // the screen is, and what the OS keeps for itself around the edges.
+      ['viewport', viewportFacts()],
       [
         'particles',
         `${particles.maxParticles} max, ${particles.rateOverTime}/s, budget ${Math.round(particles.budget * 100)}%`,
@@ -246,6 +249,25 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
       ],
       ['ua', navigator.userAgent],
     ];
+  };
+
+  const viewportFacts = (): string => {
+    const style = getComputedStyle(document.documentElement);
+    const inset = (name: string) => style.getPropertyValue(name).trim() || '0px';
+    const vv = window.visualViewport;
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    return [
+      `doc ${document.documentElement.clientWidth}×${document.documentElement.clientHeight}`,
+      vv
+        ? `visual ${Math.round(vv.width)}×${Math.round(vv.height)} @${Math.round(vv.offsetTop)}`
+        : 'no visualViewport',
+      `screen ${screen.width}×${screen.height}`,
+      `safe t${inset('--safe-top')} r${inset('--safe-right')} b${inset('--safe-bottom')} l${inset('--safe-left')}`,
+      standalone ? 'standalone' : 'browser',
+      `canvas ${document.querySelector('canvas')?.clientWidth ?? 0}×${document.querySelector('canvas')?.clientHeight ?? 0}`,
+    ].join(', ');
   };
 
   const report = (): string =>
