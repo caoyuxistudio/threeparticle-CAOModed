@@ -28,7 +28,15 @@
     -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      Opaque, not translucent. With black-translucent, iOS 26 lays the web view
+      out from the very top of the screen but sizes it as if it began below the
+      status bar — the page overlaps the status bar and a status-bar-high strip
+      at the bottom belongs to nobody (measured: screen 956, page 894, top inset
+      62). Opaque black puts the page below the bar at exactly the height it
+      was given, and on a black page the bar is invisible anyway.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Particles" />
     <!-- Favicon -->    
     <link rel="icon" href="./favicon/favicon.ico" />

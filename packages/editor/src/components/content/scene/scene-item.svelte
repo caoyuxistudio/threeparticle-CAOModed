@@ -143,6 +143,8 @@
     { label: '9:16', value: 9 / 16 },
     { label: '2:1', value: 2 },
     { label: 'iPhone 17 Pro Max', value: 440 / 956 },
+    // The same phone as a Home Screen app: the page sits below the status bar.
+    { label: 'iPhone 17 Pro Max · app', value: 440 / 894 },
     { label: 'Fit window', value: 0 },
   ];
 </script>

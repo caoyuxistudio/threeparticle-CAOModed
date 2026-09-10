@@ -255,6 +255,17 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
     const style = getComputedStyle(document.documentElement);
     const inset = (name: string) => style.getPropertyValue(name).trim() || '0px';
     const vv = window.visualViewport;
+    // How tall the page thinks "the viewport" is in each unit family.
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;';
+    document.body.appendChild(probe);
+    const unit = (u: string) => {
+      probe.style.height = `100${u}`;
+      return Math.round(probe.getBoundingClientRect().height);
+    };
+    const units = `vh${unit('vh')} dvh${unit('dvh')} lvh${unit('lvh')} svh${unit('svh')}`;
+    probe.remove();
     const standalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -264,6 +275,7 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
         ? `visual ${Math.round(vv.width)}×${Math.round(vv.height)} @${Math.round(vv.offsetTop)}`
         : 'no visualViewport',
       `screen ${screen.width}×${screen.height}`,
+      units,
       `safe t${inset('--safe-top')} r${inset('--safe-right')} b${inset('--safe-bottom')} l${inset('--safe-left')}`,
       standalone ? 'standalone' : 'browser',
       `canvas ${document.querySelector('canvas')?.clientWidth ?? 0}×${document.querySelector('canvas')?.clientHeight ?? 0}`,

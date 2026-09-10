@@ -120,6 +120,8 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **相机画幅**：CAMERA 的 output frame 里除了固定比例，多了 **iPhone 17 Pro Max**（440×956 逻辑像素，0.4603）和 **Fit window**（`aspect: 0`，跟着当前窗口走——播放页和演示模式里就是彻底铺满、没有黑边；编辑器预览则取编辑器窗口的比例）。铺满意味着构图随屏幕变，所以要精确构图用 iPhone 预设、从主屏幕图标打开来看。
 
+**iOS 26 主屏幕模式的坑**：状态栏样式用 `black-translucent` 时，iOS 26 把网页视图从屏幕最顶上开始放、却按"状态栏以下"的高度算尺寸——页面和状态栏重叠，底部空出一条 62px 谁也画不到的黑带（实测 screen 956、页面 894、`safe-area-inset-top` 62）。所以两个页面都用不透明的 `black`：页面老实待在状态栏下面，高度刚好到底；黑底上状态栏本来就看不出来。相机预设里 **iPhone 17 Pro Max · app** = 440×894 就是这个窗口。HUD 的 `viewport:` 一行报 doc / visual / screen / 各 vh 单位 / 安全区，再遇到视口问题先看它。
+
 **iPhone 上去掉 Safari 的栏**（Safari 里进演示模式时会弹一次提示说这件事）：iPhone 的 Safari 没有元素全屏 API（iPad 才有），`requestFullscreen` 会被拒绝，演示模式在 Safari 里只能做到页面级全屏，底栏还在。唯一的路是 **添加到主屏幕**：两个页面都带了 `apple-mobile-web-app-capable`、`black-translucent` 状态栏和 `viewport-fit=cover`，manifest 是 `standalone`，从主屏幕图标打开就是无边框的 app 窗口，440×956 全部可用。HUD、演示浮条、播放页按钮都按 `env(safe-area-inset-*)` 避开灵动岛和 Home 指示条。
 
 **手机竖屏的布局**：两侧面板之间不足 220px 时算窄屏，预览窗改为占画布整个宽度、放在右侧面板折叠后的标题条下面，旁边两个按钮跟着——否则竖屏时它们全被面板盖住，只有横屏才点得到演示模式。手机顶栏的汉堡菜单里也有 **Full screen**，和按钮等价。主屏幕模式下页面顶到状态栏底下，工具栏加了 `env(safe-area-inset-top)` 的顶部内边距，内容区高度相应扣掉；Safari 和桌面上这个值是 0。
