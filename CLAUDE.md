@@ -122,7 +122,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **显示端是 cover 不是 contain**（`fitPlayerCanvas`）：画布永远铺满窗口，相机取窗口的比例，视场按"覆盖预设构图"来算——窗口比预设窄就保留构图的高度裁两侧，比预设宽就保留宽度裁上下。预设（含 iPhone 那两个）只决定构图，编辑器预览按预设显示，退出演示时把相机恢复到预设。不留 letterbox 是有意的：目标是实打实的全屏。
 
-**iOS 27 beta 主屏幕模式的极限**（实测 iPhone 17 Pro Max、iOS 27 beta）：网页视图永远只有"屏幕减状态栏"那么高（894 / 956），CSS 的 `100lvh` 却报 956。`black-translucent` 把视图整个挪到状态栏底下、底部留 62px 黑；`black` 让视图待在状态栏下面、顶部是黑色状态栏。两种都试过把画布画出视图外：那一段就是不显示，只会裁掉画面一边。所以现在是不透明状态栏 + 画布等于视图，cover 模式保证视图内没黑边；`display: fullscreen`（`display_override` 退回 standalone）是留给 iOS 的一个机会，若它认就会连状态栏一起去掉。相机预设 **iPhone 17 Pro Max · app** = 440×894 就是这个视图。HUD 的 `viewport:` 一行报 doc / visual / screen / 各 vh 单位 / 安全区 / gap，再遇到视口问题先看它。
+**iOS 27 beta 主屏幕模式的极限**（实测 iPhone 17 Pro Max、iOS 27 beta）：网页视图永远只有"屏幕减状态栏"那么高（894 / 956），CSS 的 `100lvh` 却报 956。`black-translucent` 把视图整个挪到状态栏底下、底部留 62px 黑；`black` 让视图待在状态栏下面、顶部是黑色状态栏。两种都试过把画布画出视图外：那一段就是不显示，只会裁掉画面一边。`display: fullscreen` 也试过，iOS 不认。现在的组合是：manifest **不写 `display`**（只留名字和图标），靠 `apple-mobile-web-app-capable` 这条老路径判定独立窗口，状态栏透明——老路径十几年来一直给整块屏幕，赌的是 iOS 27 beta 只在 manifest 驱动的新路径上把视图砍短。画布严格等于视图，cover 模式保证视图内没黑边。要是老路径也只给 894，网页在 iPhone 上就到头了，真全屏只能做原生壳（WKWebView 隐藏状态栏）。相机预设 **iPhone 17 Pro Max · app** = 440×894 就是这个视图。HUD 的 `viewport:` 一行报 doc / visual / screen / 各 vh 单位 / 安全区 / gap，再遇到视口问题先看它。
 
 **iPhone 上去掉 Safari 的栏**（Safari 里进演示模式时会弹一次提示说这件事）：iPhone 的 Safari 没有元素全屏 API（iPad 才有），`requestFullscreen` 会被拒绝，演示模式在 Safari 里只能做到页面级全屏，底栏还在。唯一的路是 **添加到主屏幕**：两个页面都带了 `apple-mobile-web-app-capable`、`black-translucent` 状态栏和 `viewport-fit=cover`，manifest 是 `standalone`，从主屏幕图标打开就是无边框的 app 窗口，440×956 全部可用。HUD、演示浮条、播放页按钮都按 `env(safe-area-inset-*)` 避开灵动岛和 Home 指示条。
 
