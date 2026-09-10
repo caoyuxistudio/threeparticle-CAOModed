@@ -366,6 +366,17 @@
     const noMask = square.mesh?.children.find((c) => c.name === 'frame-corners');
     check('square corners show no mask', !!noMask && noMask.visible === false);
 
+    // The top edge brought down: the frame loses that much height at the top
+    // only, and the top corners come down with it.
+    const lowered = await build({ topOffset: 0.5, cornerRadius: { topLeft: 0.5, topRight: 0.5, bottomLeft: 0, bottomRight: 0 } });
+    check('top edge down shortens the frame from the top', Math.abs(lowered.size.y - 4.2) < 0.01 && Math.abs(lowered.size.x - 7.2) < 0.01, `${lowered.size.x.toFixed(2)}x${lowered.size.y.toFixed(2)}`);
+    const loweredMask = lowered.mesh?.children.find((c) => c.name === 'frame-corners');
+    if (loweredMask) {
+      loweredMask.geometry.computeBoundingBox();
+      const b = loweredMask.geometry.boundingBox;
+      check('the top corners ride on the lowered edge', Math.abs(b.max.y - (1.75 - 0.5)) < 0.01, b.max.y.toFixed(2));
+    }
+
     await load();
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
     return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');

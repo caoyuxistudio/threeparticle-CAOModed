@@ -146,6 +146,13 @@ export type SceneObject = {
   cornerRadius?: { topLeft: number; topRight: number; bottomLeft: number; bottomRight: number };
   /** The fillets' colour. Dark by default: they stand in for the bezel. */
   cornerColor?: string;
+  /**
+   * FRAME only: how far the top edge — outer edge, opening and its two
+   * corners — sits below where it would be, the bottom staying put. For
+   * lining the top of a frame up with something (a status bar, say) without
+   * nudging the whole frame down and losing the bottom edge.
+   */
+  topOffset?: number;
 };
 
 export type CornerRadius = NonNullable<SceneObject['cornerRadius']>;
@@ -355,6 +362,7 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeEmissiveIntensity: 0,
     cornerRadius: squareCorners(),
     cornerColor: '#000000',
+    topOffset: 0,
   }),
   ENVIRONMENT: () => ({
     type: 'ENVIRONMENT',
@@ -406,6 +414,12 @@ const LABEL: Record<SceneObjectType, string> = {
  * material slot and the walls as another, which is exactly the split between
  * the face you look at and the inside of the opening.
  */
+/** How far the top edge is brought down, kept short of closing the opening. */
+const topOffsetOf = (obj: SceneObject): number => {
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  return Math.min(innerH - 0.01, Math.max(0, obj.topOffset ?? 0));
+};
+
 const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
   const innerW = Math.max(0.01, obj.innerWidth ?? 6);
   const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
@@ -413,19 +427,20 @@ const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
   const depth = Math.max(0.01, obj.depth ?? 0.5);
   const outerW = innerW + border * 2;
   const outerH = innerH + border * 2;
+  const down = topOffsetOf(obj);
 
   const shape = new THREE.Shape();
   shape.moveTo(-outerW / 2, -outerH / 2);
   shape.lineTo(outerW / 2, -outerH / 2);
-  shape.lineTo(outerW / 2, outerH / 2);
-  shape.lineTo(-outerW / 2, outerH / 2);
+  shape.lineTo(outerW / 2, outerH / 2 - down);
+  shape.lineTo(-outerW / 2, outerH / 2 - down);
   shape.closePath();
 
   // Wound the opposite way from the outline, which is how a path reads as a hole.
   const hole = new THREE.Path();
   hole.moveTo(-innerW / 2, -innerH / 2);
-  hole.lineTo(-innerW / 2, innerH / 2);
-  hole.lineTo(innerW / 2, innerH / 2);
+  hole.lineTo(-innerW / 2, innerH / 2 - down);
+  hole.lineTo(innerW / 2, innerH / 2 - down);
   hole.lineTo(innerW / 2, -innerH / 2);
   hole.closePath();
   shape.holes.push(hole);
@@ -440,7 +455,7 @@ const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
 /** Each corner's radius, clamped to what the opening can take. */
 const cornerRadii = (obj: SceneObject): CornerRadius => {
   const innerW = Math.max(0.01, obj.innerWidth ?? 6);
-  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5) - topOffsetOf(obj);
   const limit = Math.min(innerW, innerH) / 2;
   const clamp = (r: number | undefined) => Math.min(limit, Math.max(0, r ?? 0));
   const c = obj.cornerRadius ?? squareCorners();
@@ -469,6 +484,7 @@ const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => 
   const radii = cornerRadii(obj);
   const w = innerW / 2;
   const h = innerH / 2;
+  const top = h - topOffsetOf(obj);
 
   // Corner sign, the radius that belongs to it, and the arc that rounds it:
   // from the tangent point on the horizontal edge to the one on the vertical
@@ -491,9 +507,9 @@ const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => 
   corners.forEach(({ sx, sy, r, from, to, cw }) => {
     if (r <= 0) return;
     const cx = sx * w;
-    const cy = sy * h;
+    const cy = sy > 0 ? top : -h;
     const ox = sx * (w - r);
-    const oy = sy * (h - r);
+    const oy = sy > 0 ? top - r : -h + r;
     const shape = new THREE.Shape();
     shape.moveTo(cx, cy);
     shape.lineTo(ox, cy);
@@ -516,6 +532,7 @@ const frameGeometryKey = (obj: SceneObject): string => {
     obj.innerHeight,
     obj.border,
     obj.depth,
+    topOffsetOf(obj),
     c.topLeft,
     c.topRight,
     c.bottomLeft,

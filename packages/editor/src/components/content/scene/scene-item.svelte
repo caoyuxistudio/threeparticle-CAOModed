@@ -462,6 +462,23 @@
           </label>
         {/each}
         <label class="row">
+          <span>top edge down</span>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.01"
+            value={obj.topOffset ?? 0}
+            oninput={(e) => set({ topOffset: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={obj.topOffset ?? 0}
+            oninput={(e) => set({ topOffset: +e.target.value })}
+          />
+        </label>
+        <label class="row">
           <span>mask color</span>
           <input
             type="color"
