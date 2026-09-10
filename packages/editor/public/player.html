@@ -66,8 +66,10 @@
       }
 
       #player-stage {
+        position: relative;
+        top: calc(-1 * var(--viewport-top-gap, 0px));
         width: 100%;
-        height: calc(100% + var(--viewport-gap, 0px));
+        height: calc(100% + var(--viewport-top-gap, 0px) + var(--viewport-gap, 0px));
         display: flex;
         align-items: center;
         justify-content: center;

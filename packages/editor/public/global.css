@@ -739,8 +739,10 @@ body.presenting #three-particles-editor {
   position: fixed;
   inset: 0;
   bottom: auto;
-  /* Reaches into the strip iOS 26 leaves below the layout viewport (world.ts). */
-  height: calc(100% + var(--viewport-gap, 0px));
+  /* Reaches into the strip iOS 26 leaves above or below the layout viewport
+     (world.ts): shifted up by the top gap, tall enough for both. */
+  top: calc(-1 * var(--viewport-top-gap, 0px));
+  height: calc(100% + var(--viewport-top-gap, 0px) + var(--viewport-gap, 0px));
   z-index: 1000;
   display: flex;
   align-items: center;

@@ -657,28 +657,53 @@ const isStandalone = (): boolean =>
 const safeAreaTop = (): number =>
   parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
 
-/**
- * How tall the display really is.
- *
- * Normally the window. On an iPhone opened from the Home Screen with a
- * translucent status bar, iOS 26 hands the page a layout viewport that is
- * the screen minus the status bar — yet places it at the very top, under the
- * bar. The strip that height at the bottom is inside the web view but below
- * everything the page lays out. When that exact shape shows up (standalone,
- * a top inset, and a shortfall equal to it) the display takes the screen's
- * height and paints the strip too.
- */
-export const viewportHeight = (): number => {
-  const h = window.innerHeight;
-  const top = safeAreaTop();
-  if (isStandalone() && top > 0 && screen.height > h && screen.height - h <= top + 1) {
-    return screen.height;
-  }
-  return h;
+/** The "large viewport" — 100lvh — measured, since only CSS knows it. */
+const largeViewportHeight = (): number => {
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none;';
+  document.body.appendChild(probe);
+  const h = probe.getBoundingClientRect().height;
+  probe.remove();
+  return h || window.innerHeight;
 };
 
+export type ViewportMetrics = {
+  /** How tall the display is drawn. */
+  height: number;
+  /** Extra above the layout viewport, if the page sits below the status bar. */
+  top: number;
+  /** Extra below it, if the page sits under the status bar and stops short. */
+  bottom: number;
+};
+
+/**
+ * How tall the display really is, and where the extra lies.
+ *
+ * Normally the window. On an iPhone opened from the Home Screen, iOS 26 lays
+ * the page out the screen minus the status bar (measured: 894 of 956) while
+ * CSS's large viewport is still the whole screen — the web view spans it,
+ * the page does not. Where the missing strip lies depends on the status bar
+ * style the app was installed with: translucent puts the page at the very
+ * top (a top inset is reported) and the strip below; opaque puts the page
+ * below the bar and the strip above. Either way the display is drawn the
+ * large viewport's height and shifted to cover the strip.
+ */
+export const viewportMetrics = (): ViewportMetrics => {
+  const h = window.innerHeight;
+  if (!isStandalone()) return { height: h, top: 0, bottom: 0 };
+  const large = largeViewportHeight();
+  const missing = Math.round(large - h);
+  if (missing <= 0 || missing > 120) return { height: h, top: 0, bottom: 0 };
+  return safeAreaTop() > 0
+    ? { height: large, top: 0, bottom: missing }
+    : { height: large, top: missing, bottom: 0 };
+};
+
+export const viewportHeight = (): number => viewportMetrics().height;
+
 /** What the display adds below the layout viewport; the bars sit above it. */
-export const viewportGap = (): number => viewportHeight() - window.innerHeight;
+export const viewportGap = (): number => viewportMetrics().bottom;
 
 /**
  * Points the output camera at the window so that the composed frame *covers*
@@ -721,8 +746,10 @@ const restoreOutputCameraPreset = (): void => {
 export const fitPlayerCanvas = (): void => {
   if (!renderer) return;
   const w = window.innerWidth;
-  const h = viewportHeight();
-  document.documentElement.style.setProperty('--viewport-gap', `${h - window.innerHeight}px`);
+  const { height: h, top, bottom } = viewportMetrics();
+  const root = document.documentElement.style;
+  root.setProperty('--viewport-gap', `${bottom}px`);
+  root.setProperty('--viewport-top-gap', `${top}px`);
   renderer.setSize(w, h);
   depthRenderTarget?.setSize(w, h);
   coverOutputCamera(w / h);
