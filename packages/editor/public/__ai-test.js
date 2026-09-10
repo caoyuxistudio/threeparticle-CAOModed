@@ -453,6 +453,72 @@
       check('the button lines up with the preview top', Math.abs(box.top - (canvasBox.top + preview.y)) <= 1, `${Math.round(box.top)} vs ${Math.round(canvasBox.top + preview.y)}`);
     }
 
+    // ── Suspension ───────────────────────────────────────────────────────────
+    //
+    // `linked` is true from the hello above, so the focus input alone decides.
+    // This page can never lose focus for real, which is why the editor exposes
+    // an override for it.
+    const link = window.__playerLink;
+    check('the editor exposes its suspension rule', typeof link?.shouldSuspendEditor === 'function');
+
+    if (link) {
+      check('no display, no suspension', link.shouldSuspendEditor(false, false) === false);
+      check('display open, editor focused — keeps drawing', link.shouldSuspendEditor(true, true) === false);
+      check('display open, editor blurred — suspends', link.shouldSuspendEditor(true, false) === true);
+
+      const card = document.querySelector('.player-suspend-card');
+      const canvas = window.__world.renderer.domElement;
+      check('the pause card exists', !!card);
+
+      /** Frames are irregular in an automated pane, so this waits rather than counts. */
+      const drewAFrame = async (ms) => {
+        const start = link.frames();
+        const t0 = performance.now();
+        while (performance.now() - t0 < ms) {
+          if (link.frames() > start) return true;
+          await new Promise((r) => setTimeout(r, 40));
+        }
+        return false;
+      };
+
+      link.setFocusOverride(true);
+      check('a focused editor keeps drawing beside the display', await drewAFrame(3000));
+      check('no card while the editor is drawing', card?.style.display === 'none');
+      check('the viewport is at full strength while drawing', canvas.style.filter === '');
+
+      link.setFocusOverride(false);
+      // One frame for the loop to notice, then the loop must go quiet.
+      await new Promise((r) => setTimeout(r, 200));
+      check('the loop applied the suspension', link.isSuspended() === true);
+      check('a blurred editor stops drawing', (await drewAFrame(600)) === false);
+      check('the card says so', card?.style.display === 'flex');
+      check('the frozen viewport is dimmed', canvas.style.filter.includes('brightness'));
+
+      if (card) {
+        const z = Number(getComputedStyle(card).zIndex);
+        const buttonZ = Number(getComputedStyle(document.querySelector('.player-window-toggle')).zIndex);
+        // A suspended editor is a control surface, not a modal: nothing may
+        // cover the panels, and the card must not outrank them either.
+        check('the card sits under the panels', z < 10, `z ${z}`);
+        check('the toggle button stays above the card', buttonZ > z, `${buttonZ} vs ${z}`);
+        check('nothing covers the panels', !document.querySelector('.player-suspend-overlay'));
+        // lil-gui is the half of the editor that still works while suspended.
+        const gui = document.querySelector('.lil-gui');
+        check('the control panel is untouched', !gui || getComputedStyle(gui).filter === 'none');
+        check('the card itself is clickable', getComputedStyle(card).pointerEvents === 'auto');
+      }
+
+      const editorStats = document.querySelector('.stats');
+      check('the frozen counter is dimmed', editorStats?.style.opacity === '0.25');
+
+      link.setFocusOverride(true);
+      check('focus brings the editor back', await drewAFrame(3000));
+      check('and takes the card away', card?.style.display === 'none');
+      check('and the dim with it', canvas.style.filter === '');
+      check('and the counter with it', editorStats?.style.opacity === '');
+      link.setFocusOverride(null);
+    }
+
     // Stop the editor pushing at a display that was never really there.
     channel.postMessage({ type: 'bye' });
     channel.close();

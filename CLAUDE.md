@@ -82,11 +82,16 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - **贴图不上线**。同源共享 localStorage，显示端自己读，所以消息只有几 KB。将来 Player 独立成站再把 `embeddedTextures` 塞回去。
 - **显示端只读**。它的 `persist()` 不写 localStorage——同源，否则会覆盖你正在编辑的场景。
 - 共用的那份逻辑抽在 `particle-factory.ts`（config → 粒子系统）和 `simulation.ts`（发射器的内置运动），两边调同一个函数，不会漂移。
+- **显示端有帧数表**，窗口左上角，`S` 隐藏。它存在的理由就是两个窗口画同一份东西一定比一个贵，而唯一诚实的读数在真正要看的那个窗口里。
+- **编辑器失焦就停止绘制**。显示窗口开着、编辑器不是当前窗口时，编辑器的帧循环整个跳过：省掉深度 pass、视口、以及预览那一遍完整的反射管线。画布调暗，中间浮一张 **Move to Player View** 卡片，点它把显示窗口调到前面；点视口任何地方就恢复。
+  - 停的是**绘制**，不是工作。面板是 DOM，照常可用；参数改动走 `persist()` 而不是帧循环，所以挂起状态下编辑器就是个控制台——滑块在这边，画面在那边。所以调暗的是画布本身，不是盖一层全窗口的罩子：罩子会把 lil-gui 一起压暗，而那正是还能用的那一半。
+  - 挂起同时把模拟时钟按 PAUSE 的那套记账停掉，否则回来那一帧 `cycleData.now` 会跳过整段挂起时间，发射器一次性全吐出来。会记住你自己是不是本来就按了 PAUSE。
+  - 省不掉的是两个 WebGPU device 和两份贴图的显存——那是两个页面实例的固有成本，只有下面说的「Player 脱离编辑器」才去得掉。
 
 ### 当前状态
 
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在
-- 控制台 harness `public/__ai-test.js`，当前基线 **64/64**
+- 控制台 harness `public/__ai-test.js`，当前基线 **86/86**
 
 ---
 
@@ -131,14 +136,18 @@ await __t.report()          // 存取回归
 __t.cameraReport()          // 相机 / layer / 预览
 await __t.environmentReport()
 await __t.frameReport()
-await __t.playerReport()    // 显示窗口的通信契约
+await __t.playerReport()    // 显示窗口的通信契约 + 编辑器挂起
 ```
 
 加新功能就往对应的 report 里加断言。
 
 `environmentReport` / `frameReport` / `playerReport` 都是异步的，**不能塞进同一次批量调用**——排队的后续调用之间浏览器面板会隐藏，rAF 被暂停，等场景重建的地方会量到上一帧的几何，报假失败。一个 report 一次调用。
 
-同一个原因还会坑另一件事：**别在自动化面板里量帧率**。面板可见性会高频抖动（实测 356ms 内 6 次 visible/hidden 切换），rAF 跟着断续，数出来的 FPS 可以低到 1，看起来像性能塌了，其实什么都没发生。要看真实帧率就看画面左上角编辑器自己那个 stats 读数。
+同一个原因还会坑另一件事：**别在自动化面板里量帧率**。面板可见性会高频抖动（实测 356ms 内 6 次 visible/hidden 切换），rAF 跟着断续，数出来的 FPS 可以低到 1，看起来像性能塌了，其实什么都没发生。
+
+真实帧率只能在人自己的浏览器里读：编辑器看左上角那个 stats，显示窗口看它自己左上角那个（`S` 隐藏）。两个窗口一起跑的时候，**要看的是显示窗口那个数**——编辑器失焦就停画了，它那个读数是冻住的，所以挂起时会被压暗，提醒你别去读它。
+
+挂起相关的断言只能验结构（帧数确实不再前进、焦点回来确实恢复、卡片层级低于面板），**省了多少帧验不了**，别写成好像验过了。
 
 ### 技术栈
 
@@ -167,7 +176,7 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 ## 6. 还欠的账
 
 - 新增的功能代码基本没有单元测试，提交时绕过了覆盖率门禁（浏览器 harness 补了一部分，但不是一回事）
-- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`，两个调试出口，harness 依赖它们，正式发布前要处理
+- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦），三个调试出口，harness 依赖它们，正式发布前要处理
 - 粒子目前不能投射/接收阴影：粒子材质用 `material.vertexNode` 驱动顶点阶段，而阴影 pass 不跑那一段
 - 超过 4MB 的全景图存不进 localStorage，当前会话可用但刷新即失
 - 只有发射器的内置运动（`simulation.ts`）在两个窗口间对了相位；粒子本身各自独立模拟，永远不会逐帧一致

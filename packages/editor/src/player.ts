@@ -29,6 +29,7 @@ import {
   getOutputCamera,
   getScene,
   renderPlayer,
+  toggleStats,
 } from './js/three-particles-editor/world';
 import { initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
@@ -222,6 +223,9 @@ const installPresentationControls = (): void => {
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'f' || event.key === 'F') toggleFullscreen();
+    // The counter is on by default because this window exists to be measured
+    // against the editor's. On a wall it is one keystroke away from gone.
+    if (event.key === 's' || event.key === 'S') toggleStats();
   });
   document.addEventListener('dblclick', toggleFullscreen);
 

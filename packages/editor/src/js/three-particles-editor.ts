@@ -10,10 +10,13 @@ import {
   serializeConfig,
 } from './three-particles-editor/save-and-load';
 import {
-  installPlayerButton,
+  installPlayerControls,
+  isEditorSuspended,
   notifyParticleConfigChanged,
+  setFocusOverride,
   setSnapshotSource,
-  syncPlayerButton,
+  shouldSuspendEditor,
+  syncPlayerControls,
 } from './three-particles-editor/player-window';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
@@ -365,7 +368,17 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
     config: serializeConfig(particleSystemConfig),
     elapsed: clock.getElapsedTime(),
   }));
-  installPlayerButton();
+  installPlayerControls();
+
+  // TEMP DEBUG — the same kind of seam as window.__world. The harness lives in
+  // a page that cannot lose focus for real, so it drives that input from here.
+  (window as any).__playerLink = {
+    shouldSuspendEditor,
+    setFocusOverride,
+    isEditorSuspended,
+    isSuspended: () => suspendedByPlayer,
+    frames: () => framesDrawn,
+  };
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pauseTime();
@@ -416,7 +429,46 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
   });
 };
 
+/**
+ * Mirrors a suspension into the simulation clock.
+ *
+ * Not drawing is only half of it. If the clock kept running, `cycleData.now`
+ * would jump the whole length of the suspension on the frame the editor comes
+ * back, and the emitter would spend all of it at once. Pausing is what the
+ * PAUSE button already does, so this reuses it — and remembers whether the
+ * button had it paused first, so coming back does not silently start a piece
+ * the user had deliberately stopped.
+ */
+let suspendedByPlayer = false;
+let pausedBeforeSuspension = false;
+let framesDrawn = 0;
+
+const applyPlayerSuspension = (): boolean => {
+  const suspend = isEditorSuspended();
+  if (suspend !== suspendedByPlayer) {
+    suspendedByPlayer = suspend;
+    if (suspend) {
+      pausedBeforeSuspension = isPaused;
+      pauseTime();
+    } else if (!pausedBeforeSuspension) {
+      resumeTime();
+    }
+  }
+  return suspend;
+};
+
 const animate = (): void => {
+  // Ahead of the gate: the overlay is how a suspended editor explains itself,
+  // and the button is how the display gets closed from one.
+  syncPlayerControls();
+
+  if (applyPlayerSuspension()) {
+    requestAnimationFrame(animate);
+    return;
+  }
+
+  framesDrawn += 1;
+
   if (!isPaused) {
     const rawDelta = clock.getDelta();
     cycleData.now = Date.now() - cycleData.totalPauseTime;
@@ -434,7 +486,6 @@ const animate = (): void => {
   const softParticlesEnabled = !!activeConfig?.renderer?.softParticles?.enabled;
   const computeNode = particleSystem?.computeNode ?? null;
   updateWorld(softParticlesEnabled, particleSystemContainer, computeNode);
-  syncPlayerButton();
   requestAnimationFrame(animate);
 };
 

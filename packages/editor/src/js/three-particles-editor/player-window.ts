@@ -21,7 +21,14 @@ import {
   throttleTrailing,
   type PlayerMessage,
 } from './player-link';
-import { getOutputCamera, isPreviewVisible, canvasBounds, previewRect } from './world';
+import {
+  getOutputCamera,
+  isPreviewVisible,
+  canvasBounds,
+  previewRect,
+  freeViewportBounds,
+  getCanvas,
+} from './world';
 import { getSceneObjects, watchScene } from './scene-objects';
 
 /** How long a burst of edits is collapsed before the display is told. */
@@ -194,7 +201,7 @@ export const togglePlayerWindow = (): void => {
 const BUTTON_SIZE = 26;
 const BUTTON_GAP = 6;
 
-export const installPlayerButton = (): void => {
+export const installPlayerControls = (): void => {
   if (button) return;
 
   button = document.createElement('button');
@@ -224,10 +231,13 @@ export const installPlayerButton = (): void => {
   button.addEventListener('click', (event) => {
     event.preventDefault();
     togglePlayerWindow();
-    syncPlayerButton();
+    // Closing the display un-suspends the editor, so the overlay has to be told
+    // in the same breath as the button rather than a frame later.
+    syncPlayerControls();
   });
 
   document.body.appendChild(button);
+  installOverlay();
 };
 
 /**
@@ -237,7 +247,7 @@ export const installPlayerButton = (): void => {
  * output frame changes shape, and the window can be closed from its own title
  * bar without telling anyone.
  */
-export const syncPlayerButton = (): void => {
+const syncButton = (): void => {
   if (!button) return;
 
   const visible = !!getOutputCamera() && isPreviewVisible();
@@ -260,5 +270,136 @@ export const syncPlayerButton = (): void => {
 
   // A window this editor opened can be closed from its own title bar without
   // saying anything, so its absence is noticed here rather than announced.
-  if (playerWindow?.closed) playerWindow = null;
+  //
+  // `linked` goes with it. Its `bye` fires on pagehide and normally arrives
+  // first, but if it does not, a stale flag would have the editor suspending
+  // itself for a display that is no longer there. Only a window this editor
+  // owns lands here — one opened by hand leaves `playerWindow` null, so its
+  // link is not cleared behind its back.
+  if (playerWindow?.closed) {
+    playerWindow = null;
+    linked = false;
+    unwatchScene?.();
+    unwatchScene = null;
+  }
+};
+
+// ─── Suspending the editor ───────────────────────────────────────────────────
+//
+// Two windows means two WebGPU devices drawing the same piece at once, and the
+// editor's frame is the more expensive of the two: a depth pass, the viewport,
+// then the preview — which runs the whole reflection pipeline a second time
+// into its own target. None of that is worth drawing while you are looking at
+// the display, so the editor stops drawing whenever it is not the focused
+// window.
+//
+// It stops *drawing*, not working. The panels are DOM and stay live above the
+// overlay, and a parameter change reaches the display through persist() rather
+// than through the frame loop — so a suspended editor is still a control
+// surface, which is the shape this is meant to take: sliders here, picture
+// there.
+
+/**
+ * The rule, as a function of its two inputs.
+ *
+ * Split out because a headless page can never lose focus for real, so the only
+ * way to assert the rule is to hand it its inputs.
+ */
+export const shouldSuspendEditor = (playerOpen: boolean, editorFocused: boolean): boolean =>
+  playerOpen && !editorFocused;
+
+/** Debug seam: lets the harness drive the focus input. Null means ask the DOM. */
+let focusOverride: boolean | null = null;
+
+export const setFocusOverride = (value: boolean | null): void => {
+  focusOverride = value;
+};
+
+export const isEditorSuspended = (): boolean =>
+  shouldSuspendEditor(isPlayerWindowOpen() || linked, focusOverride ?? document.hasFocus());
+
+/**
+ * Above the canvas, under every panel.
+ *
+ * The panels are the reason there is no full-window scrim: a suspended editor
+ * is still a control surface, and dimming lil-gui along with the picture would
+ * be dimming the half that still works. The canvas is dimmed directly instead,
+ * which reaches exactly the thing that stopped moving and leaves every panel,
+ * the header and the example list at full strength — no stacking to get right,
+ * because nothing is covering them.
+ */
+const CARD_Z = 5;
+const DIMMED = 'brightness(0.32) saturate(0.55)';
+
+let card: HTMLButtonElement | null = null;
+let editorStats: HTMLElement | null = null;
+
+const installOverlay = (): void => {
+  card = document.createElement('button');
+  card.className = 'player-suspend-card';
+  card.style.cssText = [
+    'position:fixed',
+    `z-index:${CARD_Z}`,
+    'display:none',
+    'transform:translate(-50%,-50%)',
+    'flex-direction:column',
+    'align-items:center',
+    'gap:5px',
+    'padding:18px 26px',
+    'border:1px solid #555',
+    'border-radius:4px',
+    'background:#1c1c1e',
+    'color:#eee',
+    'font:400 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    'cursor:pointer',
+  ].join(';');
+
+  const title = document.createElement('span');
+  title.style.cssText = 'font-size:14px;font-weight:600;letter-spacing:0.2px';
+  title.textContent = 'Move to Player View';
+
+  const hint = document.createElement('span');
+  hint.style.cssText = 'color:#8a8a8e;font-size:11px;text-align:center';
+  hint.textContent = 'Rendering paused — the GPU is going to the display window.';
+
+  const back = document.createElement('span');
+  back.style.cssText = 'color:#8a8a8e;font-size:11px;text-align:center';
+  back.textContent = 'Panels still work. Click the viewport to resume drawing.';
+
+  card.append(title, hint, back);
+  card.addEventListener('click', () => {
+    playerWindow?.focus();
+  });
+
+  document.body.appendChild(card);
+};
+
+const syncOverlay = (): void => {
+  if (!card) return;
+
+  editorStats = editorStats ?? document.querySelector('.stats');
+
+  if (!isEditorSuspended()) {
+    card.style.display = 'none';
+    getCanvas().style.filter = '';
+    if (editorStats) editorStats.style.opacity = '';
+    return;
+  }
+
+  card.style.display = 'flex';
+  getCanvas().style.filter = DIMMED;
+  // The editor's own counter freezes with the frame loop. Left at full
+  // strength it reads as a live number that happens to say 60.
+  if (editorStats) editorStats.style.opacity = '0.25';
+
+  const canvas = canvasBounds();
+  const free = freeViewportBounds();
+  card.style.left = `${Math.round(canvas.left + (free.left + free.right) / 2)}px`;
+  card.style.top = `${Math.round(canvas.top + canvas.height / 2)}px`;
+};
+
+/** Both controls, once a frame — before the loop decides whether to draw. */
+export const syncPlayerControls = (): void => {
+  syncButton();
+  syncOverlay();
 };

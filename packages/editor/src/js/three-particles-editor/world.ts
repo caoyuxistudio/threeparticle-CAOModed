@@ -374,6 +374,45 @@ export const setPreviewVisible = (visible: boolean): void => {
 
 export const isPreviewVisible = (): boolean => previewVisible;
 
+/**
+ * The frame counter, in whichever window is asking.
+ *
+ * The editor hangs it in the slot the header already reserves. The display
+ * window has no chrome to hang anything on, so it gets a pinned layer of its
+ * own — at the window's top-left rather than the canvas's, which puts it on the
+ * letterbox bar instead of over the piece.
+ *
+ * It is there because two windows drawing the same piece cost more than one,
+ * and the only honest way to see what that costs is to read it in the window
+ * that matters. `S` hides it: a display on a wall should not be wearing a
+ * frame counter.
+ */
+const installStats = (): void => {
+  stats = new Stats();
+
+  if (!isPlayer()) {
+    const statsContainer = document.querySelector('.stats');
+    if (!statsContainer) {
+      throw new Error('Stats container not found');
+    }
+    statsContainer.appendChild(stats.dom);
+    return;
+  }
+
+  stats.dom.style.position = 'fixed';
+  stats.dom.style.left = '0';
+  stats.dom.style.top = '0';
+  stats.dom.style.zIndex = '10';
+  document.body.appendChild(stats.dom);
+};
+
+/** Shows or hides the frame counter; returns whether it ended up visible. */
+export const toggleStats = (): boolean => {
+  const showing = stats.dom.style.display !== 'none';
+  stats.dom.style.display = showing ? 'none' : '';
+  return !showing;
+};
+
 export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => {
   const container = document.querySelector(targetQuery);
   if (!container) {
@@ -425,8 +464,8 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   // camera keeps its default mask and so sees the artwork layer alone.
   camera.layers.enableAll();
 
-  // Nothing in the player is interactive: no orbiting, no FPS counter, and no
-  // preview box to drag — it *is* the preview.
+  // Nothing in the player is interactive: no orbiting and no preview box to
+  // drag — it *is* the preview.
   if (!isPlayer()) {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = true;
@@ -434,16 +473,10 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
     controls.target.set(0, 0, 0);
     controls.update();
 
-    const statsContainer = document.querySelector('.stats');
-    if (!statsContainer) {
-      throw new Error('Stats container not found');
-    }
-
-    stats = new Stats();
-    statsContainer.appendChild(stats.dom);
-
     installPreviewResize(renderer.domElement);
   }
+
+  installStats();
 
   window.addEventListener('resize', onWindowResize);
 
@@ -540,6 +573,11 @@ export const renderPlayer = (
   particleContainer?: THREE.Object3D,
   computeNode?: unknown
 ): void => {
+  // Counted before the early return: a display waiting for a camera is still
+  // spinning the loop, and a reading frozen at the last real frame would hide
+  // that rather than show it.
+  stats.update();
+
   if (computeNode) {
     (renderer as any).compute(computeNode);
   }
@@ -612,13 +650,16 @@ let previewBoundsAt = 0;
  */
 export const canvasBounds = (): DOMRect => renderer.domElement.getBoundingClientRect();
 
+/** The drawing surface itself, for the one caller that needs to style it. */
+export const getCanvas = (): HTMLCanvasElement => renderer.domElement as HTMLCanvasElement;
+
 /** A pointer event in canvas coordinates. */
 const toCanvasSpace = (event: PointerEvent): { x: number; y: number } => {
   const rect = canvasBounds();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 };
 
-const freeViewportBounds = (): { left: number; right: number } => {
+export const freeViewportBounds = (): { left: number; right: number } => {
   const now = performance.now();
   if (now - previewBoundsAt < PREVIEW_BOUNDS_TTL_MS) return previewBounds;
   previewBoundsAt = now;
