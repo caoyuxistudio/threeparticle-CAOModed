@@ -729,6 +729,10 @@
     };
 
     await load();
+    // The handle has to be in view to be hovered, and the editor camera is
+    // wherever the session left it. Frame the scene, and put it back after.
+    const cameraBefore = { pos: w.camera.position.clone(), target: w.controls.target.clone() };
+    window.editor.resetCamera();
     await frames(2);
 
     // Select the sphere from the panel, like a user would.
@@ -802,12 +806,107 @@
 
     previousTab?.click();
     await load();
+    w.camera.position.copy(cameraBefore.pos);
+    w.controls.target.copy(cameraBefore.target);
+    w.controls.update();
     check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
     return [`gizmo: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
+  /**
+   * Presentation mode: this window as the display. Entered from the button
+   * under the player toggle, checked for what it promises — panels gone, the
+   * canvas the camera's shape, the frame still advancing, the output going
+   * through the encode once — and left again by Escape.
+   */
+  const presentReport = async () => {
+    const lines = [];
+    const check = (label, ok, detail = '') =>
+      lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+    const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+    const w = window.__world;
+    const link = window.__playerLink;
+    const frames = async (n, ms = 3000) => {
+      const start = link.frames();
+      const t0 = performance.now();
+      while (performance.now() - t0 < ms) {
+        if (link.frames() >= start + n) return true;
+        await settle(30);
+      }
+      return false;
+    };
+
+    await load();
+    await frames(2);
+
+    const toggle = document.querySelector('.player-window-toggle');
+    const present = document.querySelector('.presentation-toggle');
+    check('the presentation button exists', !!present);
+    if (toggle && present) {
+      const a = toggle.getBoundingClientRect();
+      const b = present.getBoundingClientRect();
+      check('it sits directly under the player toggle', Math.abs(a.left - b.left) < 1 && b.top > a.bottom && b.top - a.bottom < 12, `${Math.round(b.top - a.bottom)}px below`);
+    }
+
+    const cam = w.getOutputCamera();
+    const canvas = w.renderer.domElement;
+    const sizeBefore = [canvas.clientWidth, canvas.clientHeight];
+
+    present?.click();
+    await frames(2);
+
+    check('body is marked presenting', document.body.classList.contains('presenting'));
+    // Not rendered at all — its own display or an ancestor's; computed style
+    // on the element alone would miss the ancestor case.
+    const hidden = (el) => !el || el.getClientRects().length === 0;
+    check('the control panel is hidden', hidden(document.querySelector('.lil-gui.root')));
+    check('the left panel is hidden', hidden(document.querySelector('.wrapper .wrapper')));
+    check('the toolbar is hidden', hidden(document.querySelector('body > .wrapper:not(:has(#three-particles-editor))')));
+    check('the player buttons are hidden', hidden(toggle) && hidden(present));
+    check('the frame counter stays', !hidden(document.querySelector('.stats')));
+
+    // The canvas takes the camera's shape inside the window, like the player.
+    const aspect = cam?.aspect || 16 / 9;
+    let ew = window.innerWidth, eh = Math.round(ew / aspect);
+    if (eh > window.innerHeight) { eh = window.innerHeight; ew = Math.round(eh * aspect); }
+    check('the canvas is letterboxed to the camera', Math.abs(canvas.clientWidth - ew) <= 1 && Math.abs(canvas.clientHeight - eh) <= 1, `${canvas.clientWidth}x${canvas.clientHeight} vs ${ew}x${eh}`);
+    const box = canvas.getBoundingClientRect();
+    check('and centred in the window', Math.abs(box.left + box.width / 2 - window.innerWidth / 2) <= 1 && Math.abs(box.top + box.height / 2 - window.innerHeight / 2) <= 1);
+
+    check('the output goes through the encode once', w._ssr().postProcessing?.outputColorTransform === true);
+    check('frames keep coming', await frames(3));
+    check('the editor is not suspended while presenting', link.isSuspended() === false);
+    check('orbit controls are off', w.controls.enabled === false);
+
+    // A tap brings up the way out. Down then up, like a real finger: the
+    // controls on the canvas capture the pointer on the way down and release
+    // it on the way up, and an up on its own makes that release throw.
+    // The mouse pointer (id 1) is the one pointer a synthetic event can name
+    // that the browser considers active; a made-up touch id makes the canvas
+    // controls' pointer capture throw, which a real finger never does.
+    const tap = (type) => canvas.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: 'mouse', pointerId: 1, isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: 10, clientY: 10 }));
+    tap('pointerdown');
+    tap('pointerup');
+    await settle(50);
+    const bar = document.querySelector('.presentation-bar');
+    check('a tap shows the exit bar', !!bar && bar.classList.contains('is-visible'));
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await frames(2);
+    check('Escape leaves presentation', !document.body.classList.contains('presenting'));
+    check('the canvas is back to the window', Math.abs(canvas.clientWidth - sizeBefore[0]) <= 1 && Math.abs(canvas.clientHeight - sizeBefore[1]) <= 1, `${canvas.clientWidth}x${canvas.clientHeight}`);
+    check('the encode goes back to the blit', w._ssr().postProcessing?.outputColorTransform === false);
+    check('orbit controls are back', w.controls.enabled === true);
+    check('the buttons are back', !hidden(document.querySelector('.presentation-toggle')));
+    check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
+
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`present: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
   window.__t = {
+    presentReport,
     gizmoReport,
     videoReport,
     playerReport,

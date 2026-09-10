@@ -84,6 +84,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - **点开显示窗口时会把它的链接复制到剪贴板**并弹 snackbar 提示（剪贴板不可用时只显示链接）。
 - **编辑器每次推送也会把最新的发射器 config 存进 localStorage**（`particle-system-editor/player-snapshot`，含 `elapsed` 和 `savedAt`；场景本来就由 scene-objects 持久化）。显示端 hello 后 1.2s 没人应答就读它，之后每 5s 再 hello 一次直到有活的编辑器；从后台回到前台时也会读一次，比屏幕上的新就换。这是**手机**上唯一能工作的方式：iOS 上 `window.open` 开的是 tab，后台 tab 整个冻结，编辑器和显示端永远不可能同时活着，靠 BroadcastChannel 握手必然失败；靠存储就是「在这个 tab 改、切到那个 tab 看」。同样也让粘贴链接在编辑器关掉后仍能显示最后一版。
 - **手机上的全屏**：显示端单击（触摸）会浮出一个 Full screen 按钮 3 秒，点它等于按 F；iPhone 的浏览器没有元素全屏 API 时会提示改用「添加到主屏幕」。`touch-action: manipulation` 关掉了双击缩放。
+- **演示模式**（播放窗口按钮正下方那个 `fullscreen` 按钮，`presentation.ts`）：不开第二个页面，**这个窗口自己变成显示端**——全部面板 display:none，视口和角落预览都不画，输出相机按自己的画幅 letterbox 直出画布（走的就是 `renderPlayer`），能 requestFullscreen 就一起要。手机上这是唯一可行的形态（第二个 tab 会把编辑器冻住）；桌面上是「看一眼作品」的快捷键。Esc、全屏被浏览器退出、或点一下屏幕浮出的 Exit 都能回来；浮出的条上还有 FPS 开关。进去时取消选中（手柄的射线用的是编辑器相机）、关掉 orbit，出来时全部复原。`postProcessing.outputColorTransform` 在演示时为 true（直出画布），退出后恢复 false（预览 RT 那条路），别把这两处弄反。
 - 共用的那份逻辑抽在 `particle-factory.ts`（config → 粒子系统）和 `simulation.ts`（发射器的内置运动），两边调同一个函数，不会漂移。
 - **显示端有帧数表**，窗口左上角，`S` 隐藏。它存在的理由就是两个窗口画同一份东西一定比一个贵，而唯一诚实的读数在真正要看的那个窗口里。
 - **编辑器失焦就停止绘制**。显示窗口开着、编辑器不是当前窗口时，编辑器的帧循环整个跳过：省掉深度 pass、视口、以及预览那一遍完整的反射管线。画布调暗，中间浮一张 **Move to Player View** 卡片，点它把显示窗口调到前面；点视口任何地方就恢复。
@@ -115,7 +116,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是同一个场景换成视频 color source，竖幅相机。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **137/137**（含 `videoReport` 30 条、`gizmoReport` 12 条、`playerReport` 40 条）
+- 控制台 harness `public/__ai-test.js`，当前基线 **158/158**（含 `videoReport` 30、`gizmoReport` 12、`playerReport` 40、`presentReport` 21）
 
 ---
 
@@ -163,6 +164,7 @@ await __t.frameReport()
 await __t.playerReport()    // 显示窗口的通信契约 + 编辑器挂起
 await __t.videoReport()     // 视频 color source：存储、循环、读回、清理
 await __t.gizmoReport()     // 场景物体的拖拽手柄：合成指针事件真的拖一次
+await __t.presentReport()   // 演示模式：进、量、出
 ```
 
 `videoReport` 要能 fetch 到 `./assets-local/AnimateDiff_00013.mp4`。那是个指向仓库旁边 `assets4test/` 的软链，目录整个 gitignore，新机器上要重建：

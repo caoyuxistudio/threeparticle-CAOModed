@@ -18,6 +18,7 @@ import {
   shouldSuspendEditor,
   syncPlayerControls,
 } from './three-particles-editor/player-window';
+import { installPresentationControls } from './three-particles-editor/presentation';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
 import { buildParticleSystem } from './three-particles-editor/particle-factory';
@@ -28,6 +29,8 @@ import {
   updateWorld,
   captureScreenshot,
   getDepthTexture,
+  isPresenting,
+  renderPlayer,
 } from './three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './three-particles-editor/assets';
 import {
@@ -378,6 +381,7 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
     elapsed: clock.getElapsedTime(),
   }));
   installPlayerControls();
+  installPresentationControls();
 
   // TEMP DEBUG — the same kind of seam as window.__world. The harness lives in
   // a page that cannot lose focus for real, so it drives that input from here.
@@ -517,7 +521,11 @@ const animate = (): void => {
   const activeConfig = getActiveConfig();
   const softParticlesEnabled = !!activeConfig?.renderer?.softParticles?.enabled;
   const computeNode = particleSystem?.computeNode ?? null;
-  updateWorld(softParticlesEnabled, particleSystemContainer, computeNode);
+  // Presenting: the player's frame — output camera straight to the canvas —
+  // and none of the editor's (no viewport, no corner preview, no depth pass
+  // for either).
+  if (isPresenting()) renderPlayer(softParticlesEnabled, particleSystemContainer, computeNode);
+  else updateWorld(softParticlesEnabled, particleSystemContainer, computeNode);
   requestAnimationFrame(animate);
 };
 

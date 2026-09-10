@@ -24,6 +24,7 @@ import {
   type PlayerMessage,
 } from './player-link';
 import { showInfoSnackbar, showSuccessSnackbar } from '../stores/snackbar-store';
+import { togglePresentation } from './presentation';
 import {
   getOutputCamera,
   isPreviewVisible,
@@ -31,6 +32,7 @@ import {
   previewRect,
   freeViewportBounds,
   getCanvas,
+  isPresenting,
 } from './world';
 import { getSceneObjects, watchScene } from './scene-objects';
 
@@ -48,6 +50,7 @@ let playerWindow: Window | null = null;
  */
 let linked = false;
 let button: HTMLButtonElement | null = null;
+let presentButton: HTMLButtonElement | null = null;
 let snapshotSource: (() => { config: any; elapsed: number }) | null = null;
 let unwatchScene: (() => void) | null = null;
 
@@ -277,6 +280,21 @@ export const installPlayerControls = (): void => {
   });
 
   document.body.appendChild(button);
+
+  // Below it: the same picture in *this* window. On a phone that is the only
+  // way to get it — a second tab freezes the first — and on a desk it is the
+  // quick look without the second device.
+  presentButton = document.createElement('button');
+  presentButton.className = 'presentation-toggle material-icons';
+  presentButton.title =
+    'Full screen here — this window becomes the display. Esc or tap to come back.';
+  presentButton.textContent = 'fullscreen';
+  presentButton.style.cssText = button.style.cssText;
+  presentButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    togglePresentation();
+  });
+  document.body.appendChild(presentButton);
   installOverlay();
 };
 
@@ -289,10 +307,17 @@ export const installPlayerControls = (): void => {
  */
 const syncButton = (): void => {
   if (!button) return;
+  // Both live at the preview's edge, and there is no preview while presenting.
+  if (isPresenting()) {
+    button.style.display = 'none';
+    if (presentButton) presentButton.style.display = 'none';
+    return;
+  }
 
   const visible = !!getOutputCamera() && isPreviewVisible();
   if (!visible) {
     button.style.display = 'none';
+    if (presentButton) presentButton.style.display = 'none';
     return;
   }
 
@@ -301,6 +326,11 @@ const syncButton = (): void => {
   button.style.display = 'flex';
   button.style.left = `${Math.round(canvas.left + x - BUTTON_SIZE - BUTTON_GAP)}px`;
   button.style.top = `${Math.round(canvas.top + y)}px`;
+  if (presentButton) {
+    presentButton.style.display = 'flex';
+    presentButton.style.left = button.style.left;
+    presentButton.style.top = `${Math.round(canvas.top + y + BUTTON_SIZE + BUTTON_GAP)}px`;
+  }
 
   const open = isPlayerWindowOpen() || linked;
   button.textContent = open ? 'close_fullscreen' : 'open_in_new';
@@ -356,6 +386,8 @@ export const setFocusOverride = (value: boolean | null): void => {
 };
 
 export const isEditorSuspended = (): boolean =>
+  // A presenting editor *is* the display; there is nothing to yield to.
+  !isPresenting() &&
   shouldSuspendEditor(isPlayerWindowOpen() || linked, focusOverride ?? document.hasFocus());
 
 /**

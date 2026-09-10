@@ -211,7 +211,15 @@ export type SsrSettings = {
    * wrong one is invisible in the composite, so being able to look at each in
    * isolation is the difference between tuning and guessing.
    */
-  debug: 'off' | 'color' | 'normal' | 'metalrough' | 'metalness' | 'roughness' | 'depth' | 'reflection';
+  debug:
+    | 'off'
+    | 'color'
+    | 'normal'
+    | 'metalrough'
+    | 'metalness'
+    | 'roughness'
+    | 'depth'
+    | 'reflection';
 };
 
 let postProcessing: PostProcessing | null = null;
@@ -315,7 +323,7 @@ const buildSsrPipeline = (camera: THREE.PerspectiveCamera): void => {
   // particles" that only ever appeared with reflections on. So here the quad
   // writes linear light and the blit's own output stage does the one encode.
   // Tone mapping would be skipped with it; the project runs none.
-  postProcessing.outputColorTransform = isPlayer();
+  postProcessing.outputColorTransform = isPlayer() || presenting;
   pipelineCamera = camera;
   applySsrUniforms();
 };
@@ -495,20 +503,55 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
 
   // TEMP DEBUG
   (window as any).__world = {
-    scene, camera, controls, renderer, THREE,
-    updateLightProbe, getLightProbe, removeLightProbe,
-    getOutputCamera, isPreviewVisible, freeViewportBounds,
-    getPreviewScale, setPreviewScale, previewRect, overPreviewHandle, canvasBounds,
-    setEnvironment, getEnvironmentSettings, hasEnvironmentTexture, backdropFor,
-    setSsrSettings, getSsrSettings,
+    scene,
+    camera,
+    controls,
+    renderer,
+    THREE,
+    updateLightProbe,
+    getLightProbe,
+    removeLightProbe,
+    getOutputCamera,
+    isPreviewVisible,
+    freeViewportBounds,
+    getPreviewScale,
+    setPreviewScale,
+    previewRect,
+    overPreviewHandle,
+    canvasBounds,
+    setEnvironment,
+    getEnvironmentSettings,
+    hasEnvironmentTexture,
+    backdropFor,
+    setSsrSettings,
+    getSsrSettings,
     _ssr: () => ({ postProcessing, ssrPass, previewTarget, previewBlit, pipelineCamera }),
   };
 
   return scene;
 };
 
+/**
+ * Presentation mode (see presentation.ts): the editor's canvas takes the
+ * player's shape and the player's render path for a while.
+ */
+let presenting = false;
+
+export const isPresenting = (): boolean => presenting;
+
+export const setPresenting = (on: boolean): void => {
+  presenting = on;
+  if (postProcessing) {
+    // Straight to the canvas now, so the output transform belongs in the quad
+    // again — the same rule buildSsrPipeline applies for the player.
+    postProcessing.outputColorTransform = isPlayer() || on;
+    postProcessing.needsUpdate = true;
+  }
+  onWindowResize();
+};
+
 const onWindowResize = (): void => {
-  if (isPlayer()) {
+  if (isPlayer() || presenting) {
     fitPlayerCanvas();
     return;
   }
@@ -715,7 +758,12 @@ export const previewRect = (): { x: number; y: number; w: number; h: number } =>
 const overPreviewHandle = (px: number, py: number): boolean => {
   if (!outputCamera || !previewVisible) return false;
   const { x, y, h } = previewRect();
-  return px >= x - PREVIEW_BORDER && px <= x + PREVIEW_HANDLE && py >= y + h - PREVIEW_HANDLE && py <= y + h + PREVIEW_BORDER;
+  return (
+    px >= x - PREVIEW_BORDER &&
+    px <= x + PREVIEW_HANDLE &&
+    py >= y + h - PREVIEW_HANDLE &&
+    py <= y + h + PREVIEW_BORDER
+  );
 };
 
 /**
@@ -819,8 +867,18 @@ const renderPreview = (): void => {
   }
 
   // The grip, drawn last so it sits on top of the rendered frame.
-  renderer.setScissor(x - PREVIEW_BORDER, y + h - PREVIEW_HANDLE, PREVIEW_HANDLE, PREVIEW_HANDLE + PREVIEW_BORDER);
-  renderer.setViewport(x - PREVIEW_BORDER, y + h - PREVIEW_HANDLE, PREVIEW_HANDLE, PREVIEW_HANDLE + PREVIEW_BORDER);
+  renderer.setScissor(
+    x - PREVIEW_BORDER,
+    y + h - PREVIEW_HANDLE,
+    PREVIEW_HANDLE,
+    PREVIEW_HANDLE + PREVIEW_BORDER
+  );
+  renderer.setViewport(
+    x - PREVIEW_BORDER,
+    y + h - PREVIEW_HANDLE,
+    PREVIEW_HANDLE,
+    PREVIEW_HANDLE + PREVIEW_BORDER
+  );
   renderer.setClearColor(0xb34a2c, 1);
   renderer.clear(true, false, false);
 
@@ -885,7 +943,7 @@ export const setTerrain = (textureId?: string): void => {
       color: 0x111111,
     });
     mesh.material = material;
-    mesh.receiveShadow = false;   // a wireframe grid cannot show a shadow
+    mesh.receiveShadow = false; // a wireframe grid cannot show a shadow
   } else {
     const { map } = getTexture(textureId);
     map.wrapS = THREE.MirroredRepeatWrapping;
