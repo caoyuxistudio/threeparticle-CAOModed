@@ -4,6 +4,7 @@
   import {
     VIDEO_TEXTURES_CHANGED,
     addVideoFile,
+    addVideoUrl,
     ensureVideoTexture,
     readVideoEntries,
     removeVideo,
@@ -82,9 +83,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rawList));
       return true;
     } catch (error) {
-      showErrorSnackbar(
-        'Not enough browser storage left — delete some textures and try again.'
-      );
+      showErrorSnackbar('Not enough browser storage left — delete some textures and try again.');
       return false;
     }
   };
@@ -120,6 +119,19 @@
       showSuccessSnackbar(`Video added as ${entry.name}`);
     } catch (error) {
       showErrorSnackbar(error?.message || 'Failed to add the video');
+    } finally {
+      addingVideo = false;
+    }
+  };
+
+  const addVideoByUrl = async (url) => {
+    addingVideo = true;
+    try {
+      const entry = await addVideoUrl(url);
+      videoList = readVideoEntries();
+      showSuccessSnackbar(`Video added as ${entry.name}`);
+    } catch (error) {
+      showErrorSnackbar(error?.message || 'Failed to load the video from that address');
     } finally {
       addingVideo = false;
     }
@@ -208,7 +220,7 @@
     <Input bind:value={filter} placeholder="Search" class="solo-input" />
   </Paper>
   <FileUploader {add} />
-  <VideoUploader add={addVideo} />
+  <VideoUploader add={addVideo} addUrl={addVideoByUrl} />
   <div class="current">
     Instance source: <b>{currentTextureId || 'None'}</b>
     {#if addingVideo}<span class="busy">— storing video…</span>{/if}
@@ -242,8 +254,8 @@
   {/each}
   {#if items.length === 0}
     <div class="empty">
-      No colour sources yet — "Add Image" or "Add Video" to upload one. A video plays on a
-      loop and the particles sample whichever frame is showing when they are born.
+      No colour sources yet — "Add Image" or "Add Video" to upload one. A video plays on a loop and
+      the particles sample whichever frame is showing when they are born.
     </div>
   {/if}
 </Svroller>

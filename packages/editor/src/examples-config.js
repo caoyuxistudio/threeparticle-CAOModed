@@ -82,6 +82,12 @@ export const particleExamples = [
     name: 'WIP-Test',
   },
   {
+    // The same scene with a video as the colour source. The video is served
+    // from ./assets/videos and the config names it by URL, so it plays on any
+    // device that can reach the site — nothing has to be uploaded first.
+    name: 'WIP-Test-2',
+  },
+  {
     name: 'shanshui',
   },
   {

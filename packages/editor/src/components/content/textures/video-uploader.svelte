@@ -4,8 +4,21 @@
   /**
    * Hands the chosen file straight to `add`: a video is stored as a blob, not
    * read into memory as a string, so there is nothing to convert here.
+   *
+   * `addUrl` takes an address instead. A URL video is the kind a config can
+   * carry with it (embeddedVideos), so it is how a piece meant for another
+   * device — a phone, the wall — should reference its video.
    */
-  let { add } = $props();
+  let { add, addUrl = null } = $props();
+
+  const askForUrl = () => {
+    // eslint-disable-next-line no-alert
+    const url = window.prompt(
+      'Video URL (same site, or a host that allows cross-origin use):',
+      './assets/videos/'
+    );
+    if (url && url.trim()) addUrl?.(url.trim());
+  };
 
   let fileinput;
 
@@ -27,6 +40,11 @@
   >
     <Icon class="material-icons">movie</Icon><Label>Add Video</Label>
   </Button>
+  {#if addUrl}
+    <Button color="secondary" onclick={askForUrl} variant="text">
+      <Icon class="material-icons">link</Icon><Label>Add Video by URL</Label>
+    </Button>
+  {/if}
 </div>
 <input
   style="display:none"

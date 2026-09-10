@@ -112,7 +112,9 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 ### 当前状态
 
-- 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的仍是那张山水画；测试视频 73MB 进不了仓库，要用视频就在 Textures 面板加
+- 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
+- **WIP-Test-2** 是同一个场景换成视频 color source，竖幅相机。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
+- **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
 - 控制台 harness `public/__ai-test.js`，当前基线 **137/137**（含 `videoReport` 30 条、`gizmoReport` 12 条、`playerReport` 40 条）
 
 ---
@@ -220,6 +222,7 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - 只有发射器的内置运动（`simulation.ts`）在两个窗口间对了相位；粒子本身各自独立模拟，永远不会逐帧一致
 - 视频在两个窗口里各自播放，相位不对齐（跟粒子一样）；要对齐得把 `currentTime` 塞进快照，还没做
 - 本地上传的视频进不了 config（只有名字），换个浏览器就丢；URL 来源的能随 `embeddedVideos` 走。Player 独立成站时视频只能是 URL
+- 整个项目没有云端：My Saved Configs、上传的图片和视频、场景、播放页快照全在那台浏览器的 localStorage / IndexedDB 里，换设备就是空白。跨设备只有两条路：Copy/Paste config JSON（图片内嵌、视频走 URL），或者像 WIP-Test-2 那样做成仓库里的 example
 - Chrome 会把隐藏 tab 里的静音视频暂停掉，所以显示窗口必须是窗口不能是 tab——这条本来就有，视频让它更硬
 - 手机端没验证过。已知边界：WebGPU 要 iOS 26 以上的 WebKit（iPhone 上的 Chrome 也是 WebKit）；两个 tab 只能活一个，显示端靠存储的快照工作（见上）；200k 个 mesh 粒子加 SSR 在手机 GPU 上的帧率要在显示端左上角的计数器里读
 - 库的 jest 覆盖率门禁本来就没过（statements 79.0% / 85 分支 83.3%），新加的 sampler 模块自己有 10 条测试，但没把总数拉过线
