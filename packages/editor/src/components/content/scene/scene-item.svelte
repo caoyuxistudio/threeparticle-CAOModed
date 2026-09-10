@@ -22,8 +22,7 @@
    * would leave the rest reading from whatever the defaults happen to be later,
    * so an old camera's look would drift when those change.
    */
-  const setSsr = (patch) =>
-    set({ ssr: { ...defaultSsrSettings(), ...(obj.ssr ?? {}), ...patch } });
+  const setSsr = (patch) => set({ ssr: { ...defaultSsrSettings(), ...(obj.ssr ?? {}), ...patch } });
 
   const SSR_VIEWS = [
     { id: 'off', label: 'Final image' },
@@ -82,7 +81,9 @@
   let envStatus = $state('');
 
   onMount(() => {
-    setOnEnvironmentLoaded((error) => (envStatus = error ? `Could not read that file: ${error}` : ''));
+    setOnEnvironmentLoaded(
+      (error) => (envStatus = error ? `Could not read that file: ${error}` : '')
+    );
     return () => setOnEnvironmentLoaded(null);
   });
 
@@ -126,13 +127,23 @@
     }
   };
 
-  /** Common output shapes, so an installation's frame is one click away. */
+  /**
+   * Common output shapes, so an installation's frame is one click away.
+   *
+   * The phone entry is the whole screen in logical pixels (440×956 on an
+   * iPhone 17 Pro Max), which is what a page opened from the Home Screen gets.
+   * "Fit window" stores 0: the camera takes whatever shape the window it is
+   * shown in has, so the player and presentation mode fill it with no bars —
+   * at the price of a composition that changes with the screen.
+   */
   const ASPECTS = [
     { label: '16:9', value: 16 / 9 },
     { label: '4:3', value: 4 / 3 },
     { label: '1:1', value: 1 },
     { label: '9:16', value: 9 / 16 },
     { label: '2:1', value: 2 },
+    { label: 'iPhone 17 Pro Max', value: 440 / 956 },
+    { label: 'Fit window', value: 0 },
   ];
 </script>
 
@@ -176,16 +187,23 @@
         {#each ['x', 'y', 'z'] as axis}
           <label class="row">
             <span>{axis}</span>
-            <input type="range" min="-20" max="20" step="0.05"
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.05"
               value={obj.position[axis]}
-              oninput={(e) => setVec('position', axis, +e.target.value)} />
-            <input type="number" step="0.05"
+              oninput={(e) => setVec('position', axis, +e.target.value)}
+            />
+            <input
+              type="number"
+              step="0.05"
               value={obj.position[axis]}
-              oninput={(e) => setVec('position', axis, +e.target.value)} />
+              oninput={(e) => setVec('position', axis, +e.target.value)}
+            />
           </label>
         {/each}
       {/if}
-
 
       {#if obj.type === 'ENVIRONMENT'}
         <button class="wide" onclick={() => envFileInput.click()}>
@@ -196,7 +214,8 @@
           type="file"
           accept=".jpg,.jpeg,.png,.webp,.hdr,.exr"
           bind:this={envFileInput}
-          onchange={onEnvFile} />
+          onchange={onEnvFile}
+        />
         <p class="hint">
           {obj.environment?.name || 'Equirectangular JPEG, PNG, WebP, Radiance HDR or OpenEXR.'}
         </p>
@@ -207,128 +226,191 @@
         <div class="group-label">lighting</div>
         <label class="row">
           <span>intensity</span>
-          <input type="range" min="0" max="5" step="0.05"
+          <input
+            type="range"
+            min="0"
+            max="5"
+            step="0.05"
             value={obj.environment?.intensity ?? 1}
-            oninput={(e) => setEnv({ intensity: +e.target.value })} />
-          <input type="number" step="0.05"
+            oninput={(e) => setEnv({ intensity: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.05"
             value={obj.environment?.intensity ?? 1}
-            oninput={(e) => setEnv({ intensity: +e.target.value })} />
+            oninput={(e) => setEnv({ intensity: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>rotation</span>
-          <input type="range" min="0" max="360" step="1"
+          <input
+            type="range"
+            min="0"
+            max="360"
+            step="1"
             value={obj.environment?.rotation ?? 0}
-            oninput={(e) => setEnv({ rotation: +e.target.value })} />
-          <input type="number" step="1"
+            oninput={(e) => setEnv({ rotation: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="1"
             value={obj.environment?.rotation ?? 0}
-            oninput={(e) => setEnv({ rotation: +e.target.value })} />
+            oninput={(e) => setEnv({ rotation: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>blur</span>
-          <input type="range" min="0" max="1" step="0.01"
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
             value={obj.environment?.blur ?? 0}
-            oninput={(e) => setEnv({ blur: +e.target.value })} />
-          <input type="number" step="0.01"
+            oninput={(e) => setEnv({ blur: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
             value={obj.environment?.blur ?? 0}
-            oninput={(e) => setEnv({ blur: +e.target.value })} />
+            oninput={(e) => setEnv({ blur: +e.target.value })}
+          />
         </label>
 
         <div class="group-label">show backdrop in</div>
         <label class="row check">
           <span>viewport</span>
-          <input type="checkbox"
+          <input
+            type="checkbox"
             checked={obj.environment?.showInViewport ?? true}
-            onchange={(e) => setEnv({ showInViewport: e.target.checked })} />
+            onchange={(e) => setEnv({ showInViewport: e.target.checked })}
+          />
         </label>
         <label class="row check">
           <span>camera</span>
-          <input type="checkbox"
+          <input
+            type="checkbox"
             checked={obj.environment?.showInCamera ?? true}
-            onchange={(e) => setEnv({ showInCamera: e.target.checked })} />
+            onchange={(e) => setEnv({ showInCamera: e.target.checked })}
+          />
         </label>
         <p class="hint">
-          These hide the panorama from view only. It keeps lighting the scene and
-          showing up in reflections either way — which is how you get the light
-          without the backdrop.
+          These hide the panorama from view only. It keeps lighting the scene and showing up in
+          reflections either way — which is how you get the light without the backdrop.
         </p>
       {/if}
 
       {#if obj.type === 'FRAME'}
         <div class="group-label">opening</div>
-        {#each [
-          { key: 'innerWidth', label: 'width', max: 30, fallback: 6 },
-          { key: 'innerHeight', label: 'height', max: 30, fallback: 3.5 },
-        ] as f}
+        {#each [{ key: 'innerWidth', label: 'width', max: 30, fallback: 6 }, { key: 'innerHeight', label: 'height', max: 30, fallback: 3.5 }] as f}
           <label class="row">
             <span>{f.label}</span>
-            <input type="range" min="0.1" max={f.max} step="0.05"
+            <input
+              type="range"
+              min="0.1"
+              max={f.max}
+              step="0.05"
               value={obj[f.key] ?? f.fallback}
-              oninput={(e) => set({ [f.key]: +e.target.value })} />
-            <input type="number" step="0.05"
+              oninput={(e) => set({ [f.key]: +e.target.value })}
+            />
+            <input
+              type="number"
+              step="0.05"
               value={obj[f.key] ?? f.fallback}
-              oninput={(e) => set({ [f.key]: +e.target.value })} />
+              oninput={(e) => set({ [f.key]: +e.target.value })}
+            />
           </label>
         {/each}
 
         <div class="group-label">surround</div>
-        {#each [
-          { key: 'border', label: 'thickness', max: 8, fallback: 0.6 },
-          { key: 'depth', label: 'depth', max: 8, fallback: 0.5 },
-        ] as f}
+        {#each [{ key: 'border', label: 'thickness', max: 8, fallback: 0.6 }, { key: 'depth', label: 'depth', max: 8, fallback: 0.5 }] as f}
           <label class="row">
             <span>{f.label}</span>
-            <input type="range" min="0.01" max={f.max} step="0.01"
+            <input
+              type="range"
+              min="0.01"
+              max={f.max}
+              step="0.01"
               value={obj[f.key] ?? f.fallback}
-              oninput={(e) => set({ [f.key]: +e.target.value })} />
-            <input type="number" step="0.01"
+              oninput={(e) => set({ [f.key]: +e.target.value })}
+            />
+            <input
+              type="number"
+              step="0.01"
               value={obj[f.key] ?? f.fallback}
-              oninput={(e) => set({ [f.key]: +e.target.value })} />
+              oninput={(e) => set({ [f.key]: +e.target.value })}
+            />
           </label>
         {/each}
         <p class="hint">
-          Outer size is the opening plus the surround on each side, so widening
-          the border grows the frame rather than eating into the picture.
+          Outer size is the opening plus the surround on each side, so widening the border grows the
+          frame rather than eating into the picture.
         </p>
 
         <div class="group-label">face material</div>
         <label class="row">
           <span>color</span>
-          <input type="color" value={obj.color ?? '#d8d8d8'}
-            oninput={(e) => set({ color: e.target.value })} />
+          <input
+            type="color"
+            value={obj.color ?? '#d8d8d8'}
+            oninput={(e) => set({ color: e.target.value })}
+          />
         </label>
         {#each MATERIAL_ROWS as m}
           <label class="row">
             <span>{m.label}</span>
-            <input type="range" min={m.min} max={m.max} step={m.step}
+            <input
+              type="range"
+              min={m.min}
+              max={m.max}
+              step={m.step}
               value={obj[m.key] ?? m.fallback}
-              oninput={(e) => set({ [m.key]: +e.target.value })} />
-            <input type="number" step={m.step}
+              oninput={(e) => set({ [m.key]: +e.target.value })}
+            />
+            <input
+              type="number"
+              step={m.step}
               value={obj[m.key] ?? m.fallback}
-              oninput={(e) => set({ [m.key]: +e.target.value })} />
+              oninput={(e) => set({ [m.key]: +e.target.value })}
+            />
           </label>
         {/each}
 
         <div class="group-label">inner edge material</div>
         <label class="row">
           <span>color</span>
-          <input type="color" value={obj.edgeColor ?? '#ffffff'}
-            oninput={(e) => set({ edgeColor: e.target.value })} />
+          <input
+            type="color"
+            value={obj.edgeColor ?? '#ffffff'}
+            oninput={(e) => set({ edgeColor: e.target.value })}
+          />
         </label>
         {#each MATERIAL_ROWS as m}
           <label class="row">
             <span>{m.label}</span>
-            <input type="range" min={m.min} max={m.max} step={m.step}
-              value={obj['edge' + m.key[0].toUpperCase() + m.key.slice(1)] ?? (m.key === 'roughness' ? 0.25 : m.key === 'metalness' ? 0.9 : 0)}
-              oninput={(e) => set({ ['edge' + m.key[0].toUpperCase() + m.key.slice(1)]: +e.target.value })} />
-            <input type="number" step={m.step}
-              value={obj['edge' + m.key[0].toUpperCase() + m.key.slice(1)] ?? (m.key === 'roughness' ? 0.25 : m.key === 'metalness' ? 0.9 : 0)}
-              oninput={(e) => set({ ['edge' + m.key[0].toUpperCase() + m.key.slice(1)]: +e.target.value })} />
+            <input
+              type="range"
+              min={m.min}
+              max={m.max}
+              step={m.step}
+              value={obj['edge' + m.key[0].toUpperCase() + m.key.slice(1)] ??
+                (m.key === 'roughness' ? 0.25 : m.key === 'metalness' ? 0.9 : 0)}
+              oninput={(e) =>
+                set({ ['edge' + m.key[0].toUpperCase() + m.key.slice(1)]: +e.target.value })}
+            />
+            <input
+              type="number"
+              step={m.step}
+              value={obj['edge' + m.key[0].toUpperCase() + m.key.slice(1)] ??
+                (m.key === 'roughness' ? 0.25 : m.key === 'metalness' ? 0.9 : 0)}
+              oninput={(e) =>
+                set({ ['edge' + m.key[0].toUpperCase() + m.key.slice(1)]: +e.target.value })}
+            />
           </label>
         {/each}
         <p class="hint">
-          Roughness stops at 1 — that is the whole range the shading model has,
-          and it already lands on the blurriest reflection there is. For softer
-          reflections use the camera's blur and resolution instead.
+          Roughness stops at 1 — that is the whole range the shading model has, and it already lands
+          on the blurriest reflection there is. For softer reflections use the camera's blur and
+          resolution instead.
         </p>
       {/if}
 
@@ -337,12 +419,20 @@
         {#each ['x', 'y', 'z'] as axis}
           <label class="row">
             <span>{axis}</span>
-            <input type="range" min="-180" max="180" step="1"
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
               value={obj.rotation?.[axis] ?? 0}
-              oninput={(e) => setVec('rotation', axis, +e.target.value)} />
-            <input type="number" step="1"
+              oninput={(e) => setVec('rotation', axis, +e.target.value)}
+            />
+            <input
+              type="number"
+              step="1"
               value={obj.rotation?.[axis] ?? 0}
-              oninput={(e) => setVec('rotation', axis, +e.target.value)} />
+              oninput={(e) => setVec('rotation', axis, +e.target.value)}
+            />
           </label>
         {/each}
       {/if}
@@ -351,24 +441,54 @@
         <div class="group-label">lens</div>
         <label class="row">
           <span>fov</span>
-          <input type="range" min="10" max="120" step="1" value={obj.fov ?? 45}
-            oninput={(e) => set({ fov: +e.target.value })} />
-          <input type="number" step="1" value={obj.fov ?? 45}
-            oninput={(e) => set({ fov: +e.target.value })} />
+          <input
+            type="range"
+            min="10"
+            max="120"
+            step="1"
+            value={obj.fov ?? 45}
+            oninput={(e) => set({ fov: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="1"
+            value={obj.fov ?? 45}
+            oninput={(e) => set({ fov: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>near</span>
-          <input type="range" min="0.01" max="5" step="0.01" value={obj.near ?? 0.1}
-            oninput={(e) => set({ near: +e.target.value })} />
-          <input type="number" step="0.01" value={obj.near ?? 0.1}
-            oninput={(e) => set({ near: +e.target.value })} />
+          <input
+            type="range"
+            min="0.01"
+            max="5"
+            step="0.01"
+            value={obj.near ?? 0.1}
+            oninput={(e) => set({ near: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={obj.near ?? 0.1}
+            oninput={(e) => set({ near: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>far</span>
-          <input type="range" min="10" max="500" step="1" value={obj.far ?? 200}
-            oninput={(e) => set({ far: +e.target.value })} />
-          <input type="number" step="1" value={obj.far ?? 200}
-            oninput={(e) => set({ far: +e.target.value })} />
+          <input
+            type="range"
+            min="10"
+            max="500"
+            step="1"
+            value={obj.far ?? 200}
+            oninput={(e) => set({ far: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="1"
+            value={obj.far ?? 200}
+            oninput={(e) => set({ far: +e.target.value })}
+          />
         </label>
 
         <div class="group-label">output frame</div>
@@ -376,13 +496,12 @@
           {#each ASPECTS as a}
             <button
               class:active={Math.abs((obj.aspect ?? 16 / 9) - a.value) < 0.001}
-              onclick={() => set({ aspect: a.value })}>{a.label}</button>
+              onclick={() => set({ aspect: a.value })}>{a.label}</button
+            >
           {/each}
         </div>
 
-        <button class="wide" onclick={alignToView}>
-          Align to current view
-        </button>
+        <button class="wide" onclick={alignToView}> Align to current view </button>
 
         <div class="group-label">reflections (SSR)</div>
         <label class="row check">
@@ -390,26 +509,28 @@
           <input
             type="checkbox"
             checked={obj.ssr?.enabled ?? false}
-            onchange={(e) => setSsr({ enabled: e.target.checked })} />
+            onchange={(e) => setSsr({ enabled: e.target.checked })}
+          />
         </label>
 
         {#if obj.ssr?.enabled}
-          {#each [
-            { key: 'maxDistance', label: 'distance', min: 1, max: 60, step: 0.5, fallback: 20 },
-            { key: 'opacity', label: 'strength', min: 0, max: 1, step: 0.01, fallback: 1 },
-            { key: 'quality', label: 'quality', min: 0.1, max: 1, step: 0.05, fallback: 1 },
-            { key: 'thickness', label: 'thickness', min: 0.01, max: 1, step: 0.01, fallback: 0.15 },
-            { key: 'blurQuality', label: 'blur', min: 0, max: 8, step: 1, fallback: 2 },
-            { key: 'resolutionScale', label: 'resolution', min: 0.15, max: 1, step: 0.05, fallback: 1 },
-          ] as p}
+          {#each [{ key: 'maxDistance', label: 'distance', min: 1, max: 60, step: 0.5, fallback: 20 }, { key: 'opacity', label: 'strength', min: 0, max: 1, step: 0.01, fallback: 1 }, { key: 'quality', label: 'quality', min: 0.1, max: 1, step: 0.05, fallback: 1 }, { key: 'thickness', label: 'thickness', min: 0.01, max: 1, step: 0.01, fallback: 0.15 }, { key: 'blurQuality', label: 'blur', min: 0, max: 8, step: 1, fallback: 2 }, { key: 'resolutionScale', label: 'resolution', min: 0.15, max: 1, step: 0.05, fallback: 1 }] as p}
             <label class="row">
               <span>{p.label}</span>
-              <input type="range" min={p.min} max={p.max} step={p.step}
+              <input
+                type="range"
+                min={p.min}
+                max={p.max}
+                step={p.step}
                 value={obj.ssr?.[p.key] ?? p.fallback}
-                oninput={(e) => setSsr({ [p.key]: +e.target.value })} />
-              <input type="number" step={p.step}
+                oninput={(e) => setSsr({ [p.key]: +e.target.value })}
+              />
+              <input
+                type="number"
+                step={p.step}
                 value={obj.ssr?.[p.key] ?? p.fallback}
-                oninput={(e) => setSsr({ [p.key]: +e.target.value })} />
+                oninput={(e) => setSsr({ [p.key]: +e.target.value })}
+              />
             </label>
           {/each}
 
@@ -417,28 +538,27 @@
             <span>view</span>
             <select
               value={obj.ssr?.debug ?? 'off'}
-              onchange={(e) => setSsr({ debug: e.target.value })}>
+              onchange={(e) => setSsr({ debug: e.target.value })}
+            >
               {#each SSR_VIEWS as v}
                 <option value={v.id}>{v.label}</option>
               {/each}
             </select>
           </label>
           <p class="hint">
-            Only surfaces with metalness above zero reflect, and only what is
-            already on screen can appear in them. If a wall stays blank, check
-            it in the Metalness view first.
+            Only surfaces with metalness above zero reflect, and only what is already on screen can
+            appear in them. If a wall stays blank, check it in the Metalness view first.
           </p>
           <p class="hint">
-            For softer reflections, lower the resolution before raising blur —
-            it smears just as well and costs less rather than more. Blur widens
-            the kernel, and its samples grow as the square.
+            For softer reflections, lower the resolution before raising blur — it smears just as
+            well and costs less rather than more. Blur widens the kernel, and its samples grow as
+            the square.
           </p>
         {/if}
 
         <p class="hint">
-          The corner preview renders through the first visible camera. Hide this
-          one to preview another. Drag the grip in its bottom-left corner to
-          resize it.
+          The corner preview renders through the first visible camera. Hide this one to preview
+          another. Drag the grip in its bottom-left corner to resize it.
         </p>
       {/if}
 
@@ -447,45 +567,83 @@
         {#each ['x', 'y', 'z'] as axis}
           <label class="row">
             <span>{axis}</span>
-            <input type="range" min="0.05" max="30" step="0.05"
+            <input
+              type="range"
+              min="0.05"
+              max="30"
+              step="0.05"
               value={obj.size[axis]}
-              oninput={(e) => setVec('size', axis, +e.target.value)} />
-            <input type="number" step="0.05"
+              oninput={(e) => setVec('size', axis, +e.target.value)}
+            />
+            <input
+              type="number"
+              step="0.05"
               value={obj.size[axis]}
-              oninput={(e) => setVec('size', axis, +e.target.value)} />
+              oninput={(e) => setVec('size', axis, +e.target.value)}
+            />
           </label>
         {/each}
 
         <div class="group-label">material</div>
         <label class="row">
           <span>color</span>
-          <input type="color" value={obj.color}
-            oninput={(e) => set({ color: e.target.value })} />
+          <input type="color" value={obj.color} oninput={(e) => set({ color: e.target.value })} />
         </label>
         <label class="row">
           <span>rough</span>
-          <input type="range" min="0" max="1" step="0.01" value={obj.roughness}
-            oninput={(e) => set({ roughness: +e.target.value })} />
-          <input type="number" step="0.01" value={obj.roughness}
-            oninput={(e) => set({ roughness: +e.target.value })} />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={obj.roughness}
+            oninput={(e) => set({ roughness: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={obj.roughness}
+            oninput={(e) => set({ roughness: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>metal</span>
-          <input type="range" min="0" max="1" step="0.01" value={obj.metalness}
-            oninput={(e) => set({ metalness: +e.target.value })} />
-          <input type="number" step="0.01" value={obj.metalness}
-            oninput={(e) => set({ metalness: +e.target.value })} />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={obj.metalness}
+            oninput={(e) => set({ metalness: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={obj.metalness}
+            oninput={(e) => set({ metalness: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>emis</span>
-          <input type="color" value={obj.emissive}
-            oninput={(e) => set({ emissive: e.target.value })} />
-          <input type="number" step="0.1" min="0" value={obj.emissiveIntensity}
-            oninput={(e) => set({ emissiveIntensity: +e.target.value })} />
+          <input
+            type="color"
+            value={obj.emissive}
+            oninput={(e) => set({ emissive: e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={obj.emissiveIntensity}
+            oninput={(e) => set({ emissiveIntensity: +e.target.value })}
+          />
         </label>
         <label class="row check">
-          <input type="checkbox" checked={obj.insideOut}
-            onchange={(e) => set({ insideOut: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={obj.insideOut}
+            onchange={(e) => set({ insideOut: e.target.checked })}
+          />
           <span>inside out (room)</span>
         </label>
       {/if}
@@ -494,42 +652,67 @@
         <div class="group-label">light</div>
         <label class="row">
           <span>color</span>
-          <input type="color" value={obj.color}
-            oninput={(e) => set({ color: e.target.value })} />
+          <input type="color" value={obj.color} oninput={(e) => set({ color: e.target.value })} />
         </label>
         <label class="row">
           <span>power</span>
-          <input type="range" min="0" max={obj.type === 'POINT_LIGHT' ? 400 : 20} step="0.5"
+          <input
+            type="range"
+            min="0"
+            max={obj.type === 'POINT_LIGHT' ? 400 : 20}
+            step="0.5"
             value={obj.intensity}
-            oninput={(e) => set({ intensity: +e.target.value })} />
-          <input type="number" step="0.5" value={obj.intensity}
-            oninput={(e) => set({ intensity: +e.target.value })} />
+            oninput={(e) => set({ intensity: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.5"
+            value={obj.intensity}
+            oninput={(e) => set({ intensity: +e.target.value })}
+          />
         </label>
         {#if obj.type === 'DIRECTIONAL_LIGHT'}
           <div class="group-label">aims at</div>
           {#each ['x', 'y', 'z'] as axis}
             <label class="row">
               <span>{axis}</span>
-              <input type="range" min="-20" max="20" step="0.1"
+              <input
+                type="range"
+                min="-20"
+                max="20"
+                step="0.1"
                 value={obj.target?.[axis] ?? 0}
-                oninput={(e) => setVec('target', axis, +e.target.value)} />
-              <input type="number" step="0.1"
+                oninput={(e) => setVec('target', axis, +e.target.value)}
+              />
+              <input
+                type="number"
+                step="0.1"
                 value={obj.target?.[axis] ?? 0}
-                oninput={(e) => setVec('target', axis, +e.target.value)} />
+                oninput={(e) => setVec('target', axis, +e.target.value)}
+              />
             </label>
           {/each}
           <div class="hint">
-            A directional light points from its position to this target;
-            rotating it has no effect.
+            A directional light points from its position to this target; rotating it has no effect.
           </div>
         {/if}
         {#if obj.type === 'POINT_LIGHT'}
           <label class="row">
             <span>decay</span>
-            <input type="range" min="0" max="4" step="0.1" value={obj.decay}
-              oninput={(e) => set({ decay: +e.target.value })} />
-            <input type="number" step="0.1" value={obj.decay}
-              oninput={(e) => set({ decay: +e.target.value })} />
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={obj.decay}
+              oninput={(e) => set({ decay: +e.target.value })}
+            />
+            <input
+              type="number"
+              step="0.1"
+              value={obj.decay}
+              oninput={(e) => set({ decay: +e.target.value })}
+            />
           </label>
         {/if}
       {/if}
@@ -538,30 +721,53 @@
         <div class="group-label">probe</div>
         <label class="row">
           <span>power</span>
-          <input type="range" min="0" max="6" step="0.05" value={obj.intensity}
-            oninput={(e) => set({ intensity: +e.target.value })} />
-          <input type="number" step="0.05" value={obj.intensity}
-            oninput={(e) => set({ intensity: +e.target.value })} />
+          <input
+            type="range"
+            min="0"
+            max="6"
+            step="0.05"
+            value={obj.intensity}
+            oninput={(e) => set({ intensity: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.05"
+            value={obj.intensity}
+            oninput={(e) => set({ intensity: +e.target.value })}
+          />
         </label>
         <label class="row">
           <span>cap. h</span>
-          <input type="range" min="0" max="15" step="0.1" value={obj.captureHeight}
-            oninput={(e) => set({ captureHeight: +e.target.value })} />
-          <input type="number" step="0.1" value={obj.captureHeight}
-            oninput={(e) => set({ captureHeight: +e.target.value })} />
+          <input
+            type="range"
+            min="0"
+            max="15"
+            step="0.1"
+            value={obj.captureHeight}
+            oninput={(e) => set({ captureHeight: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.1"
+            value={obj.captureHeight}
+            oninput={(e) => set({ captureHeight: +e.target.value })}
+          />
         </label>
         <label class="row check">
-          <input type="checkbox" checked={obj.includeParticles}
-            onchange={(e) => set({ includeParticles: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={obj.includeParticles}
+            onchange={(e) => set({ includeParticles: e.target.checked })}
+          />
           <span>include particles</span>
         </label>
         <button class="bake" onclick={runBake} disabled={baking}>
           {baking ? 'Baking…' : 'Bake environment'}
         </button>
         <div class="hint">
-          A probe is a single average of the surroundings — it has no notion of
-          position or occlusion, so it tints every surface equally. Re-bake after
-          changing lights, colours or the emitter.
+          A probe is a single average of the surroundings — it has no notion of position or
+          occlusion, so it tints every surface equally. Re-bake after changing lights, colours or
+          the emitter.
         </div>
       {/if}
     </div>
@@ -575,8 +781,12 @@
     margin: 8px 12px;
     background: rgba(255, 255, 255, 0.02);
 
-    &.hidden { opacity: 0.45; }
-    &.selected { border-color: var(--mdc-theme-primary, #ff5722); }
+    &.hidden {
+      opacity: 0.45;
+    }
+    &.selected {
+      border-color: var(--mdc-theme-primary, #ff5722);
+    }
   }
 
   .head {
@@ -598,14 +808,34 @@
       flex: 1;
       gap: 6px;
       min-width: 0;
-      .name { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+      .name {
+        flex: 1;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+      }
     }
 
-    :global(.material-icons) { font-size: 17px; }
-    :global(.type) { opacity: 0.75; }
-    :global(.chevron) { opacity: 0.5; }
-    .del:hover { color: #ff6b6b; }
-    .pick { opacity: 0.7; &:hover { opacity: 1; } }
+    :global(.material-icons) {
+      font-size: 17px;
+    }
+    :global(.type) {
+      opacity: 0.75;
+    }
+    :global(.chevron) {
+      opacity: 0.5;
+    }
+    .del:hover {
+      color: #ff6b6b;
+    }
+    .pick {
+      opacity: 0.7;
+      &:hover {
+        opacity: 1;
+      }
+    }
   }
 
   .body {
@@ -627,8 +857,15 @@
     gap: 6px;
     margin-bottom: 4px;
 
-    span { width: 42px; font-size: 11px; opacity: 0.75; }
-    input[type='range'] { flex: 1; min-width: 0; }
+    span {
+      width: 42px;
+      font-size: 11px;
+      opacity: 0.75;
+    }
+    input[type='range'] {
+      flex: 1;
+      min-width: 0;
+    }
     input[type='number'] {
       width: 58px;
       background: rgba(255, 255, 255, 0.06);
@@ -639,10 +876,18 @@
       padding: 2px 4px;
     }
     input[type='color'] {
-      width: 34px; height: 22px; padding: 0;
-      background: none; border: 1px solid var(--border); border-radius: 3px;
+      width: 34px;
+      height: 22px;
+      padding: 0;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 3px;
     }
-    &.check { span { width: auto; } }
+    &.check {
+      span {
+        width: auto;
+      }
+    }
   }
 
   .bake {
@@ -657,7 +902,10 @@
     font: inherit;
     font-size: 12px;
 
-    &:disabled { opacity: 0.6; cursor: default; }
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
   }
 
   .chips {
@@ -708,7 +956,9 @@
     font: inherit;
     font-size: 11px;
 
-    &:hover { border-color: var(--mdc-theme-primary, #ff5722); }
+    &:hover {
+      border-color: var(--mdc-theme-primary, #ff5722);
+    }
   }
 
   .hint.warn {

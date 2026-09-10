@@ -37,7 +37,7 @@ export type PerfActions = {
 const STYLE_ID = 'perf-hud-style';
 const CSS = `
 .perf-hud {
-  position: fixed; right: 12px; top: 12px; z-index: 1003;
+  position: fixed; right: calc(12px + env(safe-area-inset-right)); top: calc(12px + env(safe-area-inset-top)); z-index: 1003;
   min-width: 240px; max-width: 92vw;
   padding: 10px 12px; border-radius: 8px;
   background: rgba(0, 0, 0, 0.72); color: #e8e8e8;

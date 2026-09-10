@@ -930,6 +930,30 @@
     check('the encode goes back to the blit', w._ssr().postProcessing?.outputColorTransform === false);
     check('orbit controls are back', w.controls.enabled === true);
     check('the buttons are back', !hidden(document.querySelector('.presentation-toggle')));
+
+    // ── Fit window: the frame takes the window's shape, so no bars ──────────
+    const previousTab = [...document.querySelectorAll('[role=tab]')].find((t) => t.getAttribute('aria-selected') === 'true');
+    [...document.querySelectorAll('[role=tab]')].find((t) => /scene/i.test(t.textContent))?.click();
+    await settle(300);
+    const cameraItem = [...document.querySelectorAll('.item')].find((el) => /camera/i.test(el.querySelector('.title')?.textContent || ''));
+    const chipsOf = () => [...(cameraItem?.querySelectorAll('.chips button') ?? [])];
+    if (cameraItem && chipsOf().length === 0) cameraItem.querySelector('button.title')?.click();
+    await settle(200);
+    const labels = chipsOf().map((b) => b.textContent.trim());
+    check('the frame offers an iPhone 17 Pro Max preset', labels.includes('iPhone 17 Pro Max'), labels.join(' | '));
+    const fitChip = chipsOf().find((b) => b.textContent.trim() === 'Fit window');
+    check('the frame offers Fit window', !!fitChip);
+    fitChip?.click();
+    await frames(2);
+    const windowAspect = window.innerWidth / window.innerHeight;
+    check('fit window sets the camera to the window\'s aspect', Math.abs((w.getOutputCamera()?.aspect ?? 0) - windowAspect) < 1e-3, `${w.getOutputCamera()?.aspect.toFixed(3)} vs ${windowAspect.toFixed(3)}`);
+    document.querySelector('.presentation-toggle')?.click();
+    await frames(2);
+    check('presenting with fit window fills the window', Math.abs(canvas.clientWidth - window.innerWidth) <= 1 && Math.abs(canvas.clientHeight - window.innerHeight) <= 1, `${canvas.clientWidth}x${canvas.clientHeight} in ${window.innerWidth}x${window.innerHeight}`);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await frames(2);
+    previousTab?.click();
+    await load();
     check('no runtime errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;

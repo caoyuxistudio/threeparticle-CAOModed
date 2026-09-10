@@ -19,8 +19,17 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, user-scalable=no, initial-scale=1, minimum-scale=1.0, maximum-scale=1.0"
+      content="width=device-width, user-scalable=no, initial-scale=1, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
     />
+    <!--
+      An iPhone has no element fullscreen; the only way to lose Safari's bars is
+      to open the page from the Home Screen. These make that a chrome-free,
+      edge-to-edge app window, status bar drawn over our (black) page.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Particles" />
     <!-- Favicon -->    
     <link rel="icon" href="./favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png" />

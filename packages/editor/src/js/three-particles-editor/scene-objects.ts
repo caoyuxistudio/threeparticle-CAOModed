@@ -91,7 +91,8 @@ export type SceneObject = {
   near?: number;
   far?: number;
   /**
-   * Output aspect ratio, which drives the shape of the preview rather than
+   * Output aspect ratio (0 = follow the window it is shown in), which drives
+   * the shape of the preview rather than
    * following the viewport — an installation is composed for a fixed frame.
    */
   aspect?: number;
@@ -241,10 +242,10 @@ export const setTransformMode = (mode: 'translate' | 'rotate' | 'scale'): void =
 export const getSceneObject = (id: string | null): SceneObject | undefined =>
   id ? objects.find((o) => o.id === id) : undefined;
 
-export const getTransformMode = (): string =>
-  (transformControls?.mode as string) ?? 'translate';
+export const getTransformMode = (): string => (transformControls?.mode as string) ?? 'translate';
 
-const nextId = () => `obj-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+const nextId = () =>
+  `obj-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
 
 const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> = {
   BOX: () => ({
@@ -556,7 +557,11 @@ const applyToThree = (obj: SceneObject): void => {
     cam.fov = obj.fov ?? 45;
     cam.near = obj.near ?? 0.1;
     cam.far = obj.far ?? 200;
-    cam.aspect = obj.aspect ?? 16 / 9;
+    // 0 means "the window's": world.ts re-reads it from the window whenever it
+    // sizes a canvas or the preview, so the frame follows a resize too.
+    const fitWindow = obj.aspect === 0;
+    cam.userData.fitWindow = fitWindow;
+    cam.aspect = fitWindow ? window.innerWidth / window.innerHeight : (obj.aspect ?? 16 / 9);
     cam.updateProjectionMatrix();
     // The frustum outline is generated from the projection matrix, so it has to
     // be regenerated whenever any of the four values above move.

@@ -629,9 +629,28 @@ export const updateWorld = (
  * black — and a canvas that is already the shape of the frame needs no
  * rectangle at all. The bars are the page showing through.
  */
+/**
+ * The output camera's aspect, honouring "fit window" (aspect 0 on the scene
+ * object, flagged on the camera): then it is whatever the window is right now,
+ * and the camera's projection is kept in step here, since this is read every
+ * time something is sized to it.
+ */
+const outputAspect = (): number => {
+  if (!outputCamera) return 16 / 9;
+  if (outputCamera.userData.fitWindow) {
+    const aspect = window.innerWidth / window.innerHeight;
+    if (outputCamera.aspect !== aspect) {
+      outputCamera.aspect = aspect;
+      outputCamera.updateProjectionMatrix();
+    }
+    return aspect;
+  }
+  return outputCamera.aspect || 16 / 9;
+};
+
 export const fitPlayerCanvas = (): void => {
   if (!renderer) return;
-  const aspect = outputCamera?.aspect || 16 / 9;
+  const aspect = outputAspect();
 
   let w = window.innerWidth;
   let h = Math.round(w / aspect);
@@ -765,7 +784,7 @@ export const freeViewportBounds = (): { left: number; right: number } => {
  */
 export const previewRect = (): { x: number; y: number; w: number; h: number } => {
   const free = freeViewportBounds();
-  const aspect = outputCamera?.aspect || 16 / 9;
+  const aspect = outputAspect();
   const available = free.right - free.left - PREVIEW_MARGIN * 2;
 
   let w = Math.round(Math.max(160, available * previewWidthRatio));
