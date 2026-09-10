@@ -29,12 +29,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!--
-      Opaque. iOS 27 beta gives a Home Screen web app a view the screen minus the
-      status bar either way; translucent merely moves it up under the bar and
-      leaves the strip at the bottom instead. Below the bar, edge to edge, is
-      the better of the two.
+      Translucent, on the legacy web-clip path: the manifest deliberately says
+      nothing about display, so iOS decides standalone from this meta the way
+      it has for years — the path that has always given the whole screen.
+      iOS 27 beta's manifest-driven web apps got a view the screen minus the
+      status bar instead (measured 894 of 956).
     -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Particles" />
     <!-- Favicon -->    
     <link rel="icon" href="./favicon/favicon.ico" />
