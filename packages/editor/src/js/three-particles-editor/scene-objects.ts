@@ -135,7 +135,40 @@ export type SceneObject = {
   edgeMetalness?: number;
   edgeEmissive?: string;
   edgeEmissiveIntensity?: number;
+  /**
+   * FRAME only: rounded corners on the opening, one radius per corner in
+   * world units (0 = square). The corner is not cut out of the frame — the
+   * opening keeps its rectangle and the four fillets are filled in, so what
+   * lies beyond a rounded corner is covered rather than shown. That is what
+   * makes a piece read as a phone's screen on a phone: its corners end where
+   * the glass does.
+   */
+  cornerRadius?: { topLeft: number; topRight: number; bottomLeft: number; bottomRight: number };
+  /** The fillets' colour. Dark by default: they stand in for the bezel. */
+  cornerColor?: string;
 };
+
+export type CornerRadius = NonNullable<SceneObject['cornerRadius']>;
+
+/**
+ * Display corner radii of Apple devices, as a fraction of the screen's width
+ * in points — so a frame whose opening stands for the screen gets the same
+ * curve whatever size it is drawn at. Apple's published values for the
+ * current generation; the slider is there for anything else.
+ */
+export const CORNER_PRESETS: Array<{ label: string; ratio: number }> = [
+  { label: 'iPhone 17 Pro Max', ratio: 62 / 440 },
+  { label: 'iPhone 17 / 17 Pro', ratio: 62 / 402 },
+  { label: 'iPad Pro 13″', ratio: 18 / 1032 },
+  { label: 'iPad Pro 11″ / Air', ratio: 18 / 834 },
+];
+
+export const squareCorners = (): CornerRadius => ({
+  topLeft: 0,
+  topRight: 0,
+  bottomLeft: 0,
+  bottomRight: 0,
+});
 
 /** Live THREE objects, keyed by scene-object id. */
 const live = new Map<string, THREE.Object3D>();
@@ -320,6 +353,8 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeMetalness: 0.9,
     edgeEmissive: '#000000',
     edgeEmissiveIntensity: 0,
+    cornerRadius: squareCorners(),
+    cornerColor: '#000000',
   }),
   ENVIRONMENT: () => ({
     type: 'ENVIRONMENT',
@@ -402,9 +437,91 @@ const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
   return geometry;
 };
 
+/** Each corner's radius, clamped to what the opening can take. */
+const cornerRadii = (obj: SceneObject): CornerRadius => {
+  const innerW = Math.max(0.01, obj.innerWidth ?? 6);
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  const limit = Math.min(innerW, innerH) / 2;
+  const clamp = (r: number | undefined) => Math.min(limit, Math.max(0, r ?? 0));
+  const c = obj.cornerRadius ?? squareCorners();
+  return {
+    topLeft: clamp(c.topLeft),
+    topRight: clamp(c.topRight),
+    bottomLeft: clamp(c.bottomLeft),
+    bottomRight: clamp(c.bottomRight),
+  };
+};
+
+/**
+ * The four fillets that round the opening: for each corner, the region
+ * between the rectangle's corner and a quarter circle tangent to both edges,
+ * extruded to the frame's depth so it fills the corner of the hole. Kept as a
+ * mesh of its own rather than cut into the frame's shape: its caps carry the
+ * corner colour, and its side faces meet the frame's hole walls edge to edge
+ * with opposite normals, which is what keeps the two from fighting.
+ *
+ * Returns null when every corner is square.
+ */
+const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => {
+  const innerW = Math.max(0.01, obj.innerWidth ?? 6);
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  const depth = Math.max(0.01, obj.depth ?? 0.5);
+  const radii = cornerRadii(obj);
+  const w = innerW / 2;
+  const h = innerH / 2;
+
+  // Corner sign, the radius that belongs to it, and the arc that rounds it:
+  // from the tangent point on the horizontal edge to the one on the vertical
+  // edge, always the quarter turn that stays inside the corner.
+  const corners: Array<{
+    sx: number;
+    sy: number;
+    r: number;
+    from: number;
+    to: number;
+    cw: boolean;
+  }> = [
+    { sx: 1, sy: 1, r: radii.topRight, from: Math.PI / 2, to: 0, cw: true },
+    { sx: -1, sy: 1, r: radii.topLeft, from: Math.PI / 2, to: Math.PI, cw: false },
+    { sx: -1, sy: -1, r: radii.bottomLeft, from: -Math.PI / 2, to: Math.PI, cw: true },
+    { sx: 1, sy: -1, r: radii.bottomRight, from: -Math.PI / 2, to: 0, cw: false },
+  ];
+
+  const shapes: THREE.Shape[] = [];
+  corners.forEach(({ sx, sy, r, from, to, cw }) => {
+    if (r <= 0) return;
+    const cx = sx * w;
+    const cy = sy * h;
+    const ox = sx * (w - r);
+    const oy = sy * (h - r);
+    const shape = new THREE.Shape();
+    shape.moveTo(cx, cy);
+    shape.lineTo(ox, cy);
+    shape.absarc(ox, oy, r, from, to, cw);
+    shape.lineTo(cx, cy);
+    shapes.push(shape);
+  });
+  if (shapes.length === 0) return null;
+
+  const geometry = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false });
+  geometry.translate(0, 0, -depth / 2);
+  return geometry;
+};
+
 /** The dimensions baked into a frame's geometry, to avoid rebuilding it needlessly. */
-const frameGeometryKey = (obj: SceneObject): string =>
-  [obj.innerWidth, obj.innerHeight, obj.border, obj.depth].join('/');
+const frameGeometryKey = (obj: SceneObject): string => {
+  const c = cornerRadii(obj);
+  return [
+    obj.innerWidth,
+    obj.innerHeight,
+    obj.border,
+    obj.depth,
+    c.topLeft,
+    c.topRight,
+    c.bottomLeft,
+    c.bottomRight,
+  ].join('/');
+};
 
 const frameKeys = new Map<string, string>();
 
@@ -459,12 +576,26 @@ const buildThreeObject = (obj: SceneObject): THREE.Object3D => {
       return new THREE.Object3D();
     case 'FRAME': {
       // Two slots in the order ExtrudeGeometry groups them: caps, then walls.
+      const edge = new THREE.MeshStandardMaterial();
       const mesh = new THREE.Mesh(new THREE.BufferGeometry(), [
         new THREE.MeshStandardMaterial(),
-        new THREE.MeshStandardMaterial(),
+        edge,
       ]);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      // The corner fillets ride along as a child: their own colour on the
+      // caps, the frame's edge material on the walls so the inside of the
+      // opening stays one surface around the curve.
+      const corners = new THREE.Mesh(new THREE.BufferGeometry(), [
+        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 }),
+        edge,
+      ]);
+      corners.name = 'frame-corners';
+      corners.castShadow = true;
+      corners.receiveShadow = true;
+      corners.visible = false;
+      mesh.add(corners);
+      mesh.userData.corners = corners;
       return mesh;
     }
   }
@@ -500,11 +631,23 @@ const applyToThree = (obj: SceneObject): void => {
     const mesh = three as THREE.Mesh;
     const [face, edge] = mesh.material as THREE.MeshStandardMaterial[];
 
+    const corners = mesh.userData.corners as THREE.Mesh | undefined;
     const key = frameGeometryKey(obj);
     if (frameKeys.get(obj.id) !== key) {
       mesh.geometry.dispose();
       mesh.geometry = buildFrameGeometry(obj);
+      if (corners) {
+        corners.geometry.dispose();
+        const fillets = buildCornerGeometry(obj);
+        corners.geometry = fillets ?? new THREE.BufferGeometry();
+        corners.visible = !!fillets;
+      }
       frameKeys.set(obj.id, key);
+    }
+    if (corners) {
+      const cap = (corners.material as THREE.MeshStandardMaterial[])[0];
+      cap.color.set(obj.cornerColor ?? '#000000');
+      cap.needsUpdate = true;
     }
 
     if (obj.rotation) {
@@ -609,6 +752,11 @@ const unmount = (id: string): void => {
   getScene().remove(three);
   if (three instanceof THREE.DirectionalLight) getScene().remove(three.target);
   if ((three as THREE.Mesh).geometry) (three as THREE.Mesh).geometry.dispose();
+  const corners = three.userData.corners as THREE.Mesh | undefined;
+  if (corners) {
+    corners.geometry.dispose();
+    (corners.material as THREE.Material[])[0].dispose();
+  }
   const mat = (three as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
   // A frame carries one material per face group, so this can be a list.
   if (Array.isArray(mat)) mat.forEach((m) => m.dispose());

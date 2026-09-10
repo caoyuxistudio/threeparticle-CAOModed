@@ -345,6 +345,27 @@
     const deeper = await build({ depth: 3 });
     check('depth drives the geometry', Math.abs(deeper.size.z - 3) < 0.01, deeper.size.z.toFixed(2));
 
+    // Rounded corners: the opening keeps its rectangle and four fillets fill
+    // the corners, as a child mesh in the mask colour with the frame's edge
+    // material on its walls.
+    const rounded = await build({ cornerRadius: { topLeft: 0.5, topRight: 0.5, bottomLeft: 0.5, bottomRight: 0.5 }, cornerColor: '#112233' });
+    const mask = rounded.mesh?.children.find((c) => c.name === 'frame-corners');
+    check('rounded corners add a corner mask', !!mask && mask.visible && Array.isArray(mask.material) && mask.material.length === 2);
+    if (mask) {
+      // The geometry's own box: the frame sits at y=2 in the world.
+      mask.geometry.computeBoundingBox();
+      const box = mask.geometry.boundingBox;
+      const inside = box.max.x <= 3 + 0.01 && box.min.x >= -3 - 0.01 && box.max.y <= 1.75 + 0.01 && box.min.y >= -1.75 - 0.01;
+      check('the mask stays inside the opening', inside, `${box.min.x.toFixed(2)}..${box.max.x.toFixed(2)} x ${box.min.y.toFixed(2)}..${box.max.y.toFixed(2)}`);
+      check('the mask fills the corners to the frame\'s depth', Math.abs(box.max.z - box.min.z - 0.5) < 0.01, (box.max.z - box.min.z).toFixed(2));
+      check('the mask wears the mask colour', mask.material[0].color.getHexString() === '112233', mask.material[0].color.getHexString());
+      check('the mask shares the edge material', mask.material[1] === rounded.mesh.material[1]);
+      check('the frame itself is unchanged', Math.abs(rounded.size.x - 7.2) < 0.01 && Math.abs(rounded.size.y - 4.7) < 0.01);
+    }
+    const square = await build({});
+    const noMask = square.mesh?.children.find((c) => c.name === 'frame-corners');
+    check('square corners show no mask', !!noMask && noMask.visible === false);
+
     await load();
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
     return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');

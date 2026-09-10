@@ -1,4 +1,5 @@
 <script>
+  import { CORNER_PRESETS, squareCorners } from '../../../js/three-particles-editor/scene-objects';
   import { Icon } from '@smui/common';
   import * as THREE from 'three';
   import {
@@ -15,6 +16,17 @@
   let baking = $state(false);
 
   const set = (patch) => update(obj.id, patch);
+
+  // ── Frame corners ─────────────────────────────────────────────────────────
+  const corners = (o) => o.cornerRadius ?? squareCorners();
+  const uniformCorners = (r) => ({ topLeft: r, topRight: r, bottomLeft: r, bottomRight: r });
+  const setCorners = (patch) => set({ cornerRadius: { ...corners(obj), ...patch } });
+  const cornerMax = (o) => Math.max(...Object.values(corners(o)));
+  const cornerLimit = (o) => +(Math.min(o.innerWidth ?? 6, o.innerHeight ?? 3.5) / 2).toFixed(2);
+  const cornerPresetActive = (p) => {
+    const r = p.ratio * (obj.innerWidth ?? 6);
+    return Object.values(corners(obj)).every((v) => Math.abs(v - r) < 0.005);
+  };
 
   /**
    * Reflection settings live on the camera, so they patch like anything else —
@@ -413,6 +425,55 @@
           Roughness stops at 1 — that is the whole range the shading model has, and it already lands
           on the blurriest reflection there is. For softer reflections use the camera's blur and
           resolution instead.
+        </p>
+
+        <div class="group-label">corners</div>
+        <div class="chips">
+          {#each CORNER_PRESETS as p}
+            <button
+              class:active={cornerPresetActive(p)}
+              onclick={() => setCorners(uniformCorners(p.ratio * (obj.innerWidth ?? 6)))}
+              >{p.label}</button
+            >
+          {/each}
+          <button class:active={cornerMax(obj) === 0} onclick={() => setCorners(uniformCorners(0))}
+            >square</button
+          >
+        </div>
+        {#each [{ label: 'all corners', keys: ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'] }, { label: 'top corners', keys: ['topLeft', 'topRight'] }, { label: 'bottom corners', keys: ['bottomLeft', 'bottomRight'] }] as g}
+          <label class="row">
+            <span>{g.label}</span>
+            <input
+              type="range"
+              min="0"
+              max={cornerLimit(obj)}
+              step="0.01"
+              value={corners(obj)[g.keys[0]]}
+              oninput={(e) =>
+                setCorners(Object.fromEntries(g.keys.map((k) => [k, +e.target.value])))}
+            />
+            <input
+              type="number"
+              step="0.01"
+              value={corners(obj)[g.keys[0]]}
+              oninput={(e) =>
+                setCorners(Object.fromEntries(g.keys.map((k) => [k, +e.target.value])))}
+            />
+          </label>
+        {/each}
+        <label class="row">
+          <span>mask color</span>
+          <input
+            type="color"
+            value={obj.cornerColor ?? '#000000'}
+            oninput={(e) => set({ cornerColor: e.target.value })}
+          />
+        </label>
+        <p class="hint">
+          The opening keeps its rectangle; a rounded corner is filled in, in the mask colour, so
+          whatever lies beyond the curve is covered. The presets are Apple's display corner radii as
+          a share of the screen's width, applied to the opening's width — right when the opening
+          stands for the screen.
         </p>
       {/if}
 

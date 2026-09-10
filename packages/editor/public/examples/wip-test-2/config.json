@@ -450,7 +450,13 @@
         "edgeRoughness": 1,
         "edgeMetalness": 0.31,
         "edgeEmissive": "#000000",
-        "edgeEmissiveIntensity": 0
+        "edgeEmissiveIntensity": 0,
+        "cornerRadius": {
+          "topLeft": 0.5706818181818181,
+          "topRight": 0.5706818181818181,
+          "bottomLeft": 0.5706818181818181,
+          "bottomRight": 0.5706818181818181
+        }
       },
       {
         "id": "obj-mtbdwjx4-dfde",
