@@ -1,6 +1,11 @@
 import { ObjectUtils } from '@newkrok/three-utils';
 import * as THREE from 'three';
 import { FBM } from 'three-noise/build/three-noise.module.js';
+import {
+  createColorInstanceData,
+  disposeColorInstanceData,
+  ensureColorInstancePixels,
+} from './color-instance-sampler';
 import { rgbSRGBToLinear, sRGBToLinear } from './color-utils.js';
 import InstancedParticleFragmentShader from './shaders/instanced-particle-fragment-shader.glsl.js';
 import InstancedParticleVertexShader from './shaders/instanced-particle-vertex-shader.glsl.js';
@@ -56,7 +61,6 @@ import {
 
 import {
   CollisionPlaneConfig,
-  ColorInstanceData,
   Constant,
   CurveFunction,
   CycleData,
@@ -142,7 +146,9 @@ type TSLMaterialFactory = {
     gpuCompute?: boolean,
     alignToVelocity?: boolean,
     lit?: boolean,
-    emissive?: number
+    emissive?: number,
+    roughness?: number,
+    metalness?: number
   ) => THREE.Material;
   createTSLTrailMaterial: (
     trailUniforms: Record<string, { value: unknown }>,
@@ -635,53 +641,17 @@ const calculatePositionAndVelocity = (
   }
 };
 
-/**
- * Lazily extracts RGBA pixel data from the color-instance texture. Returns
- * true once pixels are available. Retries on every call until the image has
- * loaded; gives up permanently only when readback throws (e.g. CORS taint).
- */
-const ensureColorInstancePixels = (ci: ColorInstanceData): boolean => {
-  if (ci.pixels) return true;
-  if (ci.failed) return false;
-  const img = ci.map?.image as
-    | { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number }
-    | undefined;
-  if (!img) return false;
-  const width = img.naturalWidth || img.width || 0;
-  const height = img.naturalHeight || img.height || 0;
-  if (!width || !height) return false;
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) {
-      ci.failed = true;
-      return false;
-    }
-    ctx.drawImage(img as CanvasImageSource, 0, 0);
-    ci.pixels = ctx.getImageData(0, 0, width, height).data;
-    ci.width = width;
-    ci.height = height;
-    return true;
-  } catch {
-    ci.failed = true;
-    return false;
-  }
-};
-
 const destroyParticleSystem = (particleSystem: THREE.Points | THREE.Mesh) => {
   createdParticleSystems = createdParticleSystems.filter(
-    ({
-      particleSystem: savedParticleSystem,
-      trailMesh,
-      generalData: { particleSystemId },
-    }) => {
+    ({ particleSystem: savedParticleSystem, trailMesh, generalData }) => {
       if (savedParticleSystem !== particleSystem) {
         return true;
       }
 
-      removeBezierCurveFunction(particleSystemId);
+      removeBezierCurveFunction(generalData.particleSystemId);
+
+      // Stops a video source's frame watcher; a no-op for a still image.
+      disposeColorInstanceData(generalData.colorInstance);
 
       // Dispose trail mesh if present
       if (trailMesh) {
@@ -1097,15 +1067,7 @@ export const createParticleSystem = (
 
   const colorInstanceConfig = normalizedConfig.particleColorInstance;
   generalData.colorInstance = colorInstanceConfig?.isActive
-    ? {
-        isActive: true,
-        map: colorInstanceConfig.map,
-        areaX: colorInstanceConfig.area?.x ?? 0,
-        areaZ: colorInstanceConfig.area?.z ?? 0,
-        useAlphaForOpacity: !!colorInstanceConfig.useAlphaForOpacity,
-        useLuminanceForNoise: !!colorInstanceConfig.useLuminanceForNoise,
-        luminanceNoiseAmount: colorInstanceConfig.luminanceNoiseAmount ?? 0,
-      }
+    ? createColorInstanceData(colorInstanceConfig)
     : undefined;
 
   // Initialize burst states if bursts are configured
@@ -1302,7 +1264,9 @@ export const createParticleSystem = (
         useGPUCompute,
         !!renderer.mesh?.alignToVelocity,
         !!renderer.mesh?.lit,
-        renderer.mesh?.emissive ?? 0
+        renderer.mesh?.emissive ?? 0,
+        renderer.mesh?.roughness,
+        renderer.mesh?.metalness
       )
     : new THREE.ShaderMaterial({
         uniforms: sharedUniforms,
@@ -2539,16 +2503,10 @@ export const createParticleSystem = (
     // Re-initialize the color-instance sampler when changed
     if (partialConfig.particleColorInstance !== undefined) {
       const ciCfg = cfg.particleColorInstance;
+      // A video source keeps a frame watcher alive; let the old one go first.
+      disposeColorInstanceData(instanceData.generalData.colorInstance);
       instanceData.generalData.colorInstance = ciCfg?.isActive
-        ? {
-            isActive: true,
-            map: ciCfg.map,
-            areaX: ciCfg.area?.x ?? 0,
-            areaZ: ciCfg.area?.z ?? 0,
-            useAlphaForOpacity: !!ciCfg.useAlphaForOpacity,
-            useLuminanceForNoise: !!ciCfg.useLuminanceForNoise,
-            luminanceNoiseAmount: ciCfg.luminanceNoiseAmount ?? 0,
-          }
+        ? createColorInstanceData(ciCfg)
         : undefined;
     }
 

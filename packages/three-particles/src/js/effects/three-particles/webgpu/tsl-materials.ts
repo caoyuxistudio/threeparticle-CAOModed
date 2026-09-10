@@ -58,7 +58,9 @@ export function createTSLParticleMaterial(
   gpuCompute = false,
   alignToVelocity = false,
   lit = false,
-  emissive = 0
+  emissive = 0,
+  roughness?: number,
+  metalness?: number
 ): THREE.Material {
   switch (rendererType) {
     case RendererType.INSTANCED:
@@ -74,7 +76,9 @@ export function createTSLParticleMaterial(
         gpuCompute,
         alignToVelocity,
         lit,
-        emissive
+        emissive,
+        roughness,
+        metalness
       );
     case RendererType.POINTS:
     default:
@@ -152,8 +156,7 @@ export function createComputePipeline(
         velocityOverLifetime.orbital.y !== 0 ||
         velocityOverLifetime.orbital.z !== 0),
     noise: normalizedConfig.noise.isActive,
-    noiseCurl:
-      normalizedConfig.noise.isActive && !!normalizedConfig.noise.curl,
+    noiseCurl: normalizedConfig.noise.isActive && !!normalizedConfig.noise.curl,
     noiseLuminance:
       normalizedConfig.noise.isActive &&
       !!normalizedConfig.noise.curl &&

@@ -94,7 +94,9 @@ export function createMeshParticleTSLMaterial(
   gpuCompute = false,
   alignToVelocity = false,
   lit = false,
-  emissive = 0
+  emissive = 0,
+  roughness = 0.65,
+  metalness = 0
 ): MeshBasicNodeMaterial | MeshStandardNodeMaterial {
   const u = createParticleUniforms(sharedUniforms);
   // Velocity alignment needs the compute backend's packed travel direction.
@@ -338,7 +340,9 @@ export function createMeshParticleTSLMaterial(
   // Standard material takes part in the scene's lights, environment and light
   // probes; Basic ignores them entirely. Particles opt out of shadows either
   // way — the shadow pass cannot run this material's vertexNode.
-  const material = lit ? new MeshStandardNodeMaterial() : new MeshBasicNodeMaterial();
+  const material = lit
+    ? new MeshStandardNodeMaterial()
+    : new MeshBasicNodeMaterial();
   material.transparent = rendererConfig.transparent;
   material.blending = rendererConfig.blending;
   material.depthTest = rendererConfig.depthTest;
@@ -356,8 +360,10 @@ export function createMeshParticleTSLMaterial(
     // vertexNode. Feed it the view-space normal already computed there, which
     // is the space `normalNode` expects.
     (material as MeshStandardNodeMaterial).normalNode = vNormal;
-    (material as MeshStandardNodeMaterial).roughness = 0.65;
-    (material as MeshStandardNodeMaterial).metalness = 0.0;
+    // Undefined means "the default", so a config that never set these keeps
+    // the look it was saved with.
+    (material as MeshStandardNodeMaterial).roughness = roughness ?? 0.65;
+    (material as MeshStandardNodeMaterial).metalness = metalness ?? 0;
 
     if (emissive > 0) {
       // Each particle glows in its own colour — including the colour sampled

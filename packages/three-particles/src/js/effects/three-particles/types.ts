@@ -628,6 +628,19 @@ export type MeshConfig = {
    * light source rather than only receiving light. Requires `lit`. 0 disables.
    */
   emissive?: number;
+  /**
+   * Surface roughness of a lit particle, 0 (mirror) to 1 (matte). Requires
+   * `lit`. Default 0.65. Rougher spreads the specular sheen thin; smoother
+   * concentrates it into highlights.
+   */
+  roughness?: number;
+  /**
+   * Metalness of a lit particle, 0 (dielectric) to 1 (metal). Requires `lit`.
+   * Default 0. A metal takes its reflection colour from the particle colour and
+   * — where screen-space reflections are on — is what the reflection pass
+   * treats as reflective at all.
+   */
+  metalness?: number;
 };
 
 /**
@@ -835,11 +848,22 @@ export type ParticleColorInstanceConfig = {
    * pixel (`0.2126R + 0.7152G + 0.0722B`).
    */
   luminanceNoiseAmount?: number;
+  /**
+   * Longest edge, in pixels, of the grid a *live* source is read back into.
+   *
+   * Applies when `map.image` is a video: every new frame is read from the
+   * element into a grid this size, so the bound is what keeps a moving source
+   * cheap — a 512-pixel grid costs about a millisecond per frame regardless of
+   * the video's own resolution. Still images are read once at their native
+   * size and ignore this. 0 (default) means 512.
+   */
+  sampleSize?: number;
 };
 
 /**
  * Runtime sampler state for {@link ParticleColorInstanceConfig}. Pixel data is
- * extracted lazily on first emission once the texture image has loaded.
+ * extracted lazily on first emission once the source has content; for a video
+ * it is extracted again whenever a new frame has been presented.
  */
 export type ColorInstanceData = {
   isActive: boolean;
@@ -849,12 +873,45 @@ export type ColorInstanceData = {
   useAlphaForOpacity: boolean;
   useLuminanceForNoise: boolean;
   luminanceNoiseAmount: number;
+  /** See {@link ParticleColorInstanceConfig.sampleSize}. 0 = default. */
+  sampleSize: number;
   /** sRGB byte pixels (RGBA), lazily extracted from `map`. */
   pixels?: Uint8ClampedArray;
   width?: number;
   height?: number;
   /** Set when pixel extraction failed permanently (e.g. CORS taint). */
   failed?: boolean;
+  /** True once the source turned out to be a video and its frames are watched. */
+  live?: boolean;
+  /** A new frame has been presented since the last readback. */
+  frameDirty?: boolean;
+  /** No `requestVideoFrameCallback` available; readbacks are time-throttled. */
+  usesFallbackClock?: boolean;
+  /** Reused between readbacks — creating one per frame is what makes this slow. */
+  canvas?: HTMLCanvasElement;
+  context?: CanvasRenderingContext2D;
+  cancelFrameWatch?: () => void;
+  readbackCount?: number;
+  lastReadbackMs?: number;
+  lastReadbackAt?: number;
+  lastWorkerMs?: number;
+  /** How a live source is currently being read. */
+  mode?: 'idle' | 'canvas' | 'worker';
+  /** Worker-path bookkeeping: our id with the shared worker, and whether a frame is out. */
+  readerId?: number;
+  workerBusy?: boolean;
+  /** The worker path is not available (or broke) for this sampler; read on the main thread. */
+  workerFailed?: boolean;
+  /** The record published on `map.userData.colorInstanceReadback`. */
+  stats?: {
+    count: number;
+    lastMs: number;
+    workerMs: number;
+    width: number;
+    height: number;
+    live: boolean;
+    mode: 'idle' | 'canvas' | 'worker';
+  };
 };
 
 export type NoiseConfig = {
