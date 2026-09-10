@@ -759,6 +759,86 @@ export const fitPlayerCanvas = (): void => {
  * a corner afterwards. Here it is the only pass, which is why the reflections
  * can go straight to the canvas instead of through an offscreen target.
  */
+// ─── Edge tint ───────────────────────────────────────────────────────────────
+//
+// The bars a phone keeps for itself — Safari's, or the status bar of a Home
+// Screen app — take the page's theme colour. Kept at the colour of the
+// piece's own top edge, the bar reads as the picture continuing under it
+// rather than a black strip; it is what makes a page look edge to edge on an
+// iPhone when it is not. A 32×32 render of the output camera twice a second
+// is all it costs.
+
+const TINT_INTERVAL_MS = 500;
+let tintTarget: THREE.RenderTarget | null = null;
+let tintPending = false;
+let lastTintAt = 0;
+let lastTint = '';
+
+const encodeSrgb = (v: number): number =>
+  Math.round(255 * (v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055));
+
+const setThemeColor = (hex: string): void => {
+  if (hex === lastTint) return;
+  lastTint = hex;
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+  meta.content = hex;
+  document.documentElement.style.setProperty('--edge-tint', hex);
+};
+
+const sampleEdgeTint = (): void => {
+  if (!outputCamera || tintPending) return;
+  const now = performance.now();
+  if (now - lastTintAt < TINT_INTERVAL_MS) return;
+  lastTintAt = now;
+
+  const size = 32;
+  if (!tintTarget)
+    tintTarget = new THREE.RenderTarget(size, size, { type: THREE.UnsignedByteType });
+  renderer.setRenderTarget(tintTarget);
+  renderer.render(scene, outputCamera);
+  renderer.setRenderTarget(null);
+
+  tintPending = true;
+  void renderer
+    .readRenderTargetPixelsAsync(tintTarget, 0, 0, size, size)
+    .then((raw: ArrayLike<number>) => {
+      // WebGPU pads rows to 256 bytes: 32 texels × 4 bytes = 128 → 64 texels per row.
+      const rowTexels = Math.max(size, Math.ceil((size * 4) / 256) * (256 / 4));
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let n = 0;
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < size; x++) {
+          const i = (y * rowTexels + x) * 4;
+          r += raw[i];
+          g += raw[i + 1];
+          b += raw[i + 2];
+          n++;
+        }
+      }
+      const hex =
+        '#' +
+        [r, g, b]
+          .map((c) =>
+            encodeSrgb(c / n / 255)
+              .toString(16)
+              .padStart(2, '0')
+          )
+          .join('');
+      setThemeColor(hex);
+    })
+    .catch(() => undefined)
+    .then(() => {
+      tintPending = false;
+    });
+};
+
 export const renderPlayer = (
   softParticlesEnabled = false,
   particleContainer?: THREE.Object3D,
@@ -793,6 +873,8 @@ export const renderPlayer = (
   } else {
     renderer.render(scene, outputCamera);
   }
+
+  sampleEdgeTint();
 };
 
 const PREVIEW_MARGIN = 16;
