@@ -120,7 +120,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **相机画幅**：CAMERA 的 output frame 里除了固定比例，多了 **iPhone 17 Pro Max**（440×956 逻辑像素，0.4603）和 **Fit window**（`aspect: 0`，跟着当前窗口走——播放页和演示模式里就是彻底铺满、没有黑边；编辑器预览则取编辑器窗口的比例）。铺满意味着构图随屏幕变，所以要精确构图用 iPhone 预设、从主屏幕图标打开来看。
 
-**iPhone 上去掉 Safari 的栏**：iPhone 的 Safari 没有元素全屏 API（iPad 才有），`requestFullscreen` 会被拒绝，演示模式在 Safari 里只能做到页面级全屏，底栏还在。唯一的路是 **添加到主屏幕**：两个页面都带了 `apple-mobile-web-app-capable`、`black-translucent` 状态栏和 `viewport-fit=cover`，manifest 是 `standalone`，从主屏幕图标打开就是无边框的 app 窗口，440×956 全部可用。HUD、演示浮条、播放页按钮都按 `env(safe-area-inset-*)` 避开灵动岛和 Home 指示条。
+**iPhone 上去掉 Safari 的栏**（Safari 里进演示模式时会弹一次提示说这件事）：iPhone 的 Safari 没有元素全屏 API（iPad 才有），`requestFullscreen` 会被拒绝，演示模式在 Safari 里只能做到页面级全屏，底栏还在。唯一的路是 **添加到主屏幕**：两个页面都带了 `apple-mobile-web-app-capable`、`black-translucent` 状态栏和 `viewport-fit=cover`，manifest 是 `standalone`，从主屏幕图标打开就是无边框的 app 窗口，440×956 全部可用。HUD、演示浮条、播放页按钮都按 `env(safe-area-inset-*)` 避开灵动岛和 Home 指示条。
 
 **界面只剩 dark**。light 主题的切换按钮和 localStorage 偏好都删了，`index.html` 无条件只链 `smui-dark.css`（light 的 css 还在编译，只是不再链接）。
 

@@ -19,6 +19,7 @@
 import { getOrbitControls, isPresenting, setPresenting } from './world';
 import { selectSceneObject } from './scene-objects';
 import type { PerfHud } from './perf-hud';
+import { showInfoSnackbar } from '../stores/snackbar-store';
 
 const BAR_HIDE_MS = 3000;
 
@@ -40,10 +41,28 @@ type FullscreenElement = HTMLElement & {
 const fullscreenActive = (): boolean =>
   !!(document.fullscreenElement ?? (document as FullscreenDocument).webkitFullscreenElement);
 
+/** Opened from the Home Screen: no browser chrome to lose, the screen is ours. */
+const isStandalone = (): boolean =>
+  window.matchMedia?.('(display-mode: standalone)').matches ||
+  (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+let explainedHomeScreen = false;
+
 const requestFullscreen = (): void => {
   const root = document.documentElement as FullscreenElement;
   const request = root.requestFullscreen ?? root.webkitRequestFullscreen;
-  if (!request) return;
+  if (!request) {
+    // An iPhone browser: no element fullscreen exists, so the bars stay unless
+    // the page was opened from the Home Screen. Say so, once.
+    if (!isStandalone() && /iPhone|iPod/.test(navigator.userAgent) && !explainedHomeScreen) {
+      explainedHomeScreen = true;
+      showInfoSnackbar(
+        'Safari on iPhone has no full screen. Share → Add to Home Screen, then open it from there.',
+        7000
+      );
+    }
+    return;
+  }
   requestedFullscreen = true;
   Promise.resolve()
     .then(() => request.call(root))
