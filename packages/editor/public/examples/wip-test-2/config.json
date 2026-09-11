@@ -396,17 +396,17 @@
         "ssr": {
           "enabled": true,
           "quality": 1,
-          "blurQuality": 2,
+          "blurQuality": 4,
           "resolutionScale": 1,
-          "maxDistance": 20.5,
-          "thickness": 0.15,
-          "opacity": 1,
+          "maxDistance": 1,
+          "thickness": 0.16,
+          "opacity": 0.7,
           "debug": "off"
         },
         "parallax": {
           "enabled": true,
           "amount": 0.08,
-          "maxOffset": 3,
+          "maxOffset": 1,
           "smoothing": 0.12,
           "recenter": 8,
           "planeDistance": 0,
@@ -438,7 +438,7 @@
         "metalness": 0,
         "emissive": "#000000",
         "emissiveIntensity": 0,
-        "edgeColor": "#a99898",
+        "edgeColor": "#453b3b",
         "edgeRoughness": 0,
         "edgeMetalness": 0.31,
         "edgeEmissive": "#000000",
@@ -458,9 +458,9 @@
         "type": "POINT_LIGHT",
         "visible": true,
         "position": {
-          "x": 0.4,
-          "y": 6.0449170760814,
-          "z": -6.3
+          "x": -0.05,
+          "y": 6.1,
+          "z": -3.7
         },
         "color": "#ffffff",
         "intensity": 156,
