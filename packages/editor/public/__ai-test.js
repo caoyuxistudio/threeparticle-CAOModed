@@ -547,6 +547,35 @@
     check('the plane defaults to the frame\'s face', Math.abs(px.state().plane - expected) < 1e-3, `${px.state().plane.toFixed(3)} vs ${expected.toFixed(3)} (centre ${centreDistance.toFixed(3)})`);
     check('the face is nearer than the centre', expected < centreDistance - 1e-6, `${expected.toFixed(3)} < ${centreDistance.toFixed(3)}`);
 
+    // The gyro panel: the levers on the phone, and the two resets.
+    const gh = window.__gyroHud;
+    check('the gyro panel exists', !!gh && typeof gh.toggle === 'function');
+    if (gh) {
+      gh.show();
+      const panel = document.querySelector('.gyro-hud');
+      const labels = [...(panel?.querySelectorAll('.gyro-hud__label') ?? [])].map((e) => e.textContent.trim());
+      check('the gyro panel carries the levers', ['gyro', 'amount', 'max travel', 'smoothing', 'auto recenter', 'invert x', 'invert y'].every((l) => labels.includes(l)), labels.join(', '));
+      const buttonNamed = (text) => [...(panel?.querySelectorAll('button') ?? [])].find((b) => b.textContent.trim() === text);
+      check('the gyro panel has both resets', !!buttonNamed('Reset camera') && !!buttonNamed('Reset gyroscope'));
+      // Reset camera: the pose of this moment becomes the centre, and the eye
+      // eases back to the composed view.
+      px.reset();
+      px.setSettings({ ...base, recenter: 0 });
+      px.feedOrientation(60, 0);
+      px.update(0.1);
+      px.feedOrientation(60, 10);
+      px.update(0.1);
+      const pushed = px.state().offset.x;
+      buttonNamed('Reset camera')?.click();
+      px.update(0.1);
+      const afterReset = px.state();
+      check('reset camera makes the current pose the centre', pushed !== 0 && !!afterReset.rest && Math.abs(afterReset.rest.x - 10) < 1e-9 && Math.abs(afterReset.offset.x) < 1e-6, `eye ${pushed.toFixed(3)} -> ${afterReset.offset.x.toFixed(3)}, rest ${afterReset.rest?.x}`);
+      // Reset gyroscope: every sample forgotten; the next one is the centre.
+      buttonNamed('Reset gyroscope')?.click();
+      check('reset gyroscope forgets the pose', px.state().tilt === null && px.state().rest === null);
+      gh.hide();
+    }
+
     px.reset();
     await load();
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
@@ -1119,6 +1148,8 @@
     // The performance HUD rides on the bar: numbers, and levers that work.
     const perfButton = bar?.querySelector('.presentation-bar__perf');
     check('the bar offers the performance HUD', !!perfButton);
+    const gyroButton = bar?.querySelector('.presentation-bar__gyro');
+    check('the bar has a Gyro button', !!gyroButton && gyroButton.textContent.trim() === 'Gyro');
     const hud = window.__perfHud;
     perfButton?.click();
     await settle(700);

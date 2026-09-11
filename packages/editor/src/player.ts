@@ -38,11 +38,14 @@ import {
 } from './js/three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
 import { installPerfHud } from './js/three-particles-editor/perf-hud';
+import { installGyroHud } from './js/three-particles-editor/gyro-hud';
 import {
   requestParallaxPermission,
   describeParallax,
   getParallaxSettings,
   setParallaxSettings,
+  recenterParallax,
+  resetGyroscope,
 } from './js/three-particles-editor/parallax';
 import { ensureVideoTexture, loadVideoTextures } from './js/three-particles-editor/video-textures';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
@@ -352,10 +355,19 @@ const installPresentationControls = (): void => {
     if (event.pointerType !== 'touch') return;
     // A tap is the one moment iOS lets the gyroscope be asked for.
     void requestParallaxPermission();
-    if (event.target === fullscreenButton || event.target === perfButton) return;
+    if (
+      event.target === fullscreenButton ||
+      event.target === perfButton ||
+      event.target === gyroButton
+    )
+      return;
     showButton();
     perfButton.classList.add('is-visible');
-    setTimeout(() => perfButton.classList.remove('is-visible'), 3000);
+    gyroButton.classList.add('is-visible');
+    setTimeout(() => {
+      perfButton.classList.remove('is-visible');
+      gyroButton.classList.remove('is-visible');
+    }, 3000);
   });
   fullscreenButton.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -406,6 +418,24 @@ const installPresentationControls = (): void => {
   perfButton.addEventListener('click', (event) => {
     event.stopPropagation();
     hud.toggle();
+  });
+
+  // The gyro panel: runtime only here — the display does not own the scene.
+  const gyroHud = installGyroHud({
+    getSettings: getParallaxSettings,
+    setSettings: (patch) => setParallaxSettings({ ...getParallaxSettings(), ...patch }),
+    resetCamera: recenterParallax,
+    resetGyroscope,
+  });
+  (window as any).__gyroHud = gyroHud;
+  const gyroButton = document.createElement('button');
+  gyroButton.className = 'player-fullscreen player-gyro';
+  gyroButton.type = 'button';
+  gyroButton.textContent = 'Gyro';
+  document.body.appendChild(gyroButton);
+  gyroButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    gyroHud.toggle();
   });
 
   let idle: ReturnType<typeof setTimeout> | null = null;

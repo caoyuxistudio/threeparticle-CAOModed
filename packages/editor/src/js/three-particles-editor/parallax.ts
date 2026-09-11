@@ -134,6 +134,18 @@ export const recenterParallax = (): void => {
   rest = tilt ? { ...tilt } : null;
 };
 
+/**
+ * Forgets every sample and asks the sensor again — for a gyroscope that went
+ * quiet, or a prompt that was refused. The next sample becomes the centre.
+ */
+export const resetGyroscope = (): void => {
+  tilt = null;
+  rest = null;
+  gyroAt = -Infinity;
+  if (permission !== 'granted') permission = 'unknown';
+  void requestParallaxPermission();
+};
+
 export const setParallaxSettings = (next: ParallaxSettings): void => {
   const wasEnabled = settings.enabled;
   settings = next;

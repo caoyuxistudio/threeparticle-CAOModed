@@ -633,7 +633,7 @@
         </label>
 
         {#if obj.parallax?.enabled}
-          {#each [{ key: 'amount', label: 'amount', min: 0, max: 0.3, step: 0.005, fallback: 0.05 }, { key: 'maxOffset', label: 'max travel', min: 0, max: 10, step: 0.1, fallback: 2 }, { key: 'smoothing', label: 'smoothing', min: 0.01, max: 1, step: 0.01, fallback: 0.12 }, { key: 'recenter', label: 'recenter (s)', min: 0, max: 30, step: 0.5, fallback: 8 }, { key: 'planeDistance', label: 'plane', min: 0, max: 60, step: 0.5, fallback: 0 }] as p}
+          {#each [{ key: 'amount', label: 'amount', min: 0, max: 0.3, step: 0.005, fallback: 0.05 }, { key: 'maxOffset', label: 'max travel', min: 0, max: 10, step: 0.1, fallback: 2 }, { key: 'smoothing', label: 'smoothing', min: 0.01, max: 1, step: 0.01, fallback: 0.12 }, { key: 'recenter', label: 'auto recenter (s)', min: 0, max: 30, step: 0.5, fallback: 8 }, { key: 'planeDistance', label: 'plane', min: 0, max: 60, step: 0.5, fallback: 0 }] as p}
             <label class="row">
               <span>{p.label}</span>
               <input
@@ -671,11 +671,11 @@
           <p class="hint">
             The screen as a window: tilting the phone moves the eye behind it, the frame's plane
             stays put and what lies deeper shifts. Amount is eye travel per degree of tilt, capped
-            by max travel; recenter re-learns the resting tilt over that many seconds (0 keeps the
-            pose from switching on); plane is the distance held still (0 = the face of the first
-            visible frame, so the opening stays fixed and its walls become the tunnel). On a desktop
-            the mouse stands in for the gyroscope. iPhone asks for motion access the first time you
-            present.
+            by max travel; auto recenter re-learns the resting tilt over that many seconds, so a new
+            holding angle drifts back to centre (0 = only Reset camera recenters); plane is the
+            distance held still (0 = the face of the first visible frame, so the opening stays fixed
+            and its walls become the tunnel). On a desktop the mouse stands in for the gyroscope.
+            iPhone asks for motion access the first time you present.
           </p>
         {/if}
 

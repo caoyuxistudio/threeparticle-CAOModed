@@ -20,12 +20,15 @@ import {
 } from './three-particles-editor/player-window';
 import { installPresentationControls } from './three-particles-editor/presentation';
 import { installPerfHud } from './three-particles-editor/perf-hud';
+import { installGyroHud } from './three-particles-editor/gyro-hud';
 import { DEFAULT_EXAMPLE } from '../examples-config';
 import { toUrlFriendlyString } from './utils/name-utils';
 import {
   describeParallax,
   getParallaxSettings,
   setParallaxSettings,
+  recenterParallax,
+  resetGyroscope,
 } from './three-particles-editor/parallax';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
@@ -54,7 +57,12 @@ import {
   removeVideo,
   setVideoSourcesPaused,
 } from './three-particles-editor/video-textures';
-import { initSceneObjects, getSceneObjects } from './three-particles-editor/scene-objects';
+import {
+  initSceneObjects,
+  getSceneObjects,
+  getOutputCameraId,
+  updateSceneObject,
+} from './three-particles-editor/scene-objects';
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { Object3D } from 'three';
@@ -477,7 +485,23 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
     },
   });
   (window as any).__perfHud = hud;
-  installPresentationControls(hud);
+
+  // The gyro panel writes to the camera object, so a lever moved on the phone
+  // is in the config the next COPY carries; a page without an output camera
+  // keeps the change for the session.
+  const gyroHud = installGyroHud({
+    getSettings: getParallaxSettings,
+    setSettings: (patch) => {
+      const next = { ...getParallaxSettings(), ...patch };
+      const cameraId = getOutputCameraId();
+      if (cameraId) updateSceneObject(cameraId, { parallax: next });
+      else setParallaxSettings(next);
+    },
+    resetCamera: recenterParallax,
+    resetGyroscope,
+  });
+  (window as any).__gyroHud = gyroHud;
+  installPresentationControls(hud, gyroHud);
 
   // TEMP DEBUG — the same kind of seam as window.__world. The harness lives in
   // a page that cannot lose focus for real, so it drives that input from here.

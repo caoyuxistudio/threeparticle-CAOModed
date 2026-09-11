@@ -19,6 +19,7 @@
 import { getOrbitControls, isPresenting, setPresenting } from './world';
 import { selectSceneObject } from './scene-objects';
 import type { PerfHud } from './perf-hud';
+import type { GyroHud } from './gyro-hud';
 import { showInfoSnackbar } from '../stores/snackbar-store';
 import { requestParallaxPermission, recenterParallax } from './parallax';
 
@@ -28,6 +29,8 @@ let bar: HTMLElement | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
 /** The performance HUD, when the page has one; the bar gets a button for it. */
 let perfHud: PerfHud | null = null;
+/** The gyro panel, likewise. */
+let gyroHud: GyroHud | null = null;
 /** Whether *we* asked for fullscreen, so its ending is ours to react to. */
 let requestedFullscreen = false;
 
@@ -127,6 +130,19 @@ const ensureBar = (): HTMLElement => {
     bar.appendChild(perf);
   }
 
+  if (gyroHud) {
+    const gyro = document.createElement('button');
+    gyro.type = 'button';
+    gyro.className = 'presentation-bar__gyro';
+    gyro.textContent = 'Gyro';
+    gyro.addEventListener('click', (event) => {
+      event.stopPropagation();
+      gyroHud?.toggle();
+      showBar();
+    });
+    bar.appendChild(gyro);
+  }
+
   document.body.appendChild(bar);
   return bar;
 };
@@ -176,8 +192,12 @@ export const togglePresentation = (): void => {
 };
 
 /** Escape, the end of fullscreen, and taps — installed once at start-up. */
-export const installPresentationControls = (hud: PerfHud | null = null): void => {
+export const installPresentationControls = (
+  hud: PerfHud | null = null,
+  gyro: GyroHud | null = null
+): void => {
   perfHud = hud;
+  gyroHud = gyro;
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && isPresenting()) exitPresentation();
   });
