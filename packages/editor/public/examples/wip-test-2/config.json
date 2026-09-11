@@ -230,6 +230,15 @@
     "isActive": true,
     "useLuminanceForNoise": true,
     "luminanceNoiseAmount": 1,
+    "colorTweak": {
+      "saturation": 1.88,
+      "contrast": 1.05,
+      "hue": -3
+    },
+    "luminanceMap": {
+      "black": 0,
+      "white": 0.71
+    },
     "sampleSize": 0
   },
   "textureSheetAnimation": {
@@ -353,7 +362,7 @@
     "metadata": {
       "name": "WIP-Test-2",
       "createdAt": 1787000000000,
-      "modifiedAt": 1789107181380,
+      "modifiedAt": 1789125862443,
       "editorVersion": "2.10.0"
     },
     "embeddedVideos": {
@@ -449,14 +458,14 @@
         "type": "POINT_LIGHT",
         "visible": true,
         "position": {
-          "x": 0.05,
+          "x": 0.4,
           "y": 6.0449170760814,
-          "z": -4.103955646765837
+          "z": -6.3
         },
         "color": "#ffffff",
-        "intensity": 95,
+        "intensity": 156,
         "distance": 0,
-        "decay": 2
+        "decay": 1.5
       }
     ]
   },
