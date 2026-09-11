@@ -436,11 +436,12 @@
         "edgeEmissiveIntensity": 0,
         "topOffset": 0.58,
         "cornerRadius": {
-          "topLeft": 0.5706818181818181,
-          "topRight": 0.5706818181818181,
-          "bottomLeft": 0.5706818181818181,
-          "bottomRight": 0.5706818181818181
-        }
+          "topLeft": 0.5636363636363636,
+          "topRight": 0.5636363636363636,
+          "bottomLeft": 0.5636363636363636,
+          "bottomRight": 0.5636363636363636
+        },
+        "bottomOffset": 0.71
       },
       {
         "id": "obj-mtbdwjx4-dfde",

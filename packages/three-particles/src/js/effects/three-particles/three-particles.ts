@@ -6,6 +6,10 @@ import {
   disposeColorInstanceData,
   ensureColorInstancePixels,
 } from './color-instance-sampler';
+import { applyColorTweak, remapLuminance } from './color-tweak';
+
+/** Scratch for the tweaked colour of the pixel being spawned. */
+const tweakedColor: [number, number, number] = [0, 0, 0];
 import { rgbSRGBToLinear, sRGBToLinear } from './color-utils.js';
 import InstancedParticleFragmentShader from './shaders/instanced-particle-fragment-shader.glsl.js';
 import InstancedParticleVertexShader from './shaders/instanced-particle-vertex-shader.glsl.js';
@@ -564,6 +568,8 @@ const DEFAULT_PARTICLE_SYSTEM_CONFIG: ParticleSystemConfig = {
     useAlphaForOpacity: false,
     useLuminanceForNoise: false,
     luminanceNoiseAmount: 0,
+    colorTweak: { saturation: 1, contrast: 1, hue: 0 },
+    luminanceMap: { black: 0, white: 1 },
   },
   textureSheetAnimation: {
     tiles: new THREE.Vector2(1.0, 1.0),
@@ -1767,9 +1773,21 @@ export const createParticleSystem = (
         const py = Math.min(ci.height! - 1, (v * ci.height!) | 0);
         const o = (py * w + px) * 4;
         const pixels = ci.pixels!;
-        scalarArray[base + S_COLOR_R] = sRGBToLinear(pixels[o] / 255);
-        scalarArray[base + S_COLOR_G] = sRGBToLinear(pixels[o + 1] / 255);
-        scalarArray[base + S_COLOR_B] = sRGBToLinear(pixels[o + 2] / 255);
+        // The source's own look, before the pixel becomes a start colour:
+        // hue, saturation and contrast in display (sRGB) space, the way an
+        // image editor applies them.
+        let sr = pixels[o] / 255;
+        let sg = pixels[o + 1] / 255;
+        let sb = pixels[o + 2] / 255;
+        if (ci.colorTweak) {
+          applyColorTweak(ci.colorTweak, sr, sg, sb, tweakedColor);
+          sr = tweakedColor[0];
+          sg = tweakedColor[1];
+          sb = tweakedColor[2];
+        }
+        scalarArray[base + S_COLOR_R] = sRGBToLinear(sr);
+        scalarArray[base + S_COLOR_G] = sRGBToLinear(sg);
+        scalarArray[base + S_COLOR_B] = sRGBToLinear(sb);
         generalData.startValues.startColorR[particleIndex] =
           scalarArray[base + S_COLOR_R];
         generalData.startValues.startColorG[particleIndex] =
@@ -1784,13 +1802,18 @@ export const createParticleSystem = (
         }
 
         if (ci.useLuminanceForNoise) {
-          // Rec.709 luma of the sRGB pixel — perceived brightness, which is
-          // what "grayscale value" means to the eye.
-          const luma =
+          // Rec.709 luma of the sRGB pixel as sampled — perceived brightness,
+          // which is what "grayscale value" means to the eye — before any
+          // colour tweak, so the look and the motion stay separate levers.
+          // Then the luminosity noise map: black point to 0, white point to 1.
+          const luma = remapLuminance(
             (0.2126 * pixels[o] +
               0.7152 * pixels[o + 1] +
               0.0722 * pixels[o + 2]) /
-            255;
+              255,
+            ci.luminanceBlack ?? 0,
+            ci.luminanceWhite ?? 1
+          );
           const amount = ci.luminanceNoiseAmount;
           // Positive amount drives motion with brightness, negative inverts it.
           // At |amount| = 1 the damped end reaches a full stop.

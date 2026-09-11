@@ -68,6 +68,7 @@ import {
 import { createGeneralEntries } from './three-particles-editor/entries/general-entries';
 import { createNoiseEntries } from './three-particles-editor/entries/noise-entries';
 import { createParticleColorInstanceEntries } from './three-particles-editor/entries/particle-color-instance-entries';
+import { createSourceImageTweakEntries } from './three-particles-editor/entries/source-image-tweak-entries';
 import { createRendererEntries } from './three-particles-editor/entries/renderer-entries';
 import { createRotationOverLifeTimeEntries } from './three-particles-editor/entries/rotation-over-lifetime-entries';
 import { createShapeEntries } from './three-particles-editor/entries/shape-entries';
@@ -1112,6 +1113,13 @@ const createPanel = (config: any = particleSystemConfig): void => {
   );
   configEntries.push(
     createParticleColorInstanceEntries({
+      parentFolder: panel,
+      particleSystemConfig: config,
+      recreateParticleSystem,
+    })
+  );
+  configEntries.push(
+    createSourceImageTweakEntries({
       parentFolder: panel,
       particleSystemConfig: config,
       recreateParticleSystem,

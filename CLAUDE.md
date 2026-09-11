@@ -63,7 +63,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 | `BOX` `SPHERE` | 基础几何体 |
 | `POINT_LIGHT` `DIRECTIONAL_LIGHT` | 灯 |
 | `LIGHT_PROBE` | 环境光探针，可烘焙 |
-| `FRAME` | **画框**。按内框长宽 + 边框粗细 + 深度调，正面和内框洞壁两套材质；开口可以**圆角**：四个角各自一个半径（面板上按全部 / 上一对 / 下一对调），开口本身仍是矩形，圆角外面用一块"遮罩"填上（子网格，盖面就是正面材质、洞壁沿用边缘材质——没有单独的遮罩色，圆角看上去就是边框长出来的一块）；圆角另有 `cornerSegments`（每个四分之一弧真实的分段数，默认 24——ExtrudeGeometry 对椭圆曲线会把 curveSegments 翻倍，代码里传的是一半）和 `cornerSmooth`（弧面墙上的顶点法线改成半径方向的平滑着色，盖面和两条直边不动，少几段也能在光和反射下显得圆），预设是苹果设备屏幕圆角占屏幕宽度的比例乘以开口宽度；`topOffset` 只把顶边（外沿、开口顶边、两个上角）往下挪，底边不动，用来对齐状态栏之类；`bottomOffset` 对称地把底边往上挪（上限是顶边留下的开口）；新建画框默认 0.58，是按 iPhone 17 Pro Max 的状态栏在手机上调出来的，WIP-Test-2 也用这个值。"顶"和"上角 / 下角"按**输出相机的屏幕上方**定（`screenTopSign`：画框局部 +y 与相机上方向反向就翻过来），平躺的画框在俯视相机下才不会上下颠倒；相机一动画框会重新同步 |
+| `FRAME` | **画框**。按内框长宽 + 边框粗细 + 深度调，正面和内框洞壁两套材质；开口可以**圆角**：四个角各自一个半径（面板上按全部 / 上一对 / 下一对调），开口本身仍是矩形，圆角外面用一块"遮罩"填上（子网格，盖面就是正面材质、洞壁沿用边缘材质——没有单独的遮罩色，圆角看上去就是边框长出来的一块）；圆角另有 `cornerSegments`（每个四分之一弧真实的分段数，默认 24——ExtrudeGeometry 对椭圆曲线会把 curveSegments 翻倍，代码里传的是一半）和 `cornerSmooth`（弧面墙上的顶点法线改成半径方向的平滑着色，盖面和两条直边不动，少几段也能在光和反射下显得圆），预设是苹果设备屏幕圆角占屏幕宽度的比例乘以开口宽度；`topOffset` 只把顶边（外沿、开口顶边、两个上角）往下挪，底边不动，用来对齐状态栏之类；`bottomOffset` 对称地把底边往上挪（上限是顶边留下的开口）；新建画框默认 0.58，是按 iPhone 17 Pro Max 的状态栏在手机上调出来的，WIP-Test-2 也用这个值，底边 `bottomOffset` 0.71，圆角用 iPhone 17 Pro Max 预设（62/440 × 开口宽 4）。"顶"和"上角 / 下角"按**输出相机的屏幕上方**定（`screenTopSign`：画框局部 +y 与相机上方向反向就翻过来），平躺的画框在俯视相机下才不会上下颠倒；相机一动画框会重新同步 |
 | `CAMERA` | **输出相机**。作品最终是给这个机位构图的 |
 | `ENVIRONMENT` | **全景环境光**。JPEG/PNG/WebP/HDR/EXR，照明 + 反射 + 可选背景 |
 
@@ -108,6 +108,8 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 调试出口 `window.__videoTextures`（addFile / addUrl / remove / entries / get），harness 靠它绕过文件对话框。
 - Textures 面板自己持有一份列表拷贝，所以注册表每次写入都会在 `window` 上发 `video-textures-changed`，面板监听它刷新（也监听跨窗口的 `storage`）。点 **Use** 前会先确认名字真的有注册，没有就尝试从 IndexedDB 重新注册，再不行明确报错——曾经有过一张过期卡片被点中、粒子静默变黑的事。
 
+**Source Image Tweak**（粒子面板，紧跟在 Particle Color Instance 下面）：色源的"样子"。两组互不影响的杠杆，都存在 `particleColorInstance` 里随 config 走：`colorTweak`（saturation / level 即对比度 / hue，SVG feColorMatrix 那套矩阵，在 sRGB 空间作用于采到的像素，再变成粒子的起始色；库里 `color-tweak.ts` 预先合成一个 3×3 矩阵，每次出生九次乘法）和 `luminanceMap`（Luminosity Noise Map：black / white 两个点，采到的像素的亮度先按这两个点拉伸再去驱动 curl noise；量的是**原始**像素，改样子不改运动）。库的 jest 里有 `color-tweak.test.ts`。
+
 **粒子面板的两处小改**：Particle Color Instance 现在紧跟在 Noise 下面（它的亮度→curl 系数本来就是 Noise 的一部分）；Mesh 一节在 lit 模式下多了 `roughness`（默认 0.65）和 `metalness`（默认 0）两个滑块，存在 `renderer.mesh` 里随 config 走。粒子的颜色本身就是它的 albedo（起始色 / 渐变 / Color Instance 采到的像素），这两个滑块决定灯光怎么落在上面；metalness > 0 的粒子会被 SSR 视为反射面。
 
 **Opacity over lifetime 有了自己的一节**，紧跟在 Size over lifetime 下面，同一套 Edit Curve。它接管了 `opacityOverLifetime`；渐变编辑器（原来叫 Color & Opacity）改成只管颜色，每个色标的 alpha 滑块隐藏了，旧 config 里的 alpha 数据原样保留但不再被编辑。两个编辑器写同一个字段时，谁最后动谁赢，这是拆开的原因。注意 `renderer.transparent` 关着的时候 alpha 不参与混合，曲线唯一可见的效果是低于丢弃阈值处的硬切——要淡入淡出必须开 transparent（密集的云再考虑关 depthWrite）。
@@ -137,7 +139,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是作品本身：画框 + 点光 + 俯视输出相机（iPhone 17 Pro Max 画幅、SSR 开）+ 视频 color source。参数是 2026-09-11 在手机上调好后用 COPY 拷出的 JSON 直接写进去的（以后也这么更新：贴 JSON，不用截图），测试用的红球已经删掉。**编辑器一启动就直接加载它**（`DEFAULT_EXAMPLE`，在 `src/examples-config.js`；boot 一开始就 fetch，场景就绪后走和点 Examples 一样的 `window.editor.load`；fetch 失败就留在默认发射器，HUD 的 `boot:` 一行会写 `default … failed`）。代价是**刷新即回到示例**：面板里没导出的改动不会保留——粒子参数本来就不跨刷新，场景以前会留，现在也不留了；要保留就 Save 或者抄回 example。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **201/201**（含 `report` 17、`parallaxReport` 14、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 24）
+- 控制台 harness `public/__ai-test.js`，当前基线 **203/203**（含 `report` 19、`parallaxReport` 14、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 24）
 
 ---
 
@@ -248,7 +250,7 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - **手机全屏到头了**：主屏幕 app 视图 = 屏幕减状态栏，收尾方案是 `theme-color` 染色（§3「iOS 27 beta 主屏幕模式的极限」）。
 - 这一段为手机加的基础设施：视频 color source（worker 读回）、演示模式、Perf HUD + Copy report、显示端存储快照与心跳、竖屏布局、只留 dark。
 - **陀螺仪视差相机**（`parallax.ts`）：TheParallaxView 的离轴投影思路，眼睛换成手机倾斜；参数在相机上，WIP-Test-2 已开。
-- harness 基线 201/201。
+- harness 基线 203/203。
 
 ---
 

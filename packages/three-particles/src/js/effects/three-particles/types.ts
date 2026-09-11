@@ -13,6 +13,7 @@ import {
   SubEmitterTrigger,
   TimeMode,
 } from './three-particles-enums.js';
+import type { ColorTweak, ColorTweakSettings } from './color-tweak';
 
 /**
  * A fixed numerical value.
@@ -858,6 +859,19 @@ export type ParticleColorInstanceConfig = {
    * size and ignore this. 0 (default) means 512.
    */
   sampleSize?: number;
+  /**
+   * The source's own look: saturation, contrast ("level") and hue, applied to
+   * the sampled pixel in display space before it becomes the start colour.
+   * Each defaults to no change.
+   */
+  colorTweak?: ColorTweakSettings;
+  /**
+   * The luminosity noise map: the luminance that counts as black (maps to 0)
+   * and as white (maps to 1) when the pixel's brightness drives the curl
+   * noise; values between are stretched, outside are clamped. Measured on the
+   * pixel as sampled, before `colorTweak`. Defaults to 0 and 1.
+   */
+  luminanceMap?: { black?: number; white?: number };
 };
 
 /**
@@ -875,6 +889,11 @@ export type ColorInstanceData = {
   luminanceNoiseAmount: number;
   /** See {@link ParticleColorInstanceConfig.sampleSize}. 0 = default. */
   sampleSize: number;
+  /** Prepared {@link ParticleColorInstanceConfig.colorTweak}; null when it changes nothing. */
+  colorTweak?: ColorTweak | null;
+  /** See {@link ParticleColorInstanceConfig.luminanceMap}. */
+  luminanceBlack?: number;
+  luminanceWhite?: number;
   /** sRGB byte pixels (RGBA), lazily extracted from `map`. */
   pixels?: Uint8ClampedArray;
   width?: number;

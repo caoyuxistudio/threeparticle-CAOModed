@@ -118,6 +118,12 @@
     const iSize = titles.indexOf('Size over lifetime');
     const iOpacity = titles.indexOf('Opacity over lifetime');
     check('opacity section sits under size', iSize >= 0 && iOpacity === iSize + 1, `${iSize} -> ${iOpacity}`);
+    // The source's look sits right under the section that picks the source.
+    const iSource = titles.indexOf('Particle Color Instance');
+    const iTweak = titles.indexOf('Source Image Tweak');
+    check('source image tweak sits under the colour source', iSource >= 0 && iTweak === iSource + 1, `${iSource} -> ${iTweak}`);
+    const ciCfg = window.editor.getCurrentParticleSystemConfig().particleColorInstance;
+    check('tweak and noise map defaults are in place', ciCfg?.colorTweak?.saturation === 1 && ciCfg?.colorTweak?.contrast === 1 && ciCfg?.colorTweak?.hue === 0 && ciCfg?.luminanceMap?.black === 0 && ciCfg?.luminanceMap?.white === 1, JSON.stringify({ tweak: ciCfg?.colorTweak, map: ciCfg?.luminanceMap }));
     const cfgLive = window.editor.getCurrentParticleSystemConfig();
     const gradientFolder = [...document.querySelectorAll('.lil-gui')].find((g) => g.querySelector(':scope > .title')?.textContent.trim() === 'Color over lifetime (Gradient)');
     const enableBox = gradientFolder?.querySelector('.controller input[type=checkbox]');

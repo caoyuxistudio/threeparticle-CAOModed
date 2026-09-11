@@ -26,6 +26,7 @@
  * never sees it. The canvas path stays as the fallback, and for the first
  * frame, so a video is never colourless while the worker warms up.
  */
+import { buildColorTweak } from './color-tweak';
 import type { ColorInstanceData, ParticleColorInstanceConfig } from './types';
 import type * as THREE from 'three';
 
@@ -208,6 +209,9 @@ export const createColorInstanceData = (
   useLuminanceForNoise: !!config.useLuminanceForNoise,
   luminanceNoiseAmount: config.luminanceNoiseAmount ?? 0,
   sampleSize: config.sampleSize ?? 0,
+  colorTweak: buildColorTweak(config.colorTweak),
+  luminanceBlack: config.luminanceMap?.black ?? 0,
+  luminanceWhite: config.luminanceMap?.white ?? 1,
 });
 
 /** Stops watching a video's frames. Safe to call on a still image, or twice. */
