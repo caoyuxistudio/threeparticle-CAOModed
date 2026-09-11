@@ -35,10 +35,12 @@ import {
   getSsrSettings,
   setRenderScale,
   setSsrSettings,
+  getRendererDomElement,
 } from './js/three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
 import { installPerfHud } from './js/three-particles-editor/perf-hud';
 import { installGyroHud } from './js/three-particles-editor/gyro-hud';
+import { installTouchInput } from './js/three-particles-editor/touch-input';
 import {
   requestParallaxPermission,
   describeParallax,
@@ -428,6 +430,22 @@ const installPresentationControls = (): void => {
     resetGyroscope,
   });
   (window as any).__gyroHud = gyroHud;
+
+  // Fingers on the picture: samples for the touch wake, whenever the piece allows it.
+  const touchCanvas = getRendererDomElement();
+  touchCanvas.style.touchAction = 'none';
+  const touchInput = installTouchInput(touchCanvas, {
+    getSystem: () => particleSystem,
+    getConfig: () => particleSystemConfig,
+    isEnabled: () => true,
+    getCamera: getOutputCamera,
+  });
+  (window as any).__touch = {
+    ...touchInput,
+    feed: (sample: any) => particleSystem?.feedTouch?.(sample),
+    count: () => particleSystem?.getTouchCount?.() ?? 0,
+    clear: () => particleSystem?.clearTouches?.(),
+  };
   const gyroButton = document.createElement('button');
   gyroButton.className = 'player-fullscreen player-gyro';
   gyroButton.type = 'button';

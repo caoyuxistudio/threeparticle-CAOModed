@@ -125,7 +125,8 @@ export function createComputePipeline(
   normalizedConfig: NormalizedParticleSystemConfig,
   particleSystemId: number,
   forceFieldCount: number,
-  collisionPlaneCount = 0
+  collisionPlaneCount = 0,
+  touchWake = false
 ): ModifierComputePipeline {
   const bakedCurves = bakeParticleSystemCurves(
     normalizedConfig,
@@ -167,6 +168,7 @@ export function createComputePipeline(
       !!normalizedConfig.renderer.mesh?.alignToVelocity,
     forceFields: forceFieldCount > 0,
     collisionPlanes: collisionPlaneCount > 0,
+    touchWake,
   };
 
   const buffers = createModifierStorageBuffers(
@@ -174,7 +176,8 @@ export function createComputePipeline(
     instanced,
     bakedCurves.data,
     flags.forceFields,
-    flags.collisionPlanes
+    flags.collisionPlanes,
+    flags.touchWake
   );
 
   return createModifierComputeUpdate(

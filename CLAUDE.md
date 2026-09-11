@@ -108,6 +108,8 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 调试出口 `window.__videoTextures`（addFile / addUrl / remove / entries / get），harness 靠它绕过文件对话框。
 - Textures 面板自己持有一份列表拷贝，所以注册表每次写入都会在 `window` 上发 `video-textures-changed`，面板监听它刷新（也监听跨窗口的 `storage`）。点 **Use** 前会先确认名字真的有注册，没有就尝试从 IndexedDB 重新注册，再不行明确报错——曾经有过一张过期卡片被点中、粒子静默变黑的事。
 
+**Touch — 手指尾迹**（粒子面板 **Touch** 一节，排在 Force Fields 前面；库里 `touch-wake.ts` + `webgpu/compute-touch-wake.ts`）。不是力场：力场是持续加速度、只认距离、落指即全力；这里把手指当成往流体里抹了一笔——最近 16 个样本（位置、速度、时间）放在 curveData 缓冲的尾巴上（和力场、碰撞面一样，不占新的 storage binding），每个粒子对样本求 `exp(−d²/r²) × exp(−age/τ)` 加权的速度和，直接加到位置上（和 curl noise 同一通道，两者相加），另加一项绕手指路径的漩涡（`swirl`）。手指不动 = 速度 0 = 什么都不发生；尾迹靠样本老化自己消退，不需要阻尼、不需要每粒子状态。CPU 路径同一个求和（`wakeDisplacement`，jest 有测）。参数在 config 的 `touch` 里：`isActive`（烤进 GPU kernel，改了要重建）、`radius`（**按屏幕比例**：视宽的份额，输入侧换算成世界单位）、`strength`、`wake`（秒）、`swirl`、`maxSpeed`、`normal`（漩涡所在平面的法线，默认 +y）。输入侧在编辑器的 `touch-input.ts`：pointer 事件从输出相机（带视差偏移）打到发射面（transform 的位置 + 旋转后的局部 +z 为法线）求交，速度取相邻样本差分再平滑、封顶，多指各自一条尾迹；演示模式和播放页生效，编辑器视口不生效（和手柄冲突）。调试口 `window.__touch`（screenToWorld / radiusAt / feed / count / clear / state），HUD 的 `touch:` 一行报手指数、喂了多少样本、当前样本数。WIP-Test-2 已开。
+
 **Source Image Tweak**（粒子面板，紧跟在 Particle Color Instance 下面）：色源的"样子"。两组互不影响的杠杆，都存在 `particleColorInstance` 里随 config 走：`colorTweak`（saturation / level 即对比度 / hue，SVG feColorMatrix 那套矩阵，在 sRGB 空间作用于采到的像素，再变成粒子的起始色；库里 `color-tweak.ts` 预先合成一个 3×3 矩阵，每次出生九次乘法）和 `luminanceMap`（Luminosity Noise Map：black / white 两个点，采到的像素的亮度先按这两个点拉伸再去驱动 curl noise；量的是**原始**像素，改样子不改运动）。库的 jest 里有 `color-tweak.test.ts`。
 
 **粒子面板的两处小改**：Particle Color Instance 现在紧跟在 Noise 下面（它的亮度→curl 系数本来就是 Noise 的一部分）；Mesh 一节在 lit 模式下多了 `roughness`（默认 0.65）和 `metalness`（默认 0）两个滑块，存在 `renderer.mesh` 里随 config 走。粒子的颜色本身就是它的 albedo（起始色 / 渐变 / Color Instance 采到的像素），这两个滑块决定灯光怎么落在上面；metalness > 0 的粒子会被 SSR 视为反射面。
@@ -139,7 +141,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是作品本身：画框 + 点光 + 俯视输出相机（iPhone 17 Pro Max 画幅、SSR 开）+ 视频 color source。参数是 2026-09-11 在手机上调好后用 COPY 拷出的 JSON 直接写进去的（以后也这么更新：贴 JSON，不用截图），测试用的红球已经删掉。**编辑器一启动就直接加载它**（`DEFAULT_EXAMPLE`，在 `src/examples-config.js`；boot 一开始就 fetch，场景就绪后走和点 Examples 一样的 `window.editor.load`；fetch 失败就留在默认发射器，HUD 的 `boot:` 一行会写 `default … failed`）。代价是**刷新即回到示例**：面板里没导出的改动不会保留——粒子参数本来就不跨刷新，场景以前会留，现在也不留了；要保留就 Save 或者抄回 example。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **209/209**（含 `report` 19、`parallaxReport` 19、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 33、`frameReport` 24）
+- 控制台 harness `public/__ai-test.js`，当前基线 **218/218**（含 `report` 19、`touchReport` 9、`parallaxReport` 19、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 33、`frameReport` 24）
 
 ---
 
@@ -189,6 +191,7 @@ await __t.videoReport()     // 视频 color source：存储、循环、读回、
 await __t.gizmoReport()     // 场景物体的拖拽手柄：合成指针事件真的拖一次
 await __t.presentReport()   // 演示模式：进、量、出
 await __t.parallaxReport()  // 视差：平面不动、更深的动、来源、上限、翻转
+await __t.touchReport()     // 手指尾迹：屏幕→发射面、半径按视宽、样本进出
 ```
 
 `videoReport` 要能 fetch 到 `./assets-local/AnimateDiff_00013.mp4`。那是个指向仓库旁边 `assets4test/` 的软链，目录整个 gitignore，新机器上要重建：
@@ -250,14 +253,15 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - **手机全屏到头了**：主屏幕 app 视图 = 屏幕减状态栏，收尾方案是 `theme-color` 染色（§3「iOS 27 beta 主屏幕模式的极限」）。
 - 这一段为手机加的基础设施：视频 color source（worker 读回）、演示模式、Perf HUD + Copy report、显示端存储快照与心跳、竖屏布局、只留 dark。
 - **陀螺仪视差相机**（`parallax.ts`）：TheParallaxView 的离轴投影思路，眼睛换成手机倾斜；参数在相机上，WIP-Test-2 已开。
-- harness 基线 209/209。
+- **手指尾迹**（touch wake）：手指抹过粒子的流场注入，参数在 config 的 `touch`，WIP-Test-2 已开。
+- harness 基线 218/218。
 
 ---
 
 ## 6. 还欠的账
 
 - 新增的功能代码基本没有单元测试，提交时绕过了覆盖率门禁（浏览器 harness 补了一部分，但不是一回事）
-- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦）、`window.__videoTextures`（绕过文件对话框）和 `window.__perfHud`，加上 `window.__gyroHud`，六个调试出口，harness 依赖它们，正式发布前要处理
+- `world.ts` 有 `window.__world`、`player.ts` 有 `window.__player`、`three-particles-editor.ts` 有 `window.__playerLink`（挂起规则的焦点输入，harness 没法真的让页面失焦）、`window.__videoTextures`（绕过文件对话框）和 `window.__perfHud`，加上 `window.__gyroHud`、`window.__touch`，七个调试出口，harness 依赖它们，正式发布前要处理
 - 粒子目前不能投射/接收阴影：粒子材质用 `material.vertexNode` 驱动顶点阶段，而阴影 pass 不跑那一段
 - 超过 4MB 的全景图存不进 localStorage，当前会话可用但刷新即失
 - 只有发射器的内置运动（`simulation.ts`）在两个窗口间对了相位；粒子本身各自独立模拟，永远不会逐帧一致

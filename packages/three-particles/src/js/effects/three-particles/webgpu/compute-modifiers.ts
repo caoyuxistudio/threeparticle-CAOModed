@@ -46,6 +46,7 @@ import {
   StorageInstancedBufferAttribute,
 } from 'three/webgpu';
 
+import { TOUCH_WAKE_DATA_SIZE } from '../touch-wake.js';
 import {
   createCollisionPlaneTSL,
   COLLISION_PLANE_DATA_SIZE,
@@ -54,6 +55,7 @@ import {
   createForceFieldTSL,
   FORCE_FIELD_DATA_SIZE,
 } from './compute-force-fields.js';
+import { createTouchWakeTSL } from './compute-touch-wake.js';
 import { CURVE_RESOLUTION } from './curve-bake.js';
 import { snoise3D } from './tsl-noise.js';
 import type { BakedCurveMap } from './curve-bake.js';
@@ -133,6 +135,8 @@ export type ModifierFlags = {
   trackTravelDirection: boolean;
   forceFields: boolean;
   collisionPlanes: boolean;
+  /** Fingers brushing through the particles (see ../touch-wake.ts). */
+  touchWake: boolean;
 };
 
 /** Per-frame modifier uniform values. */
@@ -214,6 +218,17 @@ export type ModifierComputePipeline = {
     /** Uniform for the active collision plane count. */
     countUniform: ShaderNodeObject<Node>;
   } | null;
+  /** Touch wake metadata for per-frame updates (null when fingers cannot move the particles). */
+  touchWakeInfo: {
+    /** Float offset into curveData where the finger samples start. */
+    offset: number;
+    countUniform: ShaderNodeObject<Node>;
+    nowUniform: ShaderNodeObject<Node>;
+    strengthUniform: ShaderNodeObject<Node>;
+    wakeUniform: ShaderNodeObject<Node>;
+    swirlUniform: ShaderNodeObject<Node>;
+    normalUniform: ShaderNodeObject<Node>;
+  } | null;
 };
 
 // ─── Storage Buffer Creation ─────────────────────────────────────────────────
@@ -232,7 +247,8 @@ export function createModifierStorageBuffers(
   instanced: boolean,
   curveData: Float32Array,
   hasForceFields = false,
-  hasCollisionPlanes = false
+  hasCollisionPlanes = false,
+  hasTouchWake = false
 ): ModifierStorageBuffers {
   const Cls = instanced
     ? StorageInstancedBufferAttribute
@@ -250,7 +266,10 @@ export function createModifierStorageBuffers(
   const curveLen = Math.max(curveData.length, 1);
   const ffSize = hasForceFields ? FORCE_FIELD_DATA_SIZE : 0;
   const cpSize = hasCollisionPlanes ? COLLISION_PLANE_DATA_SIZE : 0;
-  const totalLen = curveLen + maxParticles * INIT_STRIDE + ffSize + cpSize;
+  // Finger samples ride at the very end, after the collision planes.
+  const twSize = hasTouchWake ? TOUCH_WAKE_DATA_SIZE : 0;
+  const totalLen =
+    curveLen + maxParticles * INIT_STRIDE + ffSize + cpSize + twSize;
   const combined = new Float32Array(totalLen);
   combined.set(curveData.length > 0 ? curveData : new Float32Array([0]));
   // All init flags start at 0 (no init needed)
@@ -657,6 +676,13 @@ export function createModifierComputeUpdate(
       )
     : null;
 
+  // ── Touch wake nodes (reads from curveData tail, after collision planes) ──
+  const cpSize = flags.collisionPlanes ? COLLISION_PLANE_DATA_SIZE : 0;
+  const touchWakeOffset = collisionPlaneOffset + cpSize;
+  const touchWakeNodes = flags.touchWake
+    ? createTouchWakeTSL(sCurveData, touchWakeOffset)
+    : null;
+
   // ── Compute kernel ──
   //
   // Packed field mapping:
@@ -836,6 +862,11 @@ export function createModifierComputeUpdate(
             particleIdx: i,
             sOrbitalIsActiveNode: sOrbitalIsActive,
           });
+        }
+
+        // The finger trail — moves the position directly, like curl noise.
+        if (touchWakeNodes) {
+          touchWakeNodes.apply({ pos, delta: uDelta });
         }
 
         // Lifetime percentage for modifiers (computed before lifetime update
@@ -1071,9 +1102,7 @@ export function createModifierComputeUpdate(
 
           // Rotation / size reuse the x component of the field as a scalar.
           If(uNoiseRotAmount.greaterThan(0.001), () => {
-            ps.z.assign(
-              ps.z.add(curl.x.mul(uNoisePower).mul(uNoiseRotAmount))
-            );
+            ps.z.assign(ps.z.add(curl.x.mul(uNoisePower).mul(uNoiseRotAmount)));
           });
           If(uNoiseSizeAmount.greaterThan(0.001), () => {
             ps.y.assign(
@@ -1194,6 +1223,17 @@ export function createModifierComputeUpdate(
       ? {
           offset: collisionPlaneOffset,
           countUniform: collisionPlaneNodes.countUniform,
+        }
+      : null,
+    touchWakeInfo: touchWakeNodes
+      ? {
+          offset: touchWakeOffset,
+          countUniform: touchWakeNodes.countUniform,
+          nowUniform: touchWakeNodes.nowUniform,
+          strengthUniform: touchWakeNodes.strengthUniform,
+          wakeUniform: touchWakeNodes.wakeUniform,
+          swirlUniform: touchWakeNodes.swirlUniform,
+          normalUniform: touchWakeNodes.normalUniform,
         }
       : null,
   };

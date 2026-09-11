@@ -8,3 +8,4 @@ export * from './js/effects/three-particles/three-particles-renderer-detect.js';
 export * from './js/effects/three-particles/three-particles-serialization.js';
 export * from './js/effects/three-particles/three-particles-utils.js';
 export * from './js/effects/three-particles/three-particles.js';
+export * from './js/effects/three-particles/touch-wake.js';

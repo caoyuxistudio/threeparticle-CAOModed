@@ -14,6 +14,11 @@ import {
   TimeMode,
 } from './three-particles-enums.js';
 import type { ColorTweak, ColorTweakSettings } from './color-tweak';
+import type {
+  TouchWakeConfig,
+  TouchWakeState,
+  TouchSample,
+} from './touch-wake';
 
 /**
  * A fixed numerical value.
@@ -1770,6 +1775,13 @@ export type ParticleSystemConfig = {
   forceFields?: Array<ForceFieldConfig>;
 
   /**
+   * Touch wake: fingers (or a mouse) brushing through the particles — a trail
+   * of velocity splats fed at runtime through {@link ParticleSystem.feedTouch},
+   * not a standing force. See `touch-wake.ts`.
+   */
+  touch?: TouchWakeConfig;
+
+  /**
    * Collision planes that constrain particle positions.
    *
    * Each plane defines an infinite surface in 3D space. When a particle crosses
@@ -1974,6 +1986,8 @@ export type MappedAttributes = {
 };
 
 export type ParticleSystemInstance = {
+  /** The finger trail, when `touch.isActive`. */
+  touchWake?: TouchWakeState | null;
   particleSystem: THREE.Points | THREE.Mesh;
   mappedAttributes: MappedAttributes;
   /** Shared interleaved Float32Array backing all scalar per-particle attributes. */
@@ -2117,6 +2131,16 @@ export type ParticleSystem = {
   getActiveParticleCount?: () => number;
   /** GPU compute node for WebGPU dispatch. Call `renderer.compute(computeNode)` before `renderer.render()`. Null when CPU simulation. */
   computeNode: unknown | null;
+  /**
+   * Feeds one finger sample to the touch wake (see `touch.isActive`): where the
+   * finger is in the particles' space, its radius there, how fast it is
+   * moving. Ignored when the wake is off.
+   */
+  feedTouch?: (sample: Omit<TouchSample, 'time'> & { time?: number }) => void;
+  /** Forgets every finger sample. */
+  clearTouches?: () => void;
+  /** How many finger samples are live. 0 when the wake is off. */
+  getTouchCount?: () => number;
   /**
    * Updates the particle system configuration at runtime without recreating the system.
    *

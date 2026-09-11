@@ -62,6 +62,11 @@ import {
   createDefaultMeshTexture,
   createDefaultParticleTexture,
 } from './three-particles-utils.js';
+import {
+  TouchWakeState,
+  applyTouchWakeCPU,
+  defaultTouchWakeParams,
+} from './touch-wake';
 
 import {
   CollisionPlaneConfig,
@@ -579,6 +584,15 @@ const DEFAULT_PARTICLE_SYSTEM_CONFIG: ParticleSystemConfig = {
   },
   forceFields: [],
   collisionPlanes: [],
+  touch: {
+    isActive: false,
+    strength: 1,
+    wake: 0.4,
+    swirl: 0.3,
+    normal: { x: 0, y: 1, z: 0 },
+    radius: 0.12,
+    maxSpeed: 8,
+  },
 };
 
 const calculatePositionAndVelocity = (
@@ -1237,6 +1251,11 @@ export const createParticleSystem = (
     import('./webgpu/compute-modifiers.js').ModifierComputePipeline;
   let gpuPipeline: GPUComputePipeline | null = null;
 
+  // The finger trail, when fingers are allowed to move the particles.
+  const touchWake = normalizedConfig.touch?.isActive
+    ? new TouchWakeState()
+    : null;
+
   if (useGPUCompute) {
     gpuPipeline = _tslMaterialFactory!.createComputePipeline!(
       maxParticles,
@@ -1244,7 +1263,8 @@ export const createParticleSystem = (
       normalizedConfig,
       generalData.particleSystemId,
       normalizedForceFields.length,
-      normalizedCollisionPlanes.length
+      normalizedCollisionPlanes.length,
+      !!touchWake
     );
     // Register the curveDataLength so the init data helpers know the offset.
     if (gpuPipeline && _tslMaterialFactory!.registerCurveDataLength) {
@@ -2382,6 +2402,7 @@ export const createParticleSystem = (
     onParticleBirth,
     useGPUCompute: useGPUCompute && gpuPipeline !== null,
     computePipeline: gpuPipeline ?? undefined,
+    touchWake,
     computeDispatchReady: false,
     ...(useTrail
       ? {
@@ -2611,6 +2632,9 @@ export const createParticleSystem = (
     updateConfig,
     getActiveParticleCount: () => maxParticles - freeList.length,
     computeNode: gpuPipeline?.computeNode ?? null,
+    feedTouch: (sample) => touchWake?.push(sample),
+    clearTouches: () => touchWake?.clear(),
+    getTouchCount: () => touchWake?.count ?? 0,
   };
 };
 
@@ -2717,6 +2741,7 @@ const updateParticleSystemInstance = (
     mappedAttributes: ma,
     useGPUCompute,
     computePipeline,
+    touchWake,
   } = props;
 
   _frameNow = now;
@@ -3015,6 +3040,42 @@ const updateParticleSystemInstance = (
       );
     }
 
+    // The finger trail: samples to the curveData tail (its own range, like
+    // the force fields), the clock and the levers to uniforms.
+    if (cp.touchWakeInfo && touchWake) {
+      const touchParams = defaultTouchWakeParams(normalizedConfig.touch);
+      const touchNow = touchWake.now();
+      touchWake.prune(touchNow, touchParams.wake);
+      const encodedTouch = touchWake.encode();
+      const curveArr = cp.buffers.curveData.array as Float32Array;
+      const offset = cp.touchWakeInfo.offset;
+      if (
+        !arraySlicesEqual(
+          curveArr,
+          offset,
+          encodedTouch,
+          0,
+          encodedTouch.length
+        )
+      ) {
+        curveArr.set(encodedTouch, offset);
+        cp.buffers.curveData.addUpdateRange(offset, encodedTouch.length);
+        cp.buffers.curveData.needsUpdate = true;
+      }
+      setUniformFloat(cp.touchWakeInfo.countUniform, touchWake.count);
+      setUniformFloat(cp.touchWakeInfo.nowUniform, touchNow);
+      setUniformFloat(cp.touchWakeInfo.strengthUniform, touchParams.strength);
+      setUniformFloat(cp.touchWakeInfo.wakeUniform, touchParams.wake);
+      setUniformFloat(cp.touchWakeInfo.swirlUniform, touchParams.swirl);
+      (
+        cp.touchWakeInfo.normalUniform as unknown as { value: THREE.Vector3 }
+      ).value.set(
+        touchParams.normal.x,
+        touchParams.normal.y,
+        touchParams.normal.z
+      );
+    }
+
     // Flush emit queue — uploads queued particle data to GPU and sets the
     // emit count uniform so the compute shader's scatter pass can initialise
     // newly emitted particles without overwriting existing GPU state.
@@ -3135,6 +3196,13 @@ const updateParticleSystemInstance = (
       _forceFieldParams.systemLifetimePercentage =
         generalData.normalizedLifetimePercentage;
     }
+    // The finger trail on the CPU backend: same sum as the GPU kernel.
+    const touchParams = touchWake
+      ? defaultTouchWakeParams(normalizedConfig.touch)
+      : null;
+    const touchNow = touchWake ? touchWake.now() : 0;
+    if (touchWake && touchParams) touchWake.prune(touchNow, touchParams.wake);
+    const touchLive = !!touchWake && touchWake.count > 0;
     if (hasCollisionPlanes) {
       _collisionParams.collisionPlanes = _localCollisionPlanes;
       _collisionParams.positionArr = positionArr;
@@ -3161,6 +3229,23 @@ const updateParticleSystemInstance = (
             _forceFieldParams.velocity = velocity;
             _forceFieldParams.positionIndex = index * 3;
             applyForceFields(_forceFieldParams);
+          }
+
+          if (
+            touchLive &&
+            touchWake &&
+            touchParams &&
+            applyTouchWakeCPU(
+              positionArr,
+              index * 3,
+              touchWake.list,
+              touchWake.count,
+              touchNow,
+              delta,
+              touchParams
+            )
+          ) {
+            positionNeedsUpdate = true;
           }
 
           if (

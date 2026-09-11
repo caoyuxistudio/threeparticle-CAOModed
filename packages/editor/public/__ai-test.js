@@ -583,6 +583,68 @@
   };
 
   /**
+   * Touch: fingers brushing through the particles. The mapping from the
+   * screen to the emitter's plane, the radius as a share of the view, and
+   * the samples reaching the live system.
+   */
+  const touchReport = async () => {
+    const w = window.__world;
+    const T = w.THREE;
+    const lines = [];
+    const check = (label, ok, detail = '') => lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+    const touch = window.__touch;
+    check('the touch seam exists', !!touch && typeof touch.screenToWorld === 'function');
+    if (!touch) return ['touch: 0/1 passed', ...lines].join('\n');
+
+    const cfg = await load();
+    const titles = [...document.querySelectorAll('.lil-gui.root > .children > .lil-gui > .title')].map((t) => t.textContent.trim());
+    const iTouch = titles.indexOf('Touch');
+    const iForce = titles.indexOf('Force Fields');
+    check('the Touch section sits before Force Fields', iTouch >= 0 && iForce === iTouch + 1, `${iTouch} -> ${iForce}`);
+
+    // The screen's centre lands on the emitter's plane, under the camera's axis.
+    const cam = w.getOutputCamera();
+    const centre = touch.screenToWorld(0, 0);
+    const transform = cfg.transform ?? {};
+    const p = transform.position ?? {};
+    const r = transform.rotation ?? {};
+    const normal = new T.Vector3(0, 0, 1).applyEuler(new T.Euler(T.MathUtils.degToRad(r.x ?? 0), T.MathUtils.degToRad(r.y ?? 0), T.MathUtils.degToRad(r.z ?? 0)));
+    const onPlane = centre ? Math.abs(centre.clone().sub(new T.Vector3(p.x ?? 0, p.y ?? 0, p.z ?? 0)).dot(normal)) : Infinity;
+    check('the screen centre lands on the emitter plane', !!centre && onPlane < 1e-4, centre ? `${centre.toArray().map((n) => n.toFixed(2))} off by ${onPlane.toExponential(1)}` : 'no hit');
+    const forward = new T.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const offAxis = centre ? centre.clone().sub(cam.position).cross(forward).length() : Infinity;
+    check('and on the camera axis', offAxis < 1e-3, offAxis.toExponential(1));
+
+    // The radius is a share of the view's width at that depth.
+    if (centre) {
+      const depth = centre.clone().sub(cam.position).dot(forward);
+      const viewWidth = 2 * depth * Math.tan((cam.fov * Math.PI) / 360) * cam.aspect;
+      const share = window.editor.getCurrentParticleSystemConfig().touch?.radius ?? 0.12;
+      check('the radius is a share of the view width', Math.abs(touch.radiusAt(centre) - share * viewWidth) < 1e-6, `${touch.radiusAt(centre).toFixed(3)} = ${share} × ${viewWidth.toFixed(3)}`);
+    }
+
+    // Off by default: the fixture's system takes no samples.
+    check('the fixture has touch off', !cfgLiveTouch());
+    check('an inactive system takes no samples', (touch.feed({ x: 0, y: 0, z: 0, radius: 1, vx: 1, vy: 0, vz: 0 }), touch.count()) === 0);
+
+    // On: samples reach the live system and can be cleared.
+    const live = window.editor.getCurrentParticleSystemConfig();
+    live.touch = { ...(live.touch ?? {}), isActive: true };
+    window.editor.reset();
+    await new Promise((r) => setTimeout(r, 300));
+    touch.feed({ x: 0, y: 0, z: 0, radius: 1, vx: 1, vy: 0, vz: 0 });
+    touch.feed({ x: 0.1, y: 0, z: 0, radius: 1, vx: 1, vy: 0, vz: 0 });
+    check('an active system takes samples', touch.count() === 2, `${touch.count()}`);
+    touch.clear();
+    check('and forgets them on clear', touch.count() === 0);
+
+    await load();
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`touch: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+  const cfgLiveTouch = () => !!window.editor.getCurrentParticleSystemConfig().touch?.isActive;
+
+  /**
    * The link to the display window, exercised from this side of it.
    *
    * The display is a separate page with its own renderer, so what can be
@@ -1208,6 +1270,7 @@
   window.__t = {
     presentReport,
     parallaxReport,
+    touchReport,
     gizmoReport,
     videoReport,
     playerReport,

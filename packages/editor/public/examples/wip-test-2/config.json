@@ -469,5 +469,13 @@
       }
     ]
   },
-  "subEmitters": []
+  "subEmitters": [],
+  "touch": {
+    "isActive": true,
+    "radius": 0.12,
+    "strength": 1,
+    "wake": 0.4,
+    "swirl": 0.3,
+    "maxSpeed": 8
+  }
 }

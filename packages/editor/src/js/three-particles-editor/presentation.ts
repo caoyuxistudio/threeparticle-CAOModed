@@ -16,7 +16,7 @@
  * and the buttons back on screen — so on a desk it doubles as a quick "show me
  * the piece" toggle.
  */
-import { getOrbitControls, isPresenting, setPresenting } from './world';
+import { getOrbitControls, isPresenting, setPresenting, getRendererDomElement } from './world';
 import { selectSceneObject } from './scene-objects';
 import type { PerfHud } from './perf-hud';
 import type { GyroHud } from './gyro-hud';
@@ -169,6 +169,8 @@ export const enterPresentation = (): void => {
   getOrbitControls().enabled = false;
   document.body.classList.add('presenting');
   setPresenting(true);
+  // A finger on the picture is for the particles, not for scrolling.
+  getRendererDomElement().style.touchAction = 'none';
   // The gyroscope opens behind a tap-gated prompt on iOS, and this is a tap.
   // The pose at this moment becomes the parallax centre.
   void requestParallaxPermission();
@@ -181,6 +183,7 @@ export const exitPresentation = (): void => {
   if (!isPresenting()) return;
   document.body.classList.remove('presenting');
   setPresenting(false);
+  getRendererDomElement().style.touchAction = '';
   getOrbitControls().enabled = true;
   hideBar();
   leaveFullscreen();

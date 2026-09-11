@@ -47,6 +47,8 @@ import {
   getDrawingBufferSize,
   getSsrSettings,
   setSsrSettings,
+  getRendererDomElement,
+  getOutputCamera,
 } from './three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './three-particles-editor/assets';
 import {
@@ -77,6 +79,8 @@ import { createGeneralEntries } from './three-particles-editor/entries/general-e
 import { createNoiseEntries } from './three-particles-editor/entries/noise-entries';
 import { createParticleColorInstanceEntries } from './three-particles-editor/entries/particle-color-instance-entries';
 import { createSourceImageTweakEntries } from './three-particles-editor/entries/source-image-tweak-entries';
+import { createTouchEntries } from './three-particles-editor/entries/touch-entries';
+import { installTouchInput } from './three-particles-editor/touch-input';
 import { createRendererEntries } from './three-particles-editor/entries/renderer-entries';
 import { createRotationOverLifeTimeEntries } from './three-particles-editor/entries/rotation-over-lifetime-entries';
 import { createShapeEntries } from './three-particles-editor/entries/shape-entries';
@@ -481,6 +485,15 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
             `default ${bootStats.defaultExample}`,
         ],
         ['parallax', describeParallax()],
+        [
+          'touch',
+          (() => {
+            const t = (window as any).__touch?.state?.();
+            return t
+              ? `${t.enabled ? 'on' : 'off'}, fingers ${t.fingers}, fed ${t.fed}, samples ${particleSystem?.getTouchCount?.() ?? 0}, speed ${t.lastSpeed.toFixed(2)}`
+              : 'none';
+          })(),
+        ],
       ];
     },
   });
@@ -502,6 +515,22 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
   });
   (window as any).__gyroHud = gyroHud;
   installPresentationControls(hud, gyroHud);
+
+  // Fingers on the picture while presenting: samples for the touch wake.
+  const touchInput = installTouchInput(getRendererDomElement(), {
+    getSystem: () => particleSystem,
+    getConfig: () => particleSystemConfig,
+    isEnabled: isPresenting,
+    getCamera: getOutputCamera,
+  });
+  // TEMP DEBUG — the harness feeds fingers through here.
+  (window as any).__touch = {
+    ...touchInput,
+    feed: (sample: Parameters<NonNullable<ParticleSystem['feedTouch']>>[0]) =>
+      particleSystem?.feedTouch?.(sample),
+    count: () => particleSystem?.getTouchCount?.() ?? 0,
+    clear: () => particleSystem?.clearTouches?.(),
+  };
 
   // TEMP DEBUG — the same kind of seam as window.__world. The harness lives in
   // a page that cannot lose focus for real, so it drives that input from here.
@@ -1144,6 +1173,13 @@ const createPanel = (config: any = particleSystemConfig): void => {
   );
   configEntries.push(
     createSourceImageTweakEntries({
+      parentFolder: panel,
+      particleSystemConfig: config,
+      recreateParticleSystem,
+    })
+  );
+  configEntries.push(
+    createTouchEntries({
       parentFolder: panel,
       particleSystemConfig: config,
       recreateParticleSystem,
