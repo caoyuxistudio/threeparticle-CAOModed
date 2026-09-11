@@ -529,12 +529,17 @@
     px.update(1 / 60);
     check('smoothing eases the eye in', Math.abs(px.state().offset.x - 1) < 1e-6, px.state().offset.x.toFixed(3));
 
-    // The plane held still defaults to the fixture's frame, measured along the camera's view.
+    // The plane held still defaults to the fixture's frame — its face toward
+    // the camera, half the depth in front of its centre, measured along the view.
     px.setSettings({ ...base, planeDistance: 0 });
     const frame = cfg._editorData.sceneObjects.find((o) => o.type === 'FRAME');
     const forward = new T.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-    const expected = new T.Vector3(frame.position.x, frame.position.y, frame.position.z).sub(cam.position).dot(forward);
-    check('the plane defaults to the frame', Math.abs(px.state().plane - expected) < 1e-3, `${px.state().plane.toFixed(3)} vs ${expected.toFixed(3)}`);
+    const centreDistance = new T.Vector3(frame.position.x, frame.position.y, frame.position.z).sub(cam.position).dot(forward);
+    const rot = frame.rotation ?? { x: 0, y: 0, z: 0 };
+    const normal = new T.Vector3(0, 0, 1).applyEuler(new T.Euler(T.MathUtils.degToRad(rot.x), T.MathUtils.degToRad(rot.y), T.MathUtils.degToRad(rot.z)));
+    const expected = centreDistance - (Math.max(0.01, frame.depth ?? 0.5) / 2) * Math.abs(normal.dot(forward));
+    check('the plane defaults to the frame\'s face', Math.abs(px.state().plane - expected) < 1e-3, `${px.state().plane.toFixed(3)} vs ${expected.toFixed(3)} (centre ${centreDistance.toFixed(3)})`);
+    check('the face is nearer than the centre', expected < centreDistance - 1e-6, `${expected.toFixed(3)} < ${centreDistance.toFixed(3)}`);
 
     px.reset();
     await load();

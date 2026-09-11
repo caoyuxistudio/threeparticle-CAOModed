@@ -672,9 +672,10 @@
             The screen as a window: tilting the phone moves the eye behind it, the frame's plane
             stays put and what lies deeper shifts. Amount is eye travel per degree of tilt, capped
             by max travel; recenter re-learns the resting tilt over that many seconds (0 keeps the
-            pose from switching on); plane is the distance held still (0 = the first visible frame).
-            On a desktop the mouse stands in for the gyroscope. iPhone asks for motion access the
-            first time you present.
+            pose from switching on); plane is the distance held still (0 = the face of the first
+            visible frame, so the opening stays fixed and its walls become the tunnel). On a desktop
+            the mouse stands in for the gyroscope. iPhone asks for motion access the first time you
+            present.
           </p>
         {/if}
 

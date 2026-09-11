@@ -942,16 +942,31 @@ const syncOutputCamera = (): void => {
   // before this existed have none, and fall back to the defaults switched off.
   setSsrSettings({ ...defaultSsrSettings(), ...(active?.ssr ?? {}) });
   setParallaxSettings({ ...defaultParallaxSettings(), ...(active?.parallax ?? {}) });
-  // The plane parallax holds still: the first visible frame's, measured along
-  // the camera's view. No frame, and the camera's own planeDistance decides.
+  // The plane parallax holds still: the first visible frame's face toward the
+  // camera — its glass — measured along the camera's view. A frame has depth,
+  // and holding its centre would let the face you see drift by half of it;
+  // held at the face, the opening and its corners stay fixed on the screen and
+  // only the inner walls and whatever lies deeper move. No frame, and the
+  // camera's own planeDistance decides.
   const cam = active ? (live.get(active.id) as THREE.PerspectiveCamera | undefined) : undefined;
   const frame = objects.find((o) => o.type === 'FRAME' && o.visible);
   if (cam && frame) {
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-    const toFrame = new THREE.Vector3(frame.position.x, frame.position.y, frame.position.z).sub(
+    const toCentre = new THREE.Vector3(frame.position.x, frame.position.y, frame.position.z).sub(
       cam.position
     );
-    setParallaxPlane(Math.max(0, toFrame.dot(forward)));
+    const rotation = frame.rotation ?? { x: 0, y: 0, z: 0 };
+    const normal = new THREE.Vector3(0, 0, 1).applyEuler(
+      new THREE.Euler(
+        THREE.MathUtils.degToRad(rotation.x),
+        THREE.MathUtils.degToRad(rotation.y),
+        THREE.MathUtils.degToRad(rotation.z)
+      )
+    );
+    const halfDepth = Math.max(0.01, frame.depth ?? 0.5) / 2;
+    setParallaxPlane(
+      Math.max(0, toCentre.dot(forward) - halfDepth * Math.abs(normal.dot(forward)))
+    );
   } else {
     setParallaxPlane(0);
   }
