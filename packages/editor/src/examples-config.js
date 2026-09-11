@@ -76,16 +76,18 @@ export const particleExamples = [
   //   name: 'Ethereal Wisps',
   // },
   {
+    // The piece: a frame, a point light and a top-down output camera with
+    // reflections on, a video as the colour source. The video is served from
+    // ./assets/videos and the config names it by URL, so it plays on any
+    // device that can reach the site — nothing has to be uploaded first.
+    // The editor boots into this one (see DEFAULT_EXAMPLE below).
+    name: 'WIP-Test-2',
+  },
+  {
     // Working scene: a frame, an emissive sphere, a point light and a top-down
     // output camera with reflections on. Lives here rather than in a browser's
     // localStorage so it survives a restart and is one click from loaded.
     name: 'WIP-Test',
-  },
-  {
-    // The same scene with a video as the colour source. The video is served
-    // from ./assets/videos and the config names it by URL, so it plays on any
-    // device that can reach the site — nothing has to be uploaded first.
-    name: 'WIP-Test-2',
   },
   {
     name: 'shanshui',
@@ -277,3 +279,6 @@ export const particleExamples = [
     config: SMOKE,
   },
 ];
+
+/** The example the editor opens on boot — the piece itself, no example to pick. */
+export const DEFAULT_EXAMPLE = 'WIP-Test-2';

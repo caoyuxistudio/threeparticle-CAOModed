@@ -83,6 +83,8 @@
    * save/load shows up as a named FAIL rather than a blank screen.
    */
   const report = async () => {
+    // Read before the fixture replaces it: what the page booted into.
+    const bootLine = (window.__perfHud?.report?.() ?? '').split('\n').find((l) => l.startsWith('boot:')) ?? '';
     const cfg = await load();
     const want = cfg._editorData.sceneObjects;
     const got = storedScene();
@@ -93,6 +95,7 @@
     const lines = [];
     const check = (label, ok, detail = '') => lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
 
+    check('boots into WIP-Test-2', bootLine.includes('default WIP-Test-2 loaded'), bootLine.replace(/^boot: /, ''));
     check('scene object count', got.length === want.length, `${got.length}/${want.length}`);
     check('scene data identical', diff(want, got).length === 0, diff(want, got).slice(0, 4).join(' | '));
     check('live boxes', l.box === want.filter((o) => o.type === 'BOX').length, `${l.box}`);

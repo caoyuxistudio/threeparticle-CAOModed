@@ -353,7 +353,7 @@
     "metadata": {
       "name": "WIP-Test-2",
       "createdAt": 1787000000000,
-      "modifiedAt": 1789037874431,
+      "modifiedAt": 1789105987817,
       "editorVersion": "2.10.0"
     },
     "embeddedVideos": {
@@ -365,33 +365,6 @@
       }
     },
     "sceneObjects": [
-      {
-        "id": "obj-fx-sphere",
-        "type": "SPHERE",
-        "name": "Sphere 1",
-        "visible": true,
-        "position": {
-          "x": -4.416528392627818,
-          "y": 1,
-          "z": -0.38127368294431285
-        },
-        "size": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "rotation": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "color": "#000000",
-        "roughness": 0.9,
-        "metalness": 0,
-        "emissive": "#ff1f1f",
-        "emissiveIntensity": 1,
-        "insideOut": false
-      },
       {
         "id": "obj-fx-camera",
         "type": "CAMERA",
@@ -405,7 +378,7 @@
         "rotation": {
           "x": -90,
           "y": 0,
-          "z": -0.3
+          "z": 0
         },
         "fov": 29,
         "near": 0.1,
@@ -429,7 +402,7 @@
         "visible": true,
         "position": {
           "x": 0,
-          "y": 1.25,
+          "y": 1.5,
           "z": 0
         },
         "rotation": {
@@ -437,13 +410,13 @@
           "y": 0,
           "z": 0
         },
-        "innerWidth": 4.05,
+        "innerWidth": 4,
         "innerHeight": 8.95,
-        "border": 0.6,
+        "border": 0.8,
         "depth": 4.08,
-        "color": "#ffffff",
-        "roughness": 0.6,
-        "metalness": 0.2,
+        "color": "#000000",
+        "roughness": 0,
+        "metalness": 0,
         "emissive": "#000000",
         "emissiveIntensity": 0,
         "edgeColor": "#ffffff",
@@ -453,11 +426,12 @@
         "edgeEmissiveIntensity": 0,
         "topOffset": 0.58,
         "cornerRadius": {
-          "topLeft": 0.5706818181818181,
-          "topRight": 0.5706818181818181,
-          "bottomLeft": 0.5706818181818181,
-          "bottomRight": 0.5706818181818181
-        }
+          "topLeft": 0.5706,
+          "topRight": 0.5706,
+          "bottomLeft": 0.5706,
+          "bottomRight": 0.5706
+        },
+        "cornerColor": "#000000"
       },
       {
         "id": "obj-mtbdwjx4-dfde",
@@ -465,14 +439,14 @@
         "type": "POINT_LIGHT",
         "visible": true,
         "position": {
-          "x": 0,
-          "y": 5,
-          "z": 0
+          "x": 0.05,
+          "y": 6.0449,
+          "z": -4.1039
         },
         "color": "#616161",
-        "intensity": 69,
+        "intensity": 74,
         "distance": 0,
-        "decay": 2.7
+        "decay": 2
       }
     ]
   },

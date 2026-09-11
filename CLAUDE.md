@@ -133,9 +133,9 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 ### 当前状态
 
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
-- **WIP-Test-2** 是同一个场景换成视频 color source，竖幅相机。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
+- **WIP-Test-2** 是作品本身：画框 + 点光 + 俯视输出相机（iPhone 17 Pro Max 画幅、SSR 开）+ 视频 color source。参数是 2026-09-11 在手机上调好后照截图抄进 config 的，测试用的红球已经删掉。**编辑器一启动就直接加载它**（`DEFAULT_EXAMPLE`，在 `src/examples-config.js`；boot 一开始就 fetch，场景就绪后走和点 Examples 一样的 `window.editor.load`；fetch 失败就留在默认发射器，HUD 的 `boot:` 一行会写 `default … failed`）。代价是**刷新即回到示例**：面板里没导出的改动不会保留——粒子参数本来就不跨刷新，场景以前会留，现在也不留了；要保留就 Save 或者抄回 example。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **181/181**（含 `videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 19）
+- 控制台 harness `public/__ai-test.js`，当前基线 **182/182**（含 `report` 17、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 19）
 
 ---
 

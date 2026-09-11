@@ -20,6 +20,8 @@ import {
 } from './three-particles-editor/player-window';
 import { installPresentationControls } from './three-particles-editor/presentation';
 import { installPerfHud } from './three-particles-editor/perf-hud';
+import { DEFAULT_EXAMPLE } from '../examples-config';
+import { toUrlFriendlyString } from './utils/name-utils';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
 import { buildParticleSystem } from './three-particles-editor/particle-factory';
@@ -336,7 +338,24 @@ const pauseTime = (): void => {
 
 /** Boot guard, and the counters the HUD reports so a double boot can be seen from a phone. */
 let booted = false;
-const bootStats = { attempts: 0, chains: 0, loops: 0 };
+const bootStats = { attempts: 0, chains: 0, loops: 0, defaultExample: 'pending' };
+
+/**
+ * The piece the editor opens on. Fetched the moment boot starts, so by the
+ * time the scene is ready it is usually already here; a failed fetch (offline,
+ * a moved file) leaves the default emitter rather than a blank screen, and
+ * says so on the HUD's boot line.
+ */
+const fetchDefaultExample = async (): Promise<ParticleSystemConfig | null> => {
+  try {
+    const response = await fetch(`./examples/${toUrlFriendlyString(DEFAULT_EXAMPLE)}/config.json`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()) as ParticleSystemConfig;
+  } catch (error) {
+    bootStats.defaultExample = `${DEFAULT_EXAMPLE} failed (${(error as Error).message})`;
+    return null;
+  }
+};
 
 export const createParticleSystemEditor = async (targetQuery: string): Promise<void> => {
   bootStats.attempts += 1;
@@ -346,6 +365,7 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
     return;
   }
   booted = true;
+  const defaultExample = fetchDefaultExample();
   clock = new THREE.Clock();
 
   // Register WebGPU TSL materials only when the browser supports WebGPU
@@ -441,7 +461,8 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
           `attempts ${bootStats.attempts}, chains ${bootStats.chains}, loops ${bootStats.loops}, ` +
             `canvases ${document.querySelectorAll('#three-particles-editor canvas').length}, ` +
             `panels ${document.querySelectorAll('.lil-gui.root').length}, ` +
-            `scene meshes+lights ${meshes} for ${getSceneObjects().length} objects`,
+            `scene meshes+lights ${meshes} for ${getSceneObjects().length} objects, ` +
+            `default ${bootStats.defaultExample}`,
         ],
       ];
     },
@@ -497,7 +518,7 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
       onComplete: () => {
         // Videos a config may name as its colour source. Waited for like the
         // images are, so the first build already finds them by name.
-        void loadVideoTextures().then(() => {
+        void loadVideoTextures().then(async () => {
           // Once. A texture chain that fired twice would otherwise mount the
           // scene twice — leaving copies no panel entry can delete — build two
           // panels, and run two frame loops.
@@ -514,6 +535,17 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
           createCurveEditor();
           recreateParticleSystem(false);
           isInitializing = false;
+          // The piece itself rather than the default emitter — the same load
+          // an Examples click does, so nothing has to be picked after a reload.
+          const example = await defaultExample;
+          if (example) {
+            try {
+              window.editor.load(example);
+              bootStats.defaultExample = `${DEFAULT_EXAMPLE} loaded`;
+            } catch (error) {
+              bootStats.defaultExample = `${DEFAULT_EXAMPLE} failed (${(error as Error).message})`;
+            }
+          }
           bootStats.loops += 1;
           animate();
         });
