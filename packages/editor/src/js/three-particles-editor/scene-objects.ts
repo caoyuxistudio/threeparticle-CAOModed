@@ -152,6 +152,14 @@ export type SceneObject = {
    * nudging the whole frame down and losing the bottom edge.
    */
   topOffset?: number;
+  /** FRAME only: straight pieces per quarter curve of a rounded corner, 24 by default (what ExtrudeGeometry draws on its own). */
+  cornerSegments?: number;
+  /**
+   * FRAME only: smooth shading along the curved corner walls — each wall vertex
+   * on the arc takes the arc's radial normal instead of its facet's, so the
+   * curve reads as round under light and reflections even with few segments.
+   */
+  cornerSmooth?: boolean;
 };
 
 export type CornerRadius = NonNullable<SceneObject['cornerRadius']>;
@@ -361,6 +369,8 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeEmissiveIntensity: 0,
     cornerRadius: squareCorners(),
     topOffset: 0.58,
+    cornerSegments: 24,
+    cornerSmooth: false,
   }),
   ENVIRONMENT: () => ({
     type: 'ENVIRONMENT',
@@ -520,6 +530,42 @@ const cornerRadii = (obj: SceneObject): CornerRadius => {
 };
 
 /**
+ * How many straight pieces draw each quarter curve, kept even: ExtrudeGeometry
+ * gives an ellipse curve twice its `curveSegments`, so its own default of 12
+ * is 24 pieces, and that is the default here too.
+ */
+const cornerSegmentsOf = (obj: SceneObject): number =>
+  2 * Math.min(32, Math.max(1, Math.round((obj.cornerSegments ?? 24) / 2)));
+
+type Arc = { ox: number; oy: number; r: number };
+
+/**
+ * Smooth shading for the curved walls: every wall vertex that sits on an arc
+ * gets the arc's radial normal instead of its facet's. The caps keep their
+ * flat normals, and so do the two straight walls, which face into the frame
+ * body and are never seen. Done analytically rather than by merging vertices,
+ * so the sharp edge between cap and wall stays sharp.
+ */
+const smoothArcWalls = (geometry: THREE.ExtrudeGeometry, arcs: Arc[]): void => {
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  // ExtrudeGeometry is non-indexed and groups each shape's caps (0) then walls (1).
+  geometry.groups
+    .filter((g) => g.materialIndex === 1)
+    .forEach((g) => {
+      for (let i = g.start; i < g.start + g.count; i += 1) {
+        const x = position.getX(i);
+        const y = position.getY(i);
+        const arc = arcs.find((a) => Math.abs(Math.hypot(a.ox - x, a.oy - y) - a.r) < 1e-4);
+        if (!arc) continue;
+        const d = Math.hypot(arc.ox - x, arc.oy - y);
+        normal.setXYZ(i, (arc.ox - x) / d, (arc.oy - y) / d, 0);
+      }
+    });
+  normal.needsUpdate = true;
+};
+
+/**
  * The four fillets that round the opening: for each corner, the region
  * between the rectangle's corner and a quarter circle tangent to both edges,
  * extruded to the frame's depth so it fills the corner of the hole. Kept as a
@@ -560,6 +606,7 @@ const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => 
   ];
 
   const shapes: THREE.Shape[] = [];
+  const arcs: Arc[] = [];
   corners.forEach(({ sx, sy, from, to, cw }) => {
     const r = radiusFor(sx, sy);
     if (r <= 0) return;
@@ -567,6 +614,7 @@ const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => 
     const cy = sy > 0 ? edges.innerPlus : edges.innerMinus;
     const ox = sx * (w - r);
     const oy = cy - sy * r;
+    arcs.push({ ox, oy, r });
     const shape = new THREE.Shape();
     shape.moveTo(cx, cy);
     shape.lineTo(ox, cy);
@@ -576,8 +624,13 @@ const buildCornerGeometry = (obj: SceneObject): THREE.ExtrudeGeometry | null => 
   });
   if (shapes.length === 0) return null;
 
-  const geometry = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false });
+  const geometry = new THREE.ExtrudeGeometry(shapes, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: cornerSegmentsOf(obj) / 2,
+  });
   geometry.translate(0, 0, -depth / 2);
+  if (obj.cornerSmooth) smoothArcWalls(geometry, arcs);
   return geometry;
 };
 
@@ -595,6 +648,8 @@ const frameGeometryKey = (obj: SceneObject): string => {
     c.topRight,
     c.bottomLeft,
     c.bottomRight,
+    cornerSegmentsOf(obj),
+    obj.cornerSmooth ? 'smooth' : 'flat',
   ].join('/');
 };
 

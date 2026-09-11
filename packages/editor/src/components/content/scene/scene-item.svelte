@@ -478,11 +478,38 @@
             oninput={(e) => set({ topOffset: +e.target.value })}
           />
         </label>
+        <label class="row">
+          <span>smooth shading</span>
+          <input
+            type="checkbox"
+            checked={obj.cornerSmooth ?? false}
+            onchange={(e) => set({ cornerSmooth: e.target.checked })}
+          />
+        </label>
+        <label class="row">
+          <span>segments</span>
+          <input
+            type="range"
+            min="2"
+            max="64"
+            step="2"
+            value={obj.cornerSegments ?? 24}
+            oninput={(e) => set({ cornerSegments: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="2"
+            value={obj.cornerSegments ?? 24}
+            oninput={(e) => set({ cornerSegments: +e.target.value })}
+          />
+        </label>
         <p class="hint">
           The opening keeps its rectangle; a rounded corner is filled in with the face material, so
           whatever lies beyond the curve is covered. The presets are Apple's display corner radii as
           a share of the screen's width, applied to the opening's width — right when the opening
-          stands for the screen.
+          stands for the screen. Segments is how many straight pieces draw each quarter curve;
+          smooth shading blends the normals along the curve, so the wall reads as round under light
+          and reflections even with few of them.
         </p>
       {/if}
 

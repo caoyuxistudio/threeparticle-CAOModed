@@ -394,6 +394,39 @@
       check('and the top corners with it', Math.abs(mb.min.y - (-1.75 + 0.5)) < 0.01 && mb.max.y < 0, `${mb.min.y.toFixed(2)}..${mb.max.y.toFixed(2)}`);
     }
 
+    // The curve's resolution and its shading are the frame's to set: more
+    // segments make a rounder silhouette; smooth shading gives every wall
+    // vertex on the arc the arc's own radial normal instead of its facet's.
+    const round = { topLeft: 0.5, topRight: 0.5, bottomLeft: 0.5, bottomRight: 0.5 };
+    const maskOf = (m) => m?.children.find((c) => c.name === 'frame-corners');
+    const vertexCount = (m) => maskOf(m)?.geometry.getAttribute('position').count ?? 0;
+    const coarse = await build({ cornerRadius: round, cornerSegments: 4 });
+    const fine = await build({ cornerRadius: round, cornerSegments: 24 });
+    check('corner segments drive the mask\'s resolution', vertexCount(fine.mesh) > vertexCount(coarse.mesh), `${vertexCount(coarse.mesh)} -> ${vertexCount(fine.mesh)}`);
+    // How closely the wall normals on the top-right arc (centre 2.5, 1.25, r 0.5)
+    // agree with the radial direction, tangent points excluded.
+    const arcDots = (m) => {
+      const g = maskOf(m)?.geometry;
+      if (!g) return [];
+      const p = g.getAttribute('position');
+      const n = g.getAttribute('normal');
+      const out = [];
+      g.groups.filter((gr) => gr.materialIndex === 1).forEach((gr) => {
+        for (let i = gr.start; i < gr.start + gr.count; i++) {
+          const dx = 2.5 - p.getX(i);
+          const dy = 1.25 - p.getY(i);
+          const d = Math.hypot(dx, dy);
+          if (Math.abs(d - 0.5) < 1e-4 && p.getX(i) > 2.5 && p.getY(i) > 1.25) out.push((n.getX(i) * dx + n.getY(i) * dy) / d);
+        }
+      });
+      return out;
+    };
+    const flatDots = arcDots(coarse.mesh);
+    check('flat corners shade by facet', flatDots.length > 0 && Math.min(...flatDots) < 0.99, `min dot ${Math.min(...flatDots).toFixed(3)} over ${flatDots.length}`);
+    const smooth = await build({ cornerRadius: round, cornerSegments: 4, cornerSmooth: true });
+    const smoothDots = arcDots(smooth.mesh);
+    check('smooth corners shade by the curve', smoothDots.length > 0 && Math.min(...smoothDots) > 0.9999, `min dot ${Math.min(...smoothDots).toFixed(4)} over ${smoothDots.length}`);
+
     await load();
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
     return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');

@@ -72,15 +72,15 @@
     "depthWrite": true,
     "rendererType": "MESH",
     "mesh": {
-      "geometryType": "OCTAHEDRON",
+      "geometryType": "BOX",
       "scale": {
-        "x": 0.07,
-        "y": 0.07,
+        "x": 0.1,
+        "y": 0.04,
         "z": 0.07
       },
       "alignToVelocity": true,
       "lit": true,
-      "emissive": 0.43,
+      "emissive": 0.08,
       "roughness": 0.65,
       "metalness": 0
     }
@@ -244,9 +244,9 @@
       "isActive": true,
       "mode": "KILL",
       "position": {
-        "x": -5.4,
-        "y": 0,
-        "z": 0
+        "x": -5.33,
+        "y": 0.25,
+        "z": -0.74
       },
       "normal": {
         "x": 1,
@@ -316,8 +316,8 @@
     "showLocalAxes": true,
     "showWorldAxes": true,
     "showShape": false,
-    "showForceFields": false,
-    "showCollisionPlanes": true,
+    "showForceFields": true,
+    "showCollisionPlanes": false,
     "frustumCulled": true,
     "useIndividualUpdate": false,
     "useLiveUpdate": false,
@@ -353,7 +353,7 @@
     "metadata": {
       "name": "WIP-Test-2",
       "createdAt": 1787000000000,
-      "modifiedAt": 1789105987817,
+      "modifiedAt": 1789107181380,
       "editorVersion": "2.10.0"
     },
     "embeddedVideos": {
@@ -419,17 +419,17 @@
         "metalness": 0,
         "emissive": "#000000",
         "emissiveIntensity": 0,
-        "edgeColor": "#ffffff",
-        "edgeRoughness": 1,
+        "edgeColor": "#a99898",
+        "edgeRoughness": 0,
         "edgeMetalness": 0.31,
         "edgeEmissive": "#000000",
         "edgeEmissiveIntensity": 0,
         "topOffset": 0.58,
         "cornerRadius": {
-          "topLeft": 0.5706,
-          "topRight": 0.5706,
-          "bottomLeft": 0.5706,
-          "bottomRight": 0.5706
+          "topLeft": 0.5706818181818181,
+          "topRight": 0.5706818181818181,
+          "bottomLeft": 0.5706818181818181,
+          "bottomRight": 0.5706818181818181
         }
       },
       {
@@ -439,11 +439,11 @@
         "visible": true,
         "position": {
           "x": 0.05,
-          "y": 6.0449,
-          "z": -4.1039
+          "y": 6.0449170760814,
+          "z": -4.103955646765837
         },
-        "color": "#616161",
-        "intensity": 74,
+        "color": "#ffffff",
+        "intensity": 95,
         "distance": 0,
         "decay": 2
       }
