@@ -215,12 +215,16 @@
       w.controls.update();
     })();
 
-    check('preview can exceed half the screen', (() => {
+    check('preview can take half the screen, or all the room between the panels', (() => {
       const before = window.__world.getPreviewScale();
       window.__world.setPreviewScale(1);
       const widest = window.__world.previewRect().w;
       window.__world.setPreviewScale(before);
-      return widest >= window.innerWidth / 2;
+      // A pane too narrow for half the screen between its panels still gives
+      // the preview everything that is there (16px margins on each side).
+      const free = window.__world.freeViewportBounds();
+      const room = free.right - free.left - 32;
+      return widest >= Math.min(window.innerWidth / 2, room) - 1;
     })());
 
     // Reflections are a property of the camera, not of the editor session — the
@@ -432,6 +436,102 @@
     return [`frame: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
   };
 
+
+  /**
+   * Parallax: the screen as a window. Driven through the debug seam rather
+   * than real sensors — the checks are about the geometry, which is the part
+   * that would go wrong silently.
+   */
+  const parallaxReport = async () => {
+    const w = window.__world;
+    const T = w.THREE;
+    const px = w.parallax;
+    const lines = [];
+    const check = (label, ok, detail = '') => lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+    check('the parallax seam exists', !!px && typeof px.apply === 'function');
+    if (!px) return ['parallax: 0/1 passed', ...lines].join('\n');
+
+    const cfg = await load();
+    const cam = w.getOutputCamera();
+    const base = { enabled: true, amount: 0.05, maxOffset: 2, smoothing: 1, recenter: 0, planeDistance: 10, invertX: false, invertY: false };
+
+    // Off: nothing touches the camera.
+    px.reset();
+    px.setSettings({ ...base, enabled: false });
+    const p0 = cam.position.clone();
+    // A fresh projection: the loop updates the camera's aspect between frames,
+    // and in a hidden pane the matrix can lag it.
+    cam.updateProjectionMatrix();
+    const m0 = cam.projectionMatrix.clone();
+    px.apply(cam)();
+    check('disabled, the camera is left alone', cam.position.equals(p0) && cam.projectionMatrix.equals(m0));
+
+    // The mouse: the desktop stand-in. Half way across the window is half the travel.
+    px.reset();
+    px.setSettings(base);
+    px.feedPointer(0.5, 0);
+    px.update(1);
+    const s1 = px.state();
+    check('the mouse moves the eye', s1.source === 'mouse' && Math.abs(s1.offset.x - 1) < 1e-6 && Math.abs(s1.offset.y) < 1e-6, `${s1.source} ${s1.offset.x.toFixed(3)}/${s1.offset.y.toFixed(3)}`);
+
+    // The window: with the eye moved, a point on the held plane keeps its
+    // place in the picture and a deeper one does not.
+    cam.updateMatrixWorld(true);
+    const world = (local) => local.clone().applyMatrix4(cam.matrixWorld);
+    const onPlane = world(new T.Vector3(1, 0.5, -10));
+    const deeper = world(new T.Vector3(1, 0.5, -20));
+    const before = { plane: onPlane.clone().project(cam), deep: deeper.clone().project(cam) };
+    const aspect0 = cam.aspect;
+    const restore = px.apply(cam);
+    const moved = cam.position.distanceTo(p0);
+    const aspectDuring = cam.aspect;
+    const during = { plane: onPlane.clone().project(cam), deep: deeper.clone().project(cam) };
+    restore();
+    check('the eye moved', Math.abs(moved - 1) < 1e-6, moved.toFixed(4));
+    // setViewOffset rewrites the aspect from the full size it is given.
+    check('the aspect is untouched', Math.abs(aspectDuring - aspect0) < 1e-9 && cam.aspect === aspect0, `${aspect0.toFixed(4)} -> ${aspectDuring.toFixed(4)} -> ${cam.aspect.toFixed(4)}`);
+    check('a point on the plane keeps its place', during.plane.distanceTo(before.plane) < 1e-5, during.plane.distanceTo(before.plane).toExponential(2));
+    check('a deeper point shifts', during.deep.distanceTo(before.deep) > 1e-3, during.deep.distanceTo(before.deep).toFixed(4));
+    check('restore puts the camera back', cam.position.equals(p0) && cam.projectionMatrix.equals(m0));
+
+    // The gyroscope: tilt from the resting pose moves the eye by amount per
+    // degree — gamma up (right edge away) is eye -x — and the travel is capped.
+    px.reset();
+    px.setSettings(base);
+    px.feedOrientation(60, 0);
+    px.update(0.1);
+    px.feedOrientation(60, 10);
+    px.update(0.1);
+    const g = px.state();
+    check('the gyroscope moves the eye', g.source === 'gyro' && Math.abs(g.offset.x + 0.5) < 1e-6 && Math.abs(g.offset.y) < 1e-6, `${g.source} ${g.offset.x.toFixed(3)}/${g.offset.y.toFixed(3)} from rest ${g.rest?.x}/${g.rest?.y}`);
+    px.feedOrientation(60, 80);
+    px.update(0.1);
+    const capped = px.state().offset;
+    check('travel is capped', Math.abs(Math.hypot(capped.x, capped.y) - 2) < 1e-6, Math.hypot(capped.x, capped.y).toFixed(3));
+    px.setSettings({ ...base, invertX: true });
+    px.feedOrientation(60, 10);
+    px.update(0.1);
+    check('invert flips it', Math.abs(px.state().offset.x - 0.5) < 1e-6, px.state().offset.x.toFixed(3));
+
+    // Smoothing: half the remaining way per 60 Hz frame.
+    px.reset();
+    px.setSettings({ ...base, smoothing: 0.5 });
+    px.feedPointer(1, 0);
+    px.update(1 / 60);
+    check('smoothing eases the eye in', Math.abs(px.state().offset.x - 1) < 1e-6, px.state().offset.x.toFixed(3));
+
+    // The plane held still defaults to the fixture's frame, measured along the camera's view.
+    px.setSettings({ ...base, planeDistance: 0 });
+    const frame = cfg._editorData.sceneObjects.find((o) => o.type === 'FRAME');
+    const forward = new T.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const expected = new T.Vector3(frame.position.x, frame.position.y, frame.position.z).sub(cam.position).dot(forward);
+    check('the plane defaults to the frame', Math.abs(px.state().plane - expected) < 1e-3, `${px.state().plane.toFixed(3)} vs ${expected.toFixed(3)}`);
+
+    px.reset();
+    await load();
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`parallax: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
 
   /**
    * The link to the display window, exercised from this side of it.
@@ -1056,6 +1156,7 @@
 
   window.__t = {
     presentReport,
+    parallaxReport,
     gizmoReport,
     videoReport,
     playerReport,

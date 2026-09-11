@@ -38,6 +38,7 @@ import {
 } from './js/three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
 import { installPerfHud } from './js/three-particles-editor/perf-hud';
+import { requestParallaxPermission, describeParallax } from './js/three-particles-editor/parallax';
 import { ensureVideoTexture, loadVideoTextures } from './js/three-particles-editor/video-textures';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
 import { loadParticleSystem } from './js/three-particles-editor/save-and-load';
@@ -344,6 +345,8 @@ const installPresentationControls = (): void => {
   };
   document.addEventListener('pointerup', (event) => {
     if (event.pointerType !== 'touch') return;
+    // A tap is the one moment iOS lets the gyroscope be asked for.
+    void requestParallaxPermission();
     if (event.target === fullscreenButton || event.target === perfButton) return;
     showButton();
     perfButton.classList.add('is-visible');
@@ -385,6 +388,7 @@ const installPresentationControls = (): void => {
       return texture?.map?.userData?.colorInstanceReadback ?? null;
     },
     getPieceName: () => particleSystemConfig._editorData?.metadata?.name ?? 'Untitled',
+    extra: () => [['parallax', describeParallax()]],
   });
   (window as any).__perfHud = hud;
   const perfButton = document.createElement('button');

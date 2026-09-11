@@ -22,6 +22,7 @@ import { installPresentationControls } from './three-particles-editor/presentati
 import { installPerfHud } from './three-particles-editor/perf-hud';
 import { DEFAULT_EXAMPLE } from '../examples-config';
 import { toUrlFriendlyString } from './utils/name-utils';
+import { describeParallax } from './three-particles-editor/parallax';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
 import { buildParticleSystem } from './three-particles-editor/particle-factory';
@@ -464,6 +465,7 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
             `scene meshes+lights ${meshes} for ${getSceneObjects().length} objects, ` +
             `default ${bootStats.defaultExample}`,
         ],
+        ['parallax', describeParallax()],
       ];
     },
   });

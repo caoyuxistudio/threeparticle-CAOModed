@@ -9,6 +9,7 @@
     setOnEnvironmentLoaded,
   } from './../../../js/three-particles-editor/world';
   import { onMount } from 'svelte';
+  import { defaultParallaxSettings } from '../../../js/three-particles-editor/parallax';
 
   let { obj, update, remove, bake, selected = false, select, contextMenu } = $props();
 
@@ -35,6 +36,8 @@
    * so an old camera's look would drift when those change.
    */
   const setSsr = (patch) => set({ ssr: { ...defaultSsrSettings(), ...(obj.ssr ?? {}), ...patch } });
+  const setParallax = (patch) =>
+    set({ parallax: { ...defaultParallaxSettings(), ...(obj.parallax ?? {}), ...patch } });
 
   const SSR_VIEWS = [
     { id: 'off', label: 'Final image' },
@@ -652,6 +655,62 @@
             For softer reflections, lower the resolution before raising blur — it smears just as
             well and costs less rather than more. Blur widens the kernel, and its samples grow as
             the square.
+          </p>
+        {/if}
+
+        <div class="group-label">parallax (gyro)</div>
+        <label class="row check">
+          <span>enabled</span>
+          <input
+            type="checkbox"
+            checked={obj.parallax?.enabled ?? false}
+            onchange={(e) => setParallax({ enabled: e.target.checked })}
+          />
+        </label>
+
+        {#if obj.parallax?.enabled}
+          {#each [{ key: 'amount', label: 'amount', min: 0, max: 0.3, step: 0.005, fallback: 0.05 }, { key: 'maxOffset', label: 'max travel', min: 0, max: 10, step: 0.1, fallback: 2 }, { key: 'smoothing', label: 'smoothing', min: 0.01, max: 1, step: 0.01, fallback: 0.12 }, { key: 'recenter', label: 'recenter (s)', min: 0, max: 30, step: 0.5, fallback: 8 }, { key: 'planeDistance', label: 'plane', min: 0, max: 60, step: 0.5, fallback: 0 }] as p}
+            <label class="row">
+              <span>{p.label}</span>
+              <input
+                type="range"
+                min={p.min}
+                max={p.max}
+                step={p.step}
+                value={obj.parallax?.[p.key] ?? p.fallback}
+                oninput={(e) => setParallax({ [p.key]: +e.target.value })}
+              />
+              <input
+                type="number"
+                step={p.step}
+                value={obj.parallax?.[p.key] ?? p.fallback}
+                oninput={(e) => setParallax({ [p.key]: +e.target.value })}
+              />
+            </label>
+          {/each}
+          <label class="row check">
+            <span>invert x</span>
+            <input
+              type="checkbox"
+              checked={obj.parallax?.invertX ?? false}
+              onchange={(e) => setParallax({ invertX: e.target.checked })}
+            />
+          </label>
+          <label class="row check">
+            <span>invert y</span>
+            <input
+              type="checkbox"
+              checked={obj.parallax?.invertY ?? false}
+              onchange={(e) => setParallax({ invertY: e.target.checked })}
+            />
+          </label>
+          <p class="hint">
+            The screen as a window: tilting the phone moves the eye behind it, the frame's plane
+            stays put and what lies deeper shifts. Amount is eye travel per degree of tilt, capped
+            by max travel; recenter re-learns the resting tilt over that many seconds (0 keeps the
+            pose from switching on); plane is the distance held still (0 = the first visible frame).
+            On a desktop the mouse stands in for the gyroscope. iPhone asks for motion access the
+            first time you present.
           </p>
         {/if}
 

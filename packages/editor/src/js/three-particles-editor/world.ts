@@ -26,6 +26,17 @@ import { TextureId } from './texture-config';
 import { getTexture } from './assets';
 import { markAsEditorOnly } from './editor-layers';
 import { isPlayer } from './runtime-mode';
+import {
+  applyParallax,
+  updateParallax,
+  installParallax,
+  feedOrientation,
+  feedPointer,
+  getParallaxState,
+  resetParallaxState,
+  recenterParallax,
+  setParallaxSettings,
+} from './parallax';
 
 let scene: THREE.Scene;
 let renderer: WebGPURenderer;
@@ -441,6 +452,7 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
   }
 
   scene = new THREE.Scene();
+  installParallax();
   defaultBackground = new THREE.Color(0x000000);
   scene.background = defaultBackground;
 
@@ -532,6 +544,17 @@ export const createWorld = async (targetQuery: string): Promise<THREE.Scene> => 
     getRenderScale,
     getDrawingBufferSize,
     getSsrSettings,
+    // The parallax seam: the harness feeds it samples and checks the geometry.
+    parallax: {
+      feedOrientation,
+      feedPointer,
+      update: updateParallax,
+      apply: applyParallax,
+      state: getParallaxState,
+      reset: resetParallaxState,
+      recenter: recenterParallax,
+      setSettings: setParallaxSettings,
+    },
     _ssr: () => ({ postProcessing, ssrPass, previewTarget, previewBlit, pipelineCamera }),
   };
 
@@ -854,6 +877,11 @@ export const renderPlayer = (
   }
   if (!outputCamera) return;
 
+  // The screen as a window: the eye moves with the phone's tilt, the frame's
+  // plane stays put. Undone right after the frame, so nothing else sees it.
+  updateParallax();
+  const restoreParallax = applyParallax(outputCamera);
+
   setBackdropFor('camera');
 
   if (softParticlesEnabled && depthRenderTarget) {
@@ -875,6 +903,7 @@ export const renderPlayer = (
   }
 
   sampleEdgeTint();
+  restoreParallax();
 };
 
 const PREVIEW_MARGIN = 16;
@@ -1067,6 +1096,9 @@ const installPreviewResize = (canvas: HTMLCanvasElement): void => {
 const renderPreview = (): void => {
   if (!outputCamera || !previewVisible) return;
 
+  updateParallax();
+  const restoreParallax = applyParallax(outputCamera);
+
   const size = renderer.getSize(new THREE.Vector2());
   const { x, y, w, h } = previewRect();
 
@@ -1121,6 +1153,7 @@ const renderPreview = (): void => {
   renderer.setViewport(0, 0, size.x, size.y);
   renderer.setScissor(0, 0, size.x, size.y);
   renderer.setClearColor(previousClear, previousAlpha);
+  restoreParallax();
 };
 
 /**

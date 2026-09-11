@@ -120,6 +120,8 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 
 **相机画幅**：CAMERA 的 output frame 里除了固定比例，多了 **iPhone 17 Pro Max**（440×956 逻辑像素，0.4603）和 **Fit window**（`aspect: 0`，跟着当前窗口走——播放页和演示模式里就是彻底铺满、没有黑边；编辑器预览则取编辑器窗口的比例）。铺满意味着构图随屏幕变，所以要精确构图用 iPhone 预设、从主屏幕图标打开来看。
 
+**陀螺仪视差相机**（`parallax.ts`，参数在 CAMERA 物体的 `parallax` 里，随 config 走）。参考 algomystic 的 TheParallaxView（iPhone X TrueDepth 眼动追踪 + 离轴投影：屏幕当成一扇窗，眼睛动、窗平面不动、窗后的东西错位）。这里没有眼睛可追，用手机的倾斜代替：`deviceorientation` 的 beta / gamma 相对静止姿态的差 × `amount` = 虚拟眼睛在相机平面上的位移（上限 `maxOffset`）；渲染输出相机前把相机挪到眼睛的位置、再用 `setViewOffset` 把视锥反向平移，让 `planeDistance` 处的平面（0 = 第一个可见画框的平面，按相机视线量，`syncOutputCamera` 每次同步都重算）在画面里位置不变——只有比它深或浅的东西会动，这就是景深感。渲染完立刻复原，别的地方（编辑器视口、frustum helper、config）看不到相机动过。iOS 要在用户手势里申请权限：进演示模式和播放页的点击都会申请；进演示模式时把当时的姿态设为中心，`recenter` 秒的时间常数会慢慢把静止姿态重新学成中心（0 = 不学）。桌面上没有陀螺仪，鼠标在窗口里的位置代替它（也是 harness 驱动的口，`__world.parallax`）。方向：gamma 增大（右边缘远离你）→ 眼睛在屏幕法线左侧 → 眼睛 −x；beta 增大 → 眼睛 +y；`invertX / invertY` 各自翻转。HUD 的 `parallax:` 一行报来源 / 权限 / 眼睛位移 / 倾角 / 平面距离。WIP-Test-2 已开（amount 0.08、max 3）。
+
 **显示端是 cover 不是 contain**（`fitPlayerCanvas`）：画布永远铺满窗口，相机取窗口的比例，视场按"覆盖预设构图"来算——窗口比预设窄就保留构图的高度裁两侧，比预设宽就保留宽度裁上下。预设（含 iPhone 那两个）只决定构图，编辑器预览按预设显示，退出演示时把相机恢复到预设。不留 letterbox 是有意的：目标是实打实的全屏。
 
 **iOS 27 beta 主屏幕模式的极限**（实测 iPhone 17 Pro Max、iOS 27 beta）：网页视图永远只有"屏幕减状态栏"那么高（894 / 956），CSS 的 `100lvh` 却报 956。`black-translucent` 把视图整个挪到状态栏底下、底部留 62px 黑；`black` 让视图待在状态栏下面、顶部是黑色状态栏。两种都试过把画布画出视图外：那一段就是不显示，只会裁掉画面一边。`display: fullscreen` 试过，iOS 不认；去掉 manifest 的 `display` 走 `apple-mobile-web-app-capable` 老路径也试过，同样 894。所以网页在这台机器上到头了，收尾方案是：状态栏 `default`，页面从状态栏下面铺满到底；演示模式和播放页每半秒把画面顶边的平均色写进 `theme-color`，状态栏（以及 Safari 里的顶栏和底栏）跟着染色，看上去像画面延续过去——Apple 自己的页面就是这么"全屏"的。画布严格等于视图，cover 模式保证视图内没黑边。要真的压到状态栏底下，只能做原生壳（WKWebView 隐藏状态栏）。相机预设 **iPhone 17 Pro Max · app** = 440×894 就是这个视图。HUD 的 `viewport:` 一行报 doc / visual / screen / 各 vh 单位 / 安全区 / gap，再遇到视口问题先看它。
@@ -135,7 +137,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是作品本身：画框 + 点光 + 俯视输出相机（iPhone 17 Pro Max 画幅、SSR 开）+ 视频 color source。参数是 2026-09-11 在手机上调好后用 COPY 拷出的 JSON 直接写进去的（以后也这么更新：贴 JSON，不用截图），测试用的红球已经删掉。**编辑器一启动就直接加载它**（`DEFAULT_EXAMPLE`，在 `src/examples-config.js`；boot 一开始就 fetch，场景就绪后走和点 Examples 一样的 `window.editor.load`；fetch 失败就留在默认发射器，HUD 的 `boot:` 一行会写 `default … failed`）。代价是**刷新即回到示例**：面板里没导出的改动不会保留——粒子参数本来就不跨刷新，场景以前会留，现在也不留了；要保留就 Save 或者抄回 example。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **185/185**（含 `report` 17、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 22）
+- 控制台 harness `public/__ai-test.js`，当前基线 **198/198**（含 `report` 17、`parallaxReport` 13、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 32、`frameReport` 22）
 
 ---
 
@@ -184,6 +186,7 @@ await __t.playerReport()    // 显示窗口的通信契约 + 编辑器挂起
 await __t.videoReport()     // 视频 color source：存储、循环、读回、清理
 await __t.gizmoReport()     // 场景物体的拖拽手柄：合成指针事件真的拖一次
 await __t.presentReport()   // 演示模式：进、量、出
+await __t.parallaxReport()  // 视差：平面不动、更深的动、来源、上限、翻转
 ```
 
 `videoReport` 要能 fetch 到 `./assets-local/AnimateDiff_00013.mp4`。那是个指向仓库旁边 `assets4test/` 的软链，目录整个 gitignore，新机器上要重建：
@@ -231,6 +234,21 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - 本地改、本地验证，**不要边改边推**。收工时集中提交，commit message 写清楚做了什么。
 - 推公开仓库前先确认。推 main 会自动部署上线。
 - 沟通简洁客观，不需要铺垫和主动建议。
+
+---
+
+## 7. 进度记录
+
+### 2026-09-11 · 手机上的作品闭环
+
+这一段把 WIP-Test-2 做成了能在 iPhone 17 Pro Max 上直接看的作品，并把手机上调好的参数收回仓库：
+
+- **作品即 example**：`public/examples/wip-test-2/`，视频走 URL，测试用的红球已删；编辑器开机直接加载它（`DEFAULT_EXAMPLE`）。参数更新的方式固定下来了：手机上调 → COPY → 把 JSON 贴回对话 → 写进 `config.json`（不用截图）。
+- **画框对齐手机屏幕**：四角圆角（Apple 设备预设）、顶边下移 `topOffset`（默认 0.58，对齐状态栏）、"顶"按输出相机的屏幕上方判定（`screenTopSign`）、圆角遮罩共用正面材质（mask color 已删）、圆角分段数 `cornerSegments` 与平滑着色 `cornerSmooth`。
+- **手机全屏到头了**：主屏幕 app 视图 = 屏幕减状态栏，收尾方案是 `theme-color` 染色（§3「iOS 27 beta 主屏幕模式的极限」）。
+- 这一段为手机加的基础设施：视频 color source（worker 读回）、演示模式、Perf HUD + Copy report、显示端存储快照与心跳、竖屏布局、只留 dark。
+- **陀螺仪视差相机**（`parallax.ts`）：TheParallaxView 的离轴投影思路，眼睛换成手机倾斜；参数在相机上，WIP-Test-2 已开。
+- harness 基线 198/198。
 
 ---
 

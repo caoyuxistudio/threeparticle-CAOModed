@@ -23,6 +23,8 @@ import {
   getOutputCamera,
 } from './world';
 import type { SsrSettings, EnvironmentSettings } from './world';
+import { defaultParallaxSettings, setParallaxSettings, setParallaxPlane } from './parallax';
+import type { ParallaxSettings } from './parallax';
 import { EDITOR_LAYER, markAsEditorOnly } from './editor-layers';
 import { isPlayer } from './runtime-mode';
 
@@ -106,6 +108,11 @@ export type SceneObject = {
    * inside the saved config like every other decision about the artwork.
    */
   ssr?: SsrSettings;
+  /**
+   * CAMERA only: the screen as a window. The phone's tilt moves the eye, the
+   * frame's plane stays put and what lies deeper shifts (see parallax.ts).
+   */
+  parallax?: ParallaxSettings;
   /**
    * ENVIRONMENT only: a panorama that lights the scene and shows in reflections.
    *
@@ -399,6 +406,7 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
       far: 200,
       aspect: 16 / 9,
       ssr: defaultSsrSettings(),
+      parallax: defaultParallaxSettings(),
     };
   },
 };
@@ -918,6 +926,20 @@ const syncOutputCamera = (): void => {
   // Reflection settings ride along with the camera they belong to. Cameras saved
   // before this existed have none, and fall back to the defaults switched off.
   setSsrSettings({ ...defaultSsrSettings(), ...(active?.ssr ?? {}) });
+  setParallaxSettings({ ...defaultParallaxSettings(), ...(active?.parallax ?? {}) });
+  // The plane parallax holds still: the first visible frame's, measured along
+  // the camera's view. No frame, and the camera's own planeDistance decides.
+  const cam = active ? (live.get(active.id) as THREE.PerspectiveCamera | undefined) : undefined;
+  const frame = objects.find((o) => o.type === 'FRAME' && o.visible);
+  if (cam && frame) {
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const toFrame = new THREE.Vector3(frame.position.x, frame.position.y, frame.position.z).sub(
+      cam.position
+    );
+    setParallaxPlane(Math.max(0, toFrame.dot(forward)));
+  } else {
+    setParallaxPlane(0);
+  }
   // Only the chosen camera shows its frustum; the rest would be visual noise.
   frustums.forEach((frustum, id) => {
     const obj = objects.find((o) => o.id === id);

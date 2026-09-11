@@ -20,6 +20,7 @@ import { getOrbitControls, isPresenting, setPresenting } from './world';
 import { selectSceneObject } from './scene-objects';
 import type { PerfHud } from './perf-hud';
 import { showInfoSnackbar } from '../stores/snackbar-store';
+import { requestParallaxPermission, recenterParallax } from './parallax';
 
 const BAR_HIDE_MS = 3000;
 
@@ -152,6 +153,10 @@ export const enterPresentation = (): void => {
   getOrbitControls().enabled = false;
   document.body.classList.add('presenting');
   setPresenting(true);
+  // The gyroscope opens behind a tap-gated prompt on iOS, and this is a tap.
+  // The pose at this moment becomes the parallax centre.
+  void requestParallaxPermission();
+  recenterParallax();
   requestFullscreen();
   showBar();
 };

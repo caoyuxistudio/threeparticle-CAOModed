@@ -393,6 +393,16 @@
           "thickness": 0.15,
           "opacity": 1,
           "debug": "off"
+        },
+        "parallax": {
+          "enabled": true,
+          "amount": 0.08,
+          "maxOffset": 3,
+          "smoothing": 0.12,
+          "recenter": 8,
+          "planeDistance": 0,
+          "invertX": false,
+          "invertY": false
         }
       },
       {
