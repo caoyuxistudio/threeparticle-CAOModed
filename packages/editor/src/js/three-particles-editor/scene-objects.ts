@@ -145,8 +145,6 @@ export type SceneObject = {
    * the glass does.
    */
   cornerRadius?: { topLeft: number; topRight: number; bottomLeft: number; bottomRight: number };
-  /** The fillets' colour. Dark by default: they stand in for the bezel. */
-  cornerColor?: string;
   /**
    * FRAME only: how far the top edge — outer edge, opening and its two
    * corners — sits below where it would be, the bottom staying put. For
@@ -362,7 +360,6 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeEmissive: '#000000',
     edgeEmissiveIntensity: 0,
     cornerRadius: squareCorners(),
-    cornerColor: '#000000',
     topOffset: 0.58,
   }),
   ENVIRONMENT: () => ({
@@ -654,20 +651,16 @@ const buildThreeObject = (obj: SceneObject): THREE.Object3D => {
       return new THREE.Object3D();
     case 'FRAME': {
       // Two slots in the order ExtrudeGeometry groups them: caps, then walls.
+      const face = new THREE.MeshStandardMaterial();
       const edge = new THREE.MeshStandardMaterial();
-      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), [
-        new THREE.MeshStandardMaterial(),
-        edge,
-      ]);
+      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), [face, edge]);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      // The corner fillets ride along as a child: their own colour on the
-      // caps, the frame's edge material on the walls so the inside of the
-      // opening stays one surface around the curve.
-      const corners = new THREE.Mesh(new THREE.BufferGeometry(), [
-        new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 }),
-        edge,
-      ]);
+      // The corner fillets ride along as a child, in the frame's own two
+      // materials: the face on their caps, so the mask reads as more frame
+      // rather than a patch of its own, and the edge on their walls so the
+      // inside of the opening stays one surface around the curve.
+      const corners = new THREE.Mesh(new THREE.BufferGeometry(), [face, edge]);
       corners.name = 'frame-corners';
       corners.castShadow = true;
       corners.receiveShadow = true;
@@ -722,12 +715,6 @@ const applyToThree = (obj: SceneObject): void => {
       }
       frameKeys.set(obj.id, key);
     }
-    if (corners) {
-      const cap = (corners.material as THREE.MeshStandardMaterial[])[0];
-      cap.color.set(obj.cornerColor ?? '#000000');
-      cap.needsUpdate = true;
-    }
-
     if (obj.rotation) {
       mesh.rotation.set(
         THREE.MathUtils.degToRad(obj.rotation.x),

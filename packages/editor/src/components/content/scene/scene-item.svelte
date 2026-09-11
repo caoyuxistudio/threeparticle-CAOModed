@@ -478,16 +478,8 @@
             oninput={(e) => set({ topOffset: +e.target.value })}
           />
         </label>
-        <label class="row">
-          <span>mask color</span>
-          <input
-            type="color"
-            value={obj.cornerColor ?? '#000000'}
-            oninput={(e) => set({ cornerColor: e.target.value })}
-          />
-        </label>
         <p class="hint">
-          The opening keeps its rectangle; a rounded corner is filled in, in the mask colour, so
+          The opening keeps its rectangle; a rounded corner is filled in with the face material, so
           whatever lies beyond the curve is covered. The presets are Apple's display corner radii as
           a share of the screen's width, applied to the opening's width — right when the opening
           stands for the screen.
