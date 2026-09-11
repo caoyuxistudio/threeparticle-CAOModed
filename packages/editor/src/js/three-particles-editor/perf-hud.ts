@@ -21,6 +21,9 @@ export type PerfActions = {
   getDrawingBufferSize: () => { width: number; height: number };
   getSsr: () => SsrSettings;
   setSsr: (patch: Partial<SsrSettings>) => void;
+  /** Parallax from the gyroscope, on or off — runtime only, like the SSR lever. */
+  getParallax: () => boolean;
+  setParallax: (enabled: boolean) => void;
   getParticles: () => { maxParticles: number; rateOverTime: number; budget: number };
   /** Multiplies the particle budget (max and rate) and rebuilds. 1 = the piece's own. */
   setParticleBudget: (factor: number) => void;
@@ -165,6 +168,15 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
     ],
     () => actions.getSsr().enabled,
     (enabled) => actions.setSsr({ enabled })
+  );
+  row<boolean>(
+    'gyro',
+    [
+      { text: 'off', value: false },
+      { text: 'on', value: true },
+    ],
+    () => actions.getParallax(),
+    (enabled) => actions.setParallax(enabled)
   );
   row<number>(
     'SSR res',

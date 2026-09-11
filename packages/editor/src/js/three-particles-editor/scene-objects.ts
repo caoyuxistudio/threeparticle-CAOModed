@@ -159,6 +159,8 @@ export type SceneObject = {
    * nudging the whole frame down and losing the bottom edge.
    */
   topOffset?: number;
+  /** FRAME only: the same for the bottom edge, brought up; the top stays put. */
+  bottomOffset?: number;
   /** FRAME only: straight pieces per quarter curve of a rounded corner, 24 by default (what ExtrudeGeometry draws on its own). */
   cornerSegments?: number;
   /**
@@ -376,6 +378,7 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeEmissiveIntensity: 0,
     cornerRadius: squareCorners(),
     topOffset: 0.58,
+    bottomOffset: 0,
     cornerSegments: 24,
     cornerSmooth: false,
   }),
@@ -436,6 +439,12 @@ const topOffsetOf = (obj: SceneObject): number => {
   return Math.min(innerH - 0.01, Math.max(0, obj.topOffset ?? 0));
 };
 
+/** How far the bottom edge is brought up, within what the top has left of the opening. */
+const bottomOffsetOf = (obj: SceneObject): number => {
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5);
+  return Math.min(innerH - 0.01 - topOffsetOf(obj), Math.max(0, obj.bottomOffset ?? 0));
+};
+
 /**
  * Which of the frame's two horizontal edges is the *top* on the output
  * camera's screen: +1 for the local +y edge, -1 for the local -y edge.
@@ -460,7 +469,7 @@ const screenTopSign = (obj: SceneObject): 1 | -1 => {
   return frameUp.dot(cameraUp) < 0 ? -1 : 1;
 };
 
-/** The frame's horizontal edges in local y, the screen-top pair brought down by the offset. */
+/** The frame's horizontal edges in local y: the screen-top pair brought down, the screen-bottom pair brought up. */
 const frameEdges = (
   obj: SceneObject
 ): {
@@ -474,6 +483,7 @@ const frameEdges = (
   const border = Math.max(0.01, obj.border ?? 0.6);
   const outerH = innerH + border * 2;
   const down = topOffsetOf(obj);
+  const up = bottomOffsetOf(obj);
   const top = screenTopSign(obj);
   const edges = {
     innerPlus: innerH / 2,
@@ -485,9 +495,13 @@ const frameEdges = (
   if (top === 1) {
     edges.innerPlus -= down;
     edges.outerPlus -= down;
+    edges.innerMinus += up;
+    edges.outerMinus += up;
   } else {
     edges.innerMinus += down;
     edges.outerMinus += down;
+    edges.innerPlus -= up;
+    edges.outerPlus -= up;
   }
   return edges;
 };
@@ -525,7 +539,7 @@ const buildFrameGeometry = (obj: SceneObject): THREE.ExtrudeGeometry => {
 /** Each corner's radius, clamped to what the opening can take. */
 const cornerRadii = (obj: SceneObject): CornerRadius => {
   const innerW = Math.max(0.01, obj.innerWidth ?? 6);
-  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5) - topOffsetOf(obj);
+  const innerH = Math.max(0.01, obj.innerHeight ?? 3.5) - topOffsetOf(obj) - bottomOffsetOf(obj);
   const limit = Math.min(innerW, innerH) / 2;
   const clamp = (r: number | undefined) => Math.min(limit, Math.max(0, r ?? 0));
   const c = obj.cornerRadius ?? squareCorners();
@@ -651,6 +665,7 @@ const frameGeometryKey = (obj: SceneObject): string => {
     obj.border,
     obj.depth,
     topOffsetOf(obj),
+    bottomOffsetOf(obj),
     screenTopSign(obj),
     c.topLeft,
     c.topRight,

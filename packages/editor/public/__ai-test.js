@@ -383,6 +383,15 @@
       const b = loweredMask.geometry.boundingBox;
       check('the top corners ride on the lowered edge', Math.abs(b.max.y - (1.75 - 0.5)) < 0.01, b.max.y.toFixed(2));
     }
+    // The bottom edge brought up: the same at the other end, bottom corners along.
+    const raised = await build({ bottomOffset: 0.5, cornerRadius: { topLeft: 0, topRight: 0, bottomLeft: 0.5, bottomRight: 0.5 } });
+    check('bottom edge up shortens the frame from the bottom', Math.abs(raised.size.y - 4.2) < 0.01 && Math.abs(raised.size.x - 7.2) < 0.01, `${raised.size.x.toFixed(2)}x${raised.size.y.toFixed(2)}`);
+    const raisedMask = raised.mesh?.children.find((c) => c.name === 'frame-corners');
+    if (raisedMask) {
+      raisedMask.geometry.computeBoundingBox();
+      const b = raisedMask.geometry.boundingBox;
+      check('the bottom corners ride on the raised edge', Math.abs(b.min.y - (-1.75 + 0.5)) < 0.01 && b.max.y < 0, `${b.min.y.toFixed(2)}..${b.max.y.toFixed(2)}`);
+    }
 
     // "Top" is the screen's top. A frame lying flat under the fixture's
     // top-down camera has its local +y pointing down the screen, so the

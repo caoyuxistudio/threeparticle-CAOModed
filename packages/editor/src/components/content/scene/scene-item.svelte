@@ -482,6 +482,23 @@
           />
         </label>
         <label class="row">
+          <span>bottom edge up</span>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.01"
+            value={obj.bottomOffset ?? 0}
+            oninput={(e) => set({ bottomOffset: +e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={obj.bottomOffset ?? 0}
+            oninput={(e) => set({ bottomOffset: +e.target.value })}
+          />
+        </label>
+        <label class="row">
           <span>smooth shading</span>
           <input
             type="checkbox"
@@ -605,59 +622,6 @@
 
         <button class="wide" onclick={alignToView}> Align to current view </button>
 
-        <div class="group-label">reflections (SSR)</div>
-        <label class="row check">
-          <span>enabled</span>
-          <input
-            type="checkbox"
-            checked={obj.ssr?.enabled ?? false}
-            onchange={(e) => setSsr({ enabled: e.target.checked })}
-          />
-        </label>
-
-        {#if obj.ssr?.enabled}
-          {#each [{ key: 'maxDistance', label: 'distance', min: 1, max: 60, step: 0.5, fallback: 20 }, { key: 'opacity', label: 'strength', min: 0, max: 1, step: 0.01, fallback: 1 }, { key: 'quality', label: 'quality', min: 0.1, max: 1, step: 0.05, fallback: 1 }, { key: 'thickness', label: 'thickness', min: 0.01, max: 1, step: 0.01, fallback: 0.15 }, { key: 'blurQuality', label: 'blur', min: 0, max: 8, step: 1, fallback: 2 }, { key: 'resolutionScale', label: 'resolution', min: 0.15, max: 1, step: 0.05, fallback: 1 }] as p}
-            <label class="row">
-              <span>{p.label}</span>
-              <input
-                type="range"
-                min={p.min}
-                max={p.max}
-                step={p.step}
-                value={obj.ssr?.[p.key] ?? p.fallback}
-                oninput={(e) => setSsr({ [p.key]: +e.target.value })}
-              />
-              <input
-                type="number"
-                step={p.step}
-                value={obj.ssr?.[p.key] ?? p.fallback}
-                oninput={(e) => setSsr({ [p.key]: +e.target.value })}
-              />
-            </label>
-          {/each}
-
-          <label class="row">
-            <span>view</span>
-            <select
-              value={obj.ssr?.debug ?? 'off'}
-              onchange={(e) => setSsr({ debug: e.target.value })}
-            >
-              {#each SSR_VIEWS as v}
-                <option value={v.id}>{v.label}</option>
-              {/each}
-            </select>
-          </label>
-          <p class="hint">
-            Only surfaces with metalness above zero reflect, and only what is already on screen can
-            appear in them. If a wall stays blank, check it in the Metalness view first.
-          </p>
-          <p class="hint">
-            For softer reflections, lower the resolution before raising blur — it smears just as
-            well and costs less rather than more. Blur widens the kernel, and its samples grow as
-            the square.
-          </p>
-        {/if}
-
         <div class="group-label">parallax (gyro)</div>
         <label class="row check">
           <span>enabled</span>
@@ -711,6 +675,59 @@
             pose from switching on); plane is the distance held still (0 = the first visible frame).
             On a desktop the mouse stands in for the gyroscope. iPhone asks for motion access the
             first time you present.
+          </p>
+        {/if}
+
+        <div class="group-label">reflections (SSR)</div>
+        <label class="row check">
+          <span>enabled</span>
+          <input
+            type="checkbox"
+            checked={obj.ssr?.enabled ?? false}
+            onchange={(e) => setSsr({ enabled: e.target.checked })}
+          />
+        </label>
+
+        {#if obj.ssr?.enabled}
+          {#each [{ key: 'maxDistance', label: 'distance', min: 1, max: 60, step: 0.5, fallback: 20 }, { key: 'opacity', label: 'strength', min: 0, max: 1, step: 0.01, fallback: 1 }, { key: 'quality', label: 'quality', min: 0.1, max: 1, step: 0.05, fallback: 1 }, { key: 'thickness', label: 'thickness', min: 0.01, max: 1, step: 0.01, fallback: 0.15 }, { key: 'blurQuality', label: 'blur', min: 0, max: 8, step: 1, fallback: 2 }, { key: 'resolutionScale', label: 'resolution', min: 0.15, max: 1, step: 0.05, fallback: 1 }] as p}
+            <label class="row">
+              <span>{p.label}</span>
+              <input
+                type="range"
+                min={p.min}
+                max={p.max}
+                step={p.step}
+                value={obj.ssr?.[p.key] ?? p.fallback}
+                oninput={(e) => setSsr({ [p.key]: +e.target.value })}
+              />
+              <input
+                type="number"
+                step={p.step}
+                value={obj.ssr?.[p.key] ?? p.fallback}
+                oninput={(e) => setSsr({ [p.key]: +e.target.value })}
+              />
+            </label>
+          {/each}
+
+          <label class="row">
+            <span>view</span>
+            <select
+              value={obj.ssr?.debug ?? 'off'}
+              onchange={(e) => setSsr({ debug: e.target.value })}
+            >
+              {#each SSR_VIEWS as v}
+                <option value={v.id}>{v.label}</option>
+              {/each}
+            </select>
+          </label>
+          <p class="hint">
+            Only surfaces with metalness above zero reflect, and only what is already on screen can
+            appear in them. If a wall stays blank, check it in the Metalness view first.
+          </p>
+          <p class="hint">
+            For softer reflections, lower the resolution before raising blur — it smears just as
+            well and costs less rather than more. Blur widens the kernel, and its samples grow as
+            the square.
           </p>
         {/if}
 

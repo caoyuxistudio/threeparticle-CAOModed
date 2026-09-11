@@ -38,7 +38,12 @@ import {
 } from './js/three-particles-editor/world';
 import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
 import { installPerfHud } from './js/three-particles-editor/perf-hud';
-import { requestParallaxPermission, describeParallax } from './js/three-particles-editor/parallax';
+import {
+  requestParallaxPermission,
+  describeParallax,
+  getParallaxSettings,
+  setParallaxSettings,
+} from './js/three-particles-editor/parallax';
 import { ensureVideoTexture, loadVideoTextures } from './js/three-particles-editor/video-textures';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
 import { loadParticleSystem } from './js/three-particles-editor/save-and-load';
@@ -368,6 +373,8 @@ const installPresentationControls = (): void => {
     getDrawingBufferSize,
     getSsr: getSsrSettings,
     setSsr: setSsrSettings,
+    getParallax: () => getParallaxSettings().enabled,
+    setParallax: (enabled) => setParallaxSettings({ ...getParallaxSettings(), enabled }),
     getParticles: () => ({
       maxParticles: particleSystemConfig.maxParticles ?? 0,
       rateOverTime: particleSystemConfig.emission?.rateOverTime ?? 0,
