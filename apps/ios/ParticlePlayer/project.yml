@@ -1,0 +1,59 @@
+# The iOS shell around the web player — see README.md next to this file.
+#
+# Regenerate the Xcode project after editing this file:
+#   cd apps/ios/ParticlePlayer && xcodegen generate
+name: ParticlePlayer
+options:
+  bundleIdPrefix: studio.caoyuxi
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Automatic signing: pick your Team once in Xcode (Signing & Capabilities).
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: minimal
+
+targets:
+  ParticlePlayer:
+    type: application
+    platform: iOS
+    sources:
+      - path: ParticlePlayer
+    info:
+      path: ParticlePlayer/Info.plist
+      properties:
+        CFBundleDisplayName: Particle Player
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # A black launch screen, no storyboard: the first frame is the player's own black.
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        UIUserInterfaceStyle: Dark
+        # The page reads the gyroscope for the parallax; iOS wants a reason.
+        NSMotionUsageDescription: The piece shifts with the tilt of the phone.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: studio.caoyuxi.particleplayer
+        PRODUCT_NAME: Particle Player
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ParticlePlayer/Info.plist
+        SUPPORTS_MACCATALYST: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
