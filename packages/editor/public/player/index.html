@@ -10,7 +10,11 @@
     <base href="../" />
     <title>Player</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- No pinch zoom: this is a display, and iOS zooms a page toward a focused text field smaller than 16px. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <!-- Kept at the piece's top-edge colour while it plays (world.ts): the bars a phone keeps take this colour. -->
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -157,7 +161,8 @@
         color: #eee;
         border: 1px solid #444;
         border-radius: 6px;
-        font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        /* 16px is the size below which iOS zooms the page toward a focused field. */
+        font: 16px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
       }
 
       .player-paste-sheet button {

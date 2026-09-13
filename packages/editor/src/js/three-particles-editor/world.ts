@@ -714,8 +714,19 @@ export type ViewportMetrics = {
  * is the view, edge to edge, and the strip is the platform's. The large
  * viewport and the insets are still measured for the HUD.
  */
+/**
+ * The layout viewport, not the visual one. On iOS `window.innerWidth/Height`
+ * shrink to whatever a pinch — or the zoom Safari applies when a small text
+ * field takes focus — leaves on screen, and a canvas sized to that ends up as
+ * a magnified corner of the page. The document's client size is the page.
+ */
+const layoutViewport = (): { width: number; height: number } => ({
+  width: Math.max(1, document.documentElement.clientWidth || window.innerWidth),
+  height: Math.max(1, document.documentElement.clientHeight || window.innerHeight),
+});
+
 export const viewportMetrics = (): ViewportMetrics => {
-  const h = window.innerHeight;
+  const h = layoutViewport().height;
   void isStandalone;
   void largeViewportHeight;
   void safeAreaTop;
@@ -767,7 +778,7 @@ const restoreOutputCameraPreset = (): void => {
  */
 export const fitPlayerCanvas = (): void => {
   if (!renderer) return;
-  const w = window.innerWidth;
+  const w = layoutViewport().width;
   const { height: h, top, bottom } = viewportMetrics();
   const root = document.documentElement.style;
   root.setProperty('--viewport-gap', `${bottom}px`);

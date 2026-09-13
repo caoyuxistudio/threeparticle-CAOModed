@@ -287,7 +287,7 @@ export const installPerfHud = (actions: PerfActions): PerfHud => {
     return [
       `doc ${document.documentElement.clientWidth}×${document.documentElement.clientHeight}`,
       vv
-        ? `visual ${Math.round(vv.width)}×${Math.round(vv.height)} @${Math.round(vv.offsetTop)}`
+        ? `visual ${Math.round(vv.width)}×${Math.round(vv.height)} @${Math.round(vv.offsetTop)} zoom x${vv.scale.toFixed(2)}`
         : 'no visualViewport',
       `screen ${screen.width}×${screen.height}`,
       units,

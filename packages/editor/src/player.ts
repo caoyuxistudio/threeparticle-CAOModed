@@ -492,12 +492,20 @@ const installPresentationControls = (): void => {
     webkitExitFullscreen?: () => Promise<void> | void;
   };
   const canFullscreen = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+  // A Home Screen app already has the whole screen an iPhone will give a page.
+  const isHomeScreenApp =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
   const toggleFullscreen = (): void => {
     if (!canFullscreen) {
       // iPhone browsers have no element fullscreen; the way to lose the chrome
-      // there is the Home Screen.
-      showStatus('Full screen is not available here — add this page to the Home Screen.');
+      // there is the Home Screen — and once there, this is as full as it gets.
+      showStatus(
+        isHomeScreenApp
+          ? 'This is full screen: iOS keeps the status bar for itself.'
+          : 'Full screen is not available here — add this page to the Home Screen.'
+      );
       setTimeout(() => showStatus(hasContent ? noCameraStatus() : ''), 4000);
       return;
     }
@@ -522,10 +530,15 @@ const installPresentationControls = (): void => {
     document.body.appendChild(button);
     return button;
   };
-  const fullscreenButton = makeButton('', 'Full screen');
-  const perfButton = makeButton('player-perf', 'Perf');
-  const gyroButton = makeButton('player-gyro', 'Gyro');
-  const pasteRowButton = linked ? null : makeButton('player-pastebtn', 'Paste');
+  // No Full screen button where it could do nothing: a Home Screen app on an
+  // iPhone. The others move down a slot to fill the gap.
+  const offerFullscreen = canFullscreen || !isHomeScreenApp;
+  const fullscreenButton = offerFullscreen ? makeButton('', 'Full screen') : null;
+  const perfButton = makeButton(offerFullscreen ? 'player-perf' : '', 'Perf');
+  const gyroButton = makeButton(offerFullscreen ? 'player-gyro' : 'player-perf', 'Gyro');
+  const pasteRowButton = linked
+    ? null
+    : makeButton(offerFullscreen ? 'player-pastebtn' : 'player-gyro', 'Paste');
   const controls = [fullscreenButton, perfButton, gyroButton, pasteRowButton].filter(
     (b): b is HTMLButtonElement => !!b
   );
@@ -543,7 +556,7 @@ const installPresentationControls = (): void => {
     if (target?.closest('button, .gyro-hud, .perf-hud, .player-paste-sheet, textarea')) return;
     showControls();
   });
-  fullscreenButton.addEventListener('click', (event) => {
+  fullscreenButton?.addEventListener('click', (event) => {
     event.stopPropagation();
     toggleFullscreen();
     fullscreenButton.classList.remove('is-visible');

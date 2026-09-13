@@ -150,7 +150,7 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是作品本身：画框 + 点光 + 俯视输出相机（iPhone 17 Pro Max 画幅、SSR 开）+ 视频 color source。参数是 2026-09-11 在手机上调好后用 COPY 拷出的 JSON 直接写进去的（以后也这么更新：贴 JSON，不用截图），测试用的红球已经删掉。**编辑器一启动就直接加载它**（`DEFAULT_EXAMPLE`，在 `src/examples-config.js`；boot 一开始就 fetch，场景就绪后走和点 Examples 一样的 `window.editor.load`；fetch 失败就留在默认发射器，HUD 的 `boot:` 一行会写 `default … failed`）。代价是**刷新即回到示例**：面板里没导出的改动不会保留——粒子参数本来就不跨刷新，场景以前会留，现在也不留了；要保留就 Save 或者抄回 example。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **235/235**（含 `report` 19、`standaloneReport` 17、`touchReport` 9、`parallaxReport` 19、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 33、`frameReport` 24）
+- 控制台 harness `public/__ai-test.js`，当前基线 **237/237**（含 `report` 19、`standaloneReport` 19、`touchReport` 9、`parallaxReport` 19、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 33、`frameReport` 24）
 
 ---
 
@@ -228,6 +228,8 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 
 **WebGPU 的 viewport 原点是左上角**，和 WebGL 的左下相反。
 
+**iOS 会把页面缩放到获得焦点的小字输入框上**：`<input>` / `<textarea>` 的字号小于 16px 时，一获得焦点 Safari（主屏幕 app 也一样）就把整页放大到它，之后页面留在放大状态，`window.innerWidth/Height` 变成可视视口（放大后那一小块），按它算尺寸的画布就变成页面的一个角。手机上的 player 实测踩过：粘贴用的文本框 12px → 贴完画面缩在左下角，HUD 的 `viewport:` 一行 `doc 440×894, visual 330×670 @224` 就是这个症状（现在还会直接报 `zoom x1.33`）。三道保险：文本框字号 ≥ 16px；player 的 viewport meta 加 `maximum-scale=1, user-scalable=no`；`fitPlayerCanvas` 改按**布局视口**（`documentElement.clientWidth/Height`）算尺寸，被放大了也画满整页而不是缩成一角。
+
 **放到 layer 1 的东西，射线检测也要跟着改**。`Raycaster.layers` 默认只看 layer 0，TransformControls 内部找手柄用的也是一个 Raycaster。把手柄 `markAsEditorOnly` 之后如果不给对应的 raycaster `layers.enable(EDITOR_LAYER)`，手柄画得出来但 hover 不亮、拖不动，而且没有任何报错——场景物体、力场、碰撞面三套手柄都这样坏过一轮。新加任何家具层上的可点击物，配套的 raycaster 一起改。
 
 **TSL 会吞掉 shader 里的异常**。表现是"没报错也没效果"，所有输入单独看都对。SSR 卡了两天就是这个——传进去的节点缺 `.sample()` 方法，每次采样都抛异常。遇到这类情况，直接往 shader 内部插探针读它自己看到的值，不对称的地方就是 bug。
@@ -266,7 +268,7 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - `/player/` 直接打开是黑屏 + Paste config；editor 里 COPY，player 里贴，加载完直接全屏播。零存储、不监听频道，作品只活在内存里；`?link` 才是老的显示窗口模式。
 - 加载走 editor 同一个 `loadParticleSystem`，存储边界上用 `isStandalone()` 改成内存；harness `standaloneReport` 在 iframe 里真起一个 player 逐字段比对。
 - 只按需加载作品点名的贴图，默认没有帧数表；`player.webmanifest` 让手机把 player 单独加到主屏幕。
-- harness 基线 235/235。
+- harness 基线 237/237。
 
 ---
 

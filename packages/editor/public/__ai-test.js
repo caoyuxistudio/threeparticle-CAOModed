@@ -681,6 +681,12 @@
       check('it shows nothing until a paste', p.hasContent() === false);
       check('the frame counter starts hidden', p.statsVisible() === false);
       check('the Paste control is offered', !frame.contentDocument.querySelector('.player-paste').hidden);
+      // iOS zooms a page toward a focused field smaller than 16px, and a zoomed
+      // display renders as a magnified corner. Both guards, checked.
+      const sheetFont = parseFloat(frame.contentWindow.getComputedStyle(frame.contentDocument.querySelector('.player-paste-sheet textarea')).fontSize);
+      check('the paste box will not make iOS zoom', sheetFont >= 16, `${sheetFont}px`);
+      const viewportMeta = frame.contentDocument.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? '';
+      check('the page forbids pinch zoom', /maximum-scale=1/.test(viewportMeta) && /user-scalable=no/.test(viewportMeta), viewportMeta);
       const writesBefore = p.storageWrites();
 
       const ok = await p.paste(json);
