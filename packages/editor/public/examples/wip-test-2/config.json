@@ -314,6 +314,14 @@
       "lifetimeLoss": 0
     }
   ],
+  "touch": {
+    "isActive": true,
+    "radius": 0.12,
+    "strength": 1,
+    "wake": 0.4,
+    "swirl": 0.3,
+    "maxSpeed": 8
+  },
   "_editorData": {
     "textureId": "VORTEX",
     "simulation": {
@@ -443,7 +451,7 @@
         "edgeMetalness": 0.31,
         "edgeEmissive": "#000000",
         "edgeEmissiveIntensity": 0,
-        "topOffset": 0.58,
+        "topOffset": 0.17,
         "cornerRadius": {
           "topLeft": 0.5636363636363636,
           "topRight": 0.5636363636363636,
@@ -469,13 +477,5 @@
       }
     ]
   },
-  "subEmitters": [],
-  "touch": {
-    "isActive": true,
-    "radius": 0.12,
-    "strength": 1,
-    "wake": 0.4,
-    "swirl": 0.3,
-    "maxSpeed": 8
-  }
+  "subEmitters": []
 }

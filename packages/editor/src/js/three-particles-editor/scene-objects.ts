@@ -376,9 +376,15 @@ const DEFAULTS: Record<SceneObjectType, () => Omit<SceneObject, 'id' | 'name'>> 
     edgeMetalness: 0.9,
     edgeEmissive: '#000000',
     edgeEmissiveIntensity: 0,
-    cornerRadius: squareCorners(),
-    topOffset: 0.58,
-    bottomOffset: 0,
+    // A new frame is a phone's screen until told otherwise: the iPhone 17 Pro
+    // Max's corners for its width, and the edges brought in as the piece has
+    // them in an app that hides the status bar.
+    cornerRadius: (() => {
+      const r = CORNER_PRESETS[0].ratio * 6;
+      return { topLeft: r, topRight: r, bottomLeft: r, bottomRight: r };
+    })(),
+    topOffset: 0.17,
+    bottomOffset: 0.17,
     cornerSegments: 24,
     cornerSmooth: false,
   }),
