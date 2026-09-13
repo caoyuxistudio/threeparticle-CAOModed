@@ -232,6 +232,8 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 
 **iOS 会把页面缩放到获得焦点的小字输入框上**：`<input>` / `<textarea>` 的字号小于 16px 时，一获得焦点 Safari（主屏幕 app 也一样）就把整页放大到它，之后页面留在放大状态，`window.innerWidth/Height` 变成可视视口（放大后那一小块），按它算尺寸的画布就变成页面的一个角。手机上的 player 实测踩过：粘贴用的文本框 12px → 贴完画面缩在左下角，HUD 的 `viewport:` 一行 `doc 440×894, visual 330×670 @224` 就是这个症状（现在还会直接报 `zoom x1.33`）。三道保险：文本框字号 ≥ 16px；player 的 viewport meta 加 `maximum-scale=1, user-scalable=no`；`fitPlayerCanvas` 改按**布局视口**（`documentElement.clientWidth/Height`）算尺寸，被放大了也画满整页而不是缩成一角。
 
+**没有 WebGPU 的地方粒子会整个消失，除非注册 TSL 材质**。世界永远用 `WebGPURenderer`；拿不到 adapter 时 three 自己退到 WebGL2 后端（iOS 模拟器就是这样：`navigator.gpu` 存在但 `requestAdapter()` 返回 null；老浏览器同理）。以前这时候库里什么都没注册，粒子用 GLSL 的 `ShaderMaterial`，WebGL2 后端拒绝它（`THREE.NodeMaterial: Material "ShaderMaterial" is not compatible`），画面里只剩画框、没有报错。现在 `gpu-support.ts` 的 `prepareParticleBackend()` 统一决定：有 adapter → `enableWebGPU()`（TSL + compute，GPU 模拟）；没有 → 只注册 `createTSLParticleMaterial / createTSLTrailMaterial`（TSL 编译成 GLSL，没有 compute 管线所以库走 CPU 模拟）。editor 和 player 都走它，HUD 的 `backend:` 一行报 webgpu / webgl。CPU 模拟 20 万粒子很慢，只是保证"能看见"；真机（iOS 27）有 WebGPU，不受影响。App 的 Debug 版把页面 console 转发进系统日志（`log stream --predicate 'process == "Particle Player"'`，看 `[web …]` 行），模拟器里没有 Web Inspector 时靠它。
+
 **放到 layer 1 的东西，射线检测也要跟着改**。`Raycaster.layers` 默认只看 layer 0，TransformControls 内部找手柄用的也是一个 Raycaster。把手柄 `markAsEditorOnly` 之后如果不给对应的 raycaster `layers.enable(EDITOR_LAYER)`，手柄画得出来但 hover 不亮、拖不动，而且没有任何报错——场景物体、力场、碰撞面三套手柄都这样坏过一轮。新加任何家具层上的可点击物，配套的 raycaster 一起改。
 
 **TSL 会吞掉 shader 里的异常**。表现是"没报错也没效果"，所有输入单独看都对。SSR 卡了两天就是这个——传进去的节点缺 `.sample()` 方法，每次采样都抛异常。遇到这类情况，直接往 shader 内部插探针读它自己看到的值，不对称的地方就是 bug。
