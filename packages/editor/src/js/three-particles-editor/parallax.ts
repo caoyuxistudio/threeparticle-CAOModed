@@ -38,8 +38,8 @@ export type ParallaxSettings = {
 
 export const defaultParallaxSettings = (): ParallaxSettings => ({
   enabled: false,
-  amount: 0.05,
-  maxOffset: 2,
+  amount: 0.25,
+  maxOffset: 4,
   smoothing: 0.12,
   recenter: 8,
   planeDistance: 0,

@@ -532,7 +532,10 @@ const installPresentationControls = (): void => {
   };
   // No Full screen button where it could do nothing: a Home Screen app on an
   // iPhone. The others move down a slot to fill the gap.
-  const offerFullscreen = canFullscreen || !isHomeScreenApp;
+  // iPhone browsers have no element fullscreen (Safari and a Home Screen app
+  // alike), so a button there could only apologise. F and a double-click
+  // still work where they can.
+  const offerFullscreen = canFullscreen;
   const fullscreenButton = offerFullscreen ? makeButton('', 'Full screen') : null;
   const perfButton = makeButton(offerFullscreen ? 'player-perf' : '', 'Perf');
   const gyroButton = makeButton(offerFullscreen ? 'player-gyro' : 'player-perf', 'Gyro');

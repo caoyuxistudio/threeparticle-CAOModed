@@ -633,7 +633,7 @@
         </label>
 
         {#if obj.parallax?.enabled}
-          {#each [{ key: 'amount', label: 'amount', min: 0, max: 0.3, step: 0.005, fallback: 0.05 }, { key: 'maxOffset', label: 'max travel', min: 0, max: 10, step: 0.1, fallback: 2 }, { key: 'smoothing', label: 'smoothing', min: 0.01, max: 1, step: 0.01, fallback: 0.12 }, { key: 'recenter', label: 'auto recenter (s)', min: 0, max: 30, step: 0.5, fallback: 8 }, { key: 'planeDistance', label: 'plane', min: 0, max: 60, step: 0.5, fallback: 0 }] as p}
+          {#each [{ key: 'amount', label: 'amount', min: 0, max: 1, step: 0.01, fallback: 0.25 }, { key: 'maxOffset', label: 'max travel', min: 0, max: 10, step: 0.1, fallback: 4 }, { key: 'smoothing', label: 'smoothing', min: 0.01, max: 1, step: 0.01, fallback: 0.12 }, { key: 'recenter', label: 'auto recenter (s)', min: 0, max: 30, step: 0.5, fallback: 8 }, { key: 'planeDistance', label: 'plane', min: 0, max: 60, step: 0.5, fallback: 0 }] as p}
             <label class="row">
               <span>{p.label}</span>
               <input

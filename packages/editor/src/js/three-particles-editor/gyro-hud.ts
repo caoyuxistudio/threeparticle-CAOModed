@@ -148,8 +148,8 @@ export const installGyroHud = (actions: GyroActions): GyroHud => {
   };
 
   toggleRow('gyro', 'enabled');
-  sliderRow('amount', 'amount', 0, 0.3, 0.005, 3);
-  sliderRow('max travel', 'maxOffset', 0, 5, 0.1, 1);
+  sliderRow('amount', 'amount', 0, 1, 0.01, 2);
+  sliderRow('max travel', 'maxOffset', 0, 10, 0.1, 1);
   sliderRow('smoothing', 'smoothing', 0.01, 1, 0.01, 2);
   sliderRow('auto recenter', 'recenter', 0, 30, 0.5, 1);
   toggleRow('invert x', 'invertX');

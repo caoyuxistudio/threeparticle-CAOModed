@@ -412,9 +412,9 @@
           "debug": "off"
         },
         "parallax": {
-          "enabled": true,
-          "amount": 0.08,
-          "maxOffset": 1,
+          "enabled": false,
+          "amount": 0.25,
+          "maxOffset": 4,
           "smoothing": 0.12,
           "recenter": 8,
           "planeDistance": 0,
