@@ -438,6 +438,8 @@ const installStats = (): void => {
   document.body.appendChild(stats.dom);
 };
 
+export const isStatsVisible = (): boolean => !!stats && stats.dom.style.display !== 'none';
+
 /** Shows or hides the frame counter; returns whether it ended up visible. */
 export const toggleStats = (): boolean => {
   const showing = stats.dom.style.display !== 'none';

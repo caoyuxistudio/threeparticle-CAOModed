@@ -1,23 +1,32 @@
 /**
- * The display window.
+ * The player: a page that shows a piece and does nothing else.
  *
- * A second instance of the same world, showing the output camera and nothing
- * else: no panels, no grid, no gizmos, no preview box. The editor stays where
- * it is and keeps playing, which is the whole point of this being a window
- * rather than a tab — a hidden tab has its animation frames suspended.
+ * It is the editor's module graph with everything editorial left out — no
+ * panels, no grid, no gizmos, no preview box, no Svelte, no lil-gui. One
+ * renderer, one scene, the output camera, straight to the canvas. Two ways
+ * to get a piece into it:
  *
- * It is a separate page, so `world.ts` and `scene-objects.ts` — both built on
- * module-level singletons — get a clean set of their own. The cost is a second
- * WebGPU device with its own copy of every texture.
+ * - **Standalone** (the default, `/player/`): paste the JSON the editor's
+ *   COPY button produces. Nothing is read from or written to storage, nothing
+ *   is listened for; the piece lives in memory until the next paste. This is
+ *   the page a phone opens, and the one an app shell wraps.
+ * - **Linked** (`/player/?link`, what the editor's display button opens): the
+ *   editor pushes every change over a BroadcastChannel, and the last piece is
+ *   read from the storage the two share when no editor is awake.
+ *
+ * Both routes load through the same function the editor's own LOAD uses, so
+ * a piece that works in one cannot silently differ in the other.
  */
 import * as THREE from 'three';
 
-import { setRuntimeMode } from './js/three-particles-editor/runtime-mode';
+import { setPlayerSource, setRuntimeMode } from './js/three-particles-editor/runtime-mode';
 
 // Before anything reads it. Everything downstream checks the mode lazily, at
 // call time, so this only has to happen before the first call — but putting it
 // at the very top removes the question.
 setRuntimeMode('player');
+const linked = new URLSearchParams(window.location.search).has('link');
+setPlayerSource(linked ? 'linked' : 'standalone');
 
 import { updateParticleSystems } from '@newkrok/three-particles';
 import { enableWebGPU } from '@newkrok/three-particles/webgpu';
@@ -30,6 +39,7 @@ import {
   getScene,
   renderPlayer,
   toggleStats,
+  isStatsVisible,
   getDrawingBufferSize,
   getRenderScale,
   getSsrSettings,
@@ -37,7 +47,12 @@ import {
   setSsrSettings,
   getRendererDomElement,
 } from './js/three-particles-editor/world';
-import { getTexture, initAssets, loadCustomAssets } from './js/three-particles-editor/assets';
+import {
+  ensureTexturesLoaded,
+  getTexture,
+  initAssets,
+  loadCustomAssets,
+} from './js/three-particles-editor/assets';
 import { installPerfHud } from './js/three-particles-editor/perf-hud';
 import { installGyroHud } from './js/three-particles-editor/gyro-hud';
 import { installTouchInput } from './js/three-particles-editor/touch-input';
@@ -51,7 +66,7 @@ import {
 } from './js/three-particles-editor/parallax';
 import { ensureVideoTexture, loadVideoTextures } from './js/three-particles-editor/video-textures';
 import { buildParticleSystem } from './js/three-particles-editor/particle-factory';
-import { loadParticleSystem } from './js/three-particles-editor/save-and-load';
+import { loadParticleSystem, serializeConfig } from './js/three-particles-editor/save-and-load';
 import {
   getSceneObjects,
   readStoredSceneObjects,
@@ -81,7 +96,7 @@ const cycleData: CycleData = { pauseStartTime: 0, totalPauseTime: 0, now: 0, del
 /**
  * Only `_editorData.textureId` has to be here: the loader keeps whatever
  * `_editorData` it finds and merges the incoming config's over it, so the
- * editor's defaults arrive with the first snapshot.
+ * editor's defaults arrive with the first piece.
  */
 const particleSystemConfig: any = {
   _editorData: { textureId: TextureId.POINT },
@@ -99,7 +114,7 @@ let hasContent = false;
  * The emitter's canned motion is a pure function of elapsed time, so sharing
  * the origin once puts both windows at the same point of the same circle. Null
  * until a snapshot arrives, and then it is never renegotiated — both clocks run
- * off wall time, so they do not drift apart.
+ * off wall time, so they do not drift apart. A pasted piece starts from zero.
  */
 let simulationOrigin: number | null = null;
 /**
@@ -111,6 +126,19 @@ let lastAppliedAt = 0;
 /** True once a live editor has spoken; retries of the hello stop then. */
 let heardEditor = false;
 
+/**
+ * Standalone means nothing touches storage. This counts every attempt in
+ * this window so the claim can be checked rather than believed.
+ */
+let storageWrites = 0;
+if (!linked) {
+  const originalSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function countingSetItem(key: string, value: string) {
+    storageWrites += 1;
+    return originalSetItem.call(this, key, value);
+  };
+}
+
 const status = (): HTMLElement | null => document.querySelector('.player-status');
 
 const showStatus = (text: string): void => {
@@ -118,6 +146,12 @@ const showStatus = (text: string): void => {
   if (!element) return;
   element.textContent = text;
   element.style.display = text ? 'block' : 'none';
+};
+
+const pasteButton = (): HTMLElement | null => document.querySelector('.player-paste');
+const setPasteVisible = (visible: boolean): void => {
+  const button = pasteButton();
+  if (button) button.hidden = !visible;
 };
 
 // ─── Rebuilding ──────────────────────────────────────────────────────────────
@@ -181,6 +215,10 @@ const applyScene = (incoming: any[]): void => {
   });
 };
 
+const noCameraStatus = (): string =>
+  getOutputCamera() ? '' : 'This piece has no visible output camera.';
+
+/** The one load path, shared with the editor's LOAD and the paste below. */
 const applyConfig = (config: any): void => {
   // The editor's Helper panel does this on load too: a new piece starts from
   // the origin rather than wherever the previous one's motion left the emitter.
@@ -192,13 +230,13 @@ const applyConfig = (config: any): void => {
     recreateParticleSystem,
   });
   hasContent = true;
-  showStatus(getOutputCamera() ? '' : 'This piece has no visible output camera.');
+  showStatus(noCameraStatus());
 
-  // A video uploaded after this window opened is on disk but not yet in hand:
-  // fetch it by name and build again once it plays. Images cannot arrive this
-  // way — they are read once at start-up — which is a limit this leaves alone.
+  // Linked only: a video uploaded after this window opened is on disk but not
+  // yet in hand — fetch it by name and build again once it plays. A pasted
+  // piece names its video by URL and the loader has already registered it.
   const source = particleSystemConfig._editorData?.colorInstanceTextureId;
-  if (source && !getTexture(source)) {
+  if (linked && source && !getTexture(source)) {
     void ensureVideoTexture(source).then((video) => {
       if (!video || particleSystemConfig._editorData?.colorInstanceTextureId !== source) return;
       if (particleSystemConfig.particleColorInstance)
@@ -208,16 +246,153 @@ const applyConfig = (config: any): void => {
   }
 };
 
-// ─── The stored piece ────────────────────────────────────────────────────────
+// ─── Standalone: the paste ───────────────────────────────────────────────────
+
+const looksLikeAPiece = (value: unknown): boolean =>
+  !!value &&
+  typeof value === 'object' &&
+  ('_editorData' in (value as object) ||
+    'emission' in (value as object) ||
+    'renderer' in (value as object));
+
+/** Waits for the colour source (an embedded image, a URL video) to be in hand. */
+const waitForColourSource = async (id: string | undefined, ms = 10000): Promise<boolean> => {
+  if (!id) return true;
+  const start = performance.now();
+  while (performance.now() - start < ms) {
+    if ((getTexture(id) as any)?.map) return true;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return false;
+};
+
+/**
+ * Takes what was pasted — the text from COPY, or the parsed object — and shows
+ * it. Built-in textures the piece names are fetched first (the standalone
+ * player loads none up front), embedded ones are registered in memory by the
+ * loader, a URL video plays when it can. Resolves to whether a piece arrived.
+ */
+const importPiece = async (input: string | object): Promise<boolean> => {
+  let config: any;
+  try {
+    config = typeof input === 'string' ? JSON.parse(input) : input;
+  } catch {
+    showStatus('That was not a config. Use COPY in the editor, then paste here.');
+    return false;
+  }
+  if (!looksLikeAPiece(config)) {
+    showStatus('That was not a config. Use COPY in the editor, then paste here.');
+    return false;
+  }
+
+  showStatus('Loading…');
+  setPasteVisible(false);
+  const editorData = config._editorData ?? {};
+  await new Promise<void>((resolve) =>
+    ensureTexturesLoaded([editorData.textureId, editorData.colorInstanceTextureId], resolve)
+  );
+  simulationOrigin = null;
+  lastAppliedAt = Date.now();
+  applyConfig(config);
+  const sourceReady = await waitForColourSource(
+    particleSystemConfig._editorData?.colorInstanceTextureId
+  );
+  showStatus(
+    !sourceReady ? 'The colour source did not load; the piece plays without it.' : noCameraStatus()
+  );
+  if (!sourceReady) setTimeout(() => showStatus(noCameraStatus()), 4000);
+  return true;
+};
+
+/**
+ * The ways a piece gets in: ⌘V / Ctrl+V anywhere, the Paste button (the one
+ * gesture iOS allows a clipboard read in), a dropped .json, or `?config=url`
+ * for a page that is opened by a machine rather than a person.
+ */
+const installPasteInputs = (): void => {
+  document.addEventListener('paste', (event) => {
+    const text = event.clipboardData?.getData('text/plain');
+    if (!text) return;
+    event.preventDefault();
+    void importPiece(text);
+  });
+
+  const sheet = document.querySelector<HTMLElement>('.player-paste-sheet');
+  const textarea = sheet?.querySelector('textarea') ?? null;
+  const closeSheet = (): void => {
+    if (sheet) sheet.hidden = true;
+    if (textarea) textarea.value = '';
+  };
+  sheet?.querySelector('[data-act="load"]')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const text = textarea?.value.trim() ?? '';
+    closeSheet();
+    if (text) void importPiece(text);
+  });
+  sheet?.querySelector('[data-act="cancel"]')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeSheet();
+  });
+
+  const readClipboard = (): void => {
+    const read = navigator.clipboard?.readText?.bind(navigator.clipboard);
+    if (!read) {
+      if (sheet) sheet.hidden = false;
+      textarea?.focus();
+      return;
+    }
+    read().then(
+      (text) => {
+        if (text && text.trim()) void importPiece(text);
+        else showStatus('The clipboard is empty. Use COPY in the editor first.');
+      },
+      () => {
+        // Refused, or unavailable: a box to paste into does the same job.
+        if (sheet) sheet.hidden = false;
+        textarea?.focus();
+      }
+    );
+  };
+  document.querySelectorAll<HTMLElement>('.player-paste, .player-pastebtn').forEach((button) =>
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      readClipboard();
+    })
+  );
+
+  document.addEventListener('dragover', (event) => event.preventDefault());
+  document.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      void file.text().then((text) => importPiece(text));
+      return;
+    }
+    const text = event.dataTransfer?.getData('text/plain');
+    if (text) void importPiece(text);
+  });
+
+  const url = new URLSearchParams(window.location.search).get('config');
+  if (url) {
+    showStatus('Loading…');
+    fetch(url)
+      .then((response) => response.json())
+      .then((config) => importPiece(config))
+      .catch(() => showStatus('The config at that address could not be loaded.'));
+  }
+};
+
+// ─── Linked: the stored piece ────────────────────────────────────────────────
 
 /**
  * Shows what the editor last left in storage, if it is newer than what is on
- * screen. This is how a display works without a live editor: one opened on a
- * phone, where the editor's tab froze the moment this one came to the front;
- * one opened from a pasted link with the editor long closed; or this one
- * waking up after being frozen itself while the editor kept working.
+ * screen. This is how a linked display works without a live editor: one
+ * opened from the editor on a phone, where the editor's tab froze the moment
+ * this one came to the front; or this one waking up after being frozen itself
+ * while the editor kept working. The standalone player never reads it.
  */
 const applyStoredSnapshot = (): boolean => {
+  if (!linked) return false;
   const stored = readPlayerSnapshot();
   if (!stored || stored.savedAt <= lastAppliedAt) return false;
   lastAppliedAt = stored.savedAt;
@@ -227,15 +402,14 @@ const applyStoredSnapshot = (): boolean => {
   applyConfig(stored.config);
   // The scene is persisted separately, by scene-objects.ts, on every change.
   replaceSceneObjects(readStoredSceneObjects());
-  showStatus(getOutputCamera() ? '' : 'This piece has no visible output camera.');
+  showStatus(noCameraStatus());
   return true;
 };
 
-// ─── The link ────────────────────────────────────────────────────────────────
-
-const channel = new BroadcastChannel(PLAYER_CHANNEL);
+// ─── Linked: the wire ────────────────────────────────────────────────────────
 
 const listen = (): void => {
+  const channel = new BroadcastChannel(PLAYER_CHANNEL);
   channel.onmessage = (event: MessageEvent<PlayerMessage>) => {
     const message = event.data;
     if (!message) return;
@@ -253,8 +427,7 @@ const listen = (): void => {
       applyConfig(message.config);
     } else if (message.type === 'scene') {
       applyScene(message.objects);
-      if (hasContent)
-        showStatus(getOutputCamera() ? '' : 'This piece has no visible output camera.');
+      if (hasContent) showStatus(noCameraStatus());
     } else if (message.type === 'closing') {
       showStatus('The editor closed.');
     } else if (message.type === 'shutdown') {
@@ -304,10 +477,11 @@ const listen = (): void => {
 // ─── Presentation ────────────────────────────────────────────────────────────
 
 /**
- * Fullscreen, and a cursor that gets out of the way.
+ * Fullscreen, the hidden controls, and a cursor that gets out of the way.
  *
  * The window is already chrome-free; fullscreen is for the moment it goes on
- * the actual wall.
+ * the actual wall. A tap (or a click) brings the controls up for a few
+ * seconds: Full screen, Perf, Gyro, Paste.
  */
 const installPresentationControls = (): void => {
   const root = document.documentElement as HTMLElement & {
@@ -324,7 +498,7 @@ const installPresentationControls = (): void => {
       // iPhone browsers have no element fullscreen; the way to lose the chrome
       // there is the Home Screen.
       showStatus('Full screen is not available here — add this page to the Home Screen.');
-      setTimeout(() => showStatus(''), 4000);
+      setTimeout(() => showStatus(hasContent ? noCameraStatus() : ''), 4000);
       return;
     }
     const active = document.fullscreenElement ?? doc.webkitFullscreenElement;
@@ -334,42 +508,40 @@ const installPresentationControls = (): void => {
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'f' || event.key === 'F') toggleFullscreen();
-    // The counter is on by default because this window exists to be measured
-    // against the editor's. On a wall it is one keystroke away from gone.
+    // Linked: the counter is on by default because that window exists to be
+    // measured against the editor's. Standalone: off, this is the wall.
     if (event.key === 's' || event.key === 'S') toggleStats();
   });
   document.addEventListener('dblclick', toggleFullscreen);
 
-  // No keyboard and no double-click on a phone: a tap brings up a button for
-  // a few seconds, and the button does what F does.
-  const fullscreenButton = document.createElement('button');
-  fullscreenButton.className = 'player-fullscreen';
-  fullscreenButton.type = 'button';
-  fullscreenButton.textContent = 'Full screen';
-  document.body.appendChild(fullscreenButton);
+  const makeButton = (className: string, text: string): HTMLButtonElement => {
+    const button = document.createElement('button');
+    button.className = `player-fullscreen ${className}`.trim();
+    button.type = 'button';
+    button.textContent = text;
+    document.body.appendChild(button);
+    return button;
+  };
+  const fullscreenButton = makeButton('', 'Full screen');
+  const perfButton = makeButton('player-perf', 'Perf');
+  const gyroButton = makeButton('player-gyro', 'Gyro');
+  const pasteRowButton = linked ? null : makeButton('player-pastebtn', 'Paste');
+  const controls = [fullscreenButton, perfButton, gyroButton, pasteRowButton].filter(
+    (b): b is HTMLButtonElement => !!b
+  );
+
   let buttonTimer: ReturnType<typeof setTimeout> | null = null;
-  const showButton = (): void => {
-    fullscreenButton.classList.add('is-visible');
+  const showControls = (): void => {
+    controls.forEach((b) => b.classList.add('is-visible'));
     if (buttonTimer) clearTimeout(buttonTimer);
-    buttonTimer = setTimeout(() => fullscreenButton.classList.remove('is-visible'), 3000);
+    buttonTimer = setTimeout(() => controls.forEach((b) => b.classList.remove('is-visible')), 3000);
   };
   document.addEventListener('pointerup', (event) => {
-    if (event.pointerType !== 'touch') return;
     // A tap is the one moment iOS lets the gyroscope be asked for.
-    void requestParallaxPermission();
-    if (
-      event.target === fullscreenButton ||
-      event.target === perfButton ||
-      event.target === gyroButton
-    )
-      return;
-    showButton();
-    perfButton.classList.add('is-visible');
-    gyroButton.classList.add('is-visible');
-    setTimeout(() => {
-      perfButton.classList.remove('is-visible');
-      gyroButton.classList.remove('is-visible');
-    }, 3000);
+    if (event.pointerType === 'touch') void requestParallaxPermission();
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, .gyro-hud, .perf-hud, .player-paste-sheet, textarea')) return;
+    showControls();
   });
   fullscreenButton.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -377,8 +549,8 @@ const installPresentationControls = (): void => {
     fullscreenButton.classList.remove('is-visible');
   });
 
-  // Next to it: the performance HUD — the way a phone reports what a frame
-  // costs, and tries the levers that change it.
+  // The performance HUD — the way a phone reports what a frame costs, and
+  // tries the levers that change it.
   let particleBudget = 1;
   const hud = installPerfHud({
     backend: webGPUAvailable ? 'webgpu' : 'webgl',
@@ -409,20 +581,18 @@ const installPresentationControls = (): void => {
       return texture?.map?.userData?.colorInstanceReadback ?? null;
     },
     getPieceName: () => particleSystemConfig._editorData?.metadata?.name ?? 'Untitled',
-    extra: () => [['parallax', describeParallax()]],
+    extra: () => [
+      ['mode', linked ? 'linked to the editor' : `standalone, storage writes ${storageWrites}`],
+      ['parallax', describeParallax()],
+    ],
   });
   (window as any).__perfHud = hud;
-  const perfButton = document.createElement('button');
-  perfButton.className = 'player-fullscreen player-perf';
-  perfButton.type = 'button';
-  perfButton.textContent = 'Perf';
-  document.body.appendChild(perfButton);
   perfButton.addEventListener('click', (event) => {
     event.stopPropagation();
     hud.toggle();
   });
 
-  // The gyro panel: runtime only here — the display does not own the scene.
+  // The gyro panel: runtime only here — the player does not own the piece.
   const gyroHud = installGyroHud({
     getSettings: getParallaxSettings,
     setSettings: (patch) => setParallaxSettings({ ...getParallaxSettings(), ...patch }),
@@ -430,6 +600,10 @@ const installPresentationControls = (): void => {
     resetGyroscope,
   });
   (window as any).__gyroHud = gyroHud;
+  gyroButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    gyroHud.toggle();
+  });
 
   // Fingers on the picture: samples for the touch wake, whenever the piece allows it.
   const touchCanvas = getRendererDomElement();
@@ -446,15 +620,6 @@ const installPresentationControls = (): void => {
     count: () => particleSystem?.getTouchCount?.() ?? 0,
     clear: () => particleSystem?.clearTouches?.(),
   };
-  const gyroButton = document.createElement('button');
-  gyroButton.className = 'player-fullscreen player-gyro';
-  gyroButton.type = 'button';
-  gyroButton.textContent = 'Gyro';
-  document.body.appendChild(gyroButton);
-  gyroButton.addEventListener('click', (event) => {
-    event.stopPropagation();
-    gyroHud.toggle();
-  });
 
   let idle: ReturnType<typeof setTimeout> | null = null;
   const wake = (): void => {
@@ -504,6 +669,30 @@ const animate = (): void => {
   requestAnimationFrame(animate);
 };
 
+const debugSurface = {
+  ready: false,
+  mode: () => (linked ? 'linked' : 'standalone'),
+  paste: importPiece,
+  serialize: () => serializeConfig(particleSystemConfig),
+  getConfig: () => particleSystemConfig,
+  getSceneObjects,
+  getOutputCamera,
+  hasContent: () => hasContent,
+  heardEditor: () => heardEditor,
+  applyStoredSnapshot,
+  hasTexture: (id: string) => !!(getTexture(id) as any)?.map,
+  storageWrites: () => storageWrites,
+  statsVisible: () => isStatsVisible(),
+  getParallax: getParallaxSettings,
+  // The emitter's own transform, so the canned motion can be checked from
+  // outside without reading pixels.
+  getEmitterTransform: () => ({
+    position: particleSystemContainer.position.toArray(),
+    rotation: particleSystemContainer.rotation.toArray().slice(0, 3),
+  }),
+};
+(window as any).__player = debugSurface;
+
 const start = async (): Promise<void> => {
   clock = new THREE.Clock();
 
@@ -521,48 +710,48 @@ const start = async (): Promise<void> => {
 
   await createWorld('#player-stage');
   fitPlayerCanvas();
+  // This is the wall: no frame counter unless asked for (S).
+  if (!linked && isStatsVisible()) toggleStats();
 
   particleSystemContainer = new THREE.Object3D();
   getScene().add(particleSystemContainer);
 
-  // The uploaded textures a config refers to live in localStorage, which this
-  // window shares with the editor — so they are read here the same way, and the
-  // wire never has to carry image data.
-  initAssets(() => {
-    const customTextures =
-      JSON.parse(localStorage.getItem('particle-system-editor/library') || '[]') || [];
-    const imageTextures =
-      JSON.parse(localStorage.getItem('particle-system-editor/image-textures') || '[]') || [];
-    loadCustomAssets({
-      textures: [...customTextures, ...imageTextures].map(
-        ({ name, url }: { name: string; url: string }) => ({ id: name, url })
-      ),
-      onComplete: () => {
-        void loadVideoTextures().then(() => {
-          listen();
-          animate();
-        });
-      },
-    });
-  });
-
   installPresentationControls();
 
-  (window as any).__player = {
-    getConfig: () => particleSystemConfig,
-    getSceneObjects,
-    getOutputCamera,
-    hasContent: () => hasContent,
-    heardEditor: () => heardEditor,
-    applyStoredSnapshot,
-    // The emitter's own transform, so the canned motion can be checked from
-    // outside without reading pixels.
-    getEmitterTransform: () => ({
-      position: particleSystemContainer.position.toArray(),
-      rotation: particleSystemContainer.rotation.toArray().slice(0, 3),
-    }),
-  };
+  if (linked) {
+    // The uploaded textures a config refers to live in localStorage, which a
+    // linked window shares with the editor — so they are read here the same
+    // way, and the wire never has to carry image data.
+    initAssets(() => {
+      const customTextures =
+        JSON.parse(localStorage.getItem('particle-system-editor/library') || '[]') || [];
+      const imageTextures =
+        JSON.parse(localStorage.getItem('particle-system-editor/image-textures') || '[]') || [];
+      loadCustomAssets({
+        textures: [...customTextures, ...imageTextures].map(
+          ({ name, url }: { name: string; url: string }) => ({ id: name, url })
+        ),
+        onComplete: () => {
+          void loadVideoTextures().then(() => {
+            listen();
+            animate();
+            debugSurface.ready = true;
+          });
+        },
+      });
+    });
+    return;
+  }
+
+  // Standalone: nothing is fetched until a piece names it, and nothing is
+  // read from storage at all. The page is ready the moment the world is.
+  installPasteInputs();
+  setPasteVisible(true);
+  animate();
+  debugSurface.ready = true;
 };
 
-showStatus('Waiting for the editor…');
+showStatus(
+  linked ? 'Waiting for the editor…' : 'Copy the piece in the editor (COPY), then paste it here.'
+);
 void start();

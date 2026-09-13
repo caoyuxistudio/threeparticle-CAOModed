@@ -14,7 +14,6 @@
  */
 import {
   PLAYER_CHANNEL,
-  PLAYER_URL,
   playerUrl,
   writePlayerSnapshot,
   PLAYER_WINDOW_NAME,
@@ -23,6 +22,7 @@ import {
   throttleTrailing,
   type PlayerMessage,
   LINK_TIMEOUT_MS,
+  LINKED_PLAYER_URL,
 } from './player-link';
 import { showInfoSnackbar, showSuccessSnackbar } from '../stores/snackbar-store';
 import { togglePresentation } from './presentation';
@@ -226,7 +226,7 @@ export const openPlayerWindow = (): void => {
     `top=${Math.max(0, Math.round((window.screen.availHeight - height) / 2))}`,
   ].join(',');
 
-  playerWindow = window.open(PLAYER_URL, PLAYER_WINDOW_NAME, features);
+  playerWindow = window.open(LINKED_PLAYER_URL, PLAYER_WINDOW_NAME, features);
 
   // A blocked popup comes back as null and would otherwise look like a dead
   // button. Say so once, where the click happened.
@@ -235,7 +235,7 @@ export const openPlayerWindow = (): void => {
     window.alert(
       'The display window was blocked by the browser.\n\n' +
         'Allow pop-ups for this site, or open ' +
-        new URL(PLAYER_URL, window.location.href).href +
+        new URL(LINKED_PLAYER_URL, window.location.href).href +
         ' in a second window yourself — it connects on its own.'
     );
     return;

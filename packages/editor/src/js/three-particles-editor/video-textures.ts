@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 
 import { textureConfigs } from './texture-config';
+import { isStandalone } from './runtime-mode';
 
 export const VIDEO_TEXTURES_KEY = 'particle-system-editor/video-textures';
 
@@ -55,7 +56,15 @@ export type RegisteredVideo = {
 
 // ─── The list ────────────────────────────────────────────────────────────────
 
+/**
+ * A standalone player's list lives here instead of in localStorage: the
+ * loader registers the URL videos a pasted piece names exactly as it would
+ * in the editor, and nothing reaches the origin's storage.
+ */
+let memoryEntries: VideoTextureEntry[] = [];
+
 export const readVideoEntries = (): VideoTextureEntry[] => {
+  if (isStandalone()) return [...memoryEntries];
   try {
     const parsed = JSON.parse(localStorage.getItem(VIDEO_TEXTURES_KEY) || '[]');
     return Array.isArray(parsed) ? parsed : [];
@@ -68,6 +77,10 @@ export const readVideoEntries = (): VideoTextureEntry[] => {
 export const VIDEO_TEXTURES_CHANGED = 'video-textures-changed';
 
 export const writeVideoEntries = (entries: VideoTextureEntry[]): void => {
+  if (isStandalone()) {
+    memoryEntries = [...entries];
+    return;
+  }
   localStorage.setItem(VIDEO_TEXTURES_KEY, JSON.stringify(entries));
   // The Textures panel keeps its own copy of this list. Writes come from the
   // panel itself, from a config load, from the harness — the panel cannot know

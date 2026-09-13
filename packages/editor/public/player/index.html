@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!--
+      The player lives one folder down so its address is /player/, but every
+      asset it names — the bundle, the icons, and the ./assets/videos/… URLs a
+      pasted config carries — is authored from the site root, the way the
+      editor sees them. The base makes them resolve the same way from here.
+    -->
+    <base href="../" />
+    <title>Player</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- Kept at the piece's top-edge colour while it plays (world.ts): the bars a phone keeps take this colour. -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!--
+      "default": the page sits below the status bar and the bar takes the
+      page's theme-color — which world.ts keeps at the colour of the piece's
+      top edge while it plays, so the bar reads as the picture continuing.
+      iOS 27 beta gives a Home Screen web app a view the screen minus the
+      status bar whatever the style (measured 894 of 956, on the manifest
+      path and the legacy one alike); translucent only moves that view up
+      under the bar and leaves the strip at the bottom, where nothing can
+      tint it. Below the bar, tinted, is the best an iPhone web page can do.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Player" />
+    <link rel="apple-touch-icon" href="favicon/apple-touch-icon.png" />
+    <link rel="icon" href="favicon/favicon.ico" />
+    <link rel="manifest" href="player.webmanifest" />
+    <style>
+      /*
+        The canvas is sized to the output camera's frame and centred; the bars
+        around it are this background showing through. Letterboxing this way
+        rather than with a scissor rectangle is deliberate — post processing
+        cannot be scissored without taking its own scene pass down with it.
+      */
+      :root {
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        /* No double-tap zoom on a phone; a tap is a control here. */
+        touch-action: manipulation;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #player-stage canvas {
+        display: block;
+      }
+
+      .player-status {
+        position: fixed;
+        left: 50%;
+        top: calc(50% + 44px);
+        transform: translate(-50%, -50%);
+        max-width: 80vw;
+        color: #777;
+        font: 400 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        letter-spacing: 0.3px;
+        text-align: center;
+        pointer-events: none;
+      }
+
+      .player-fullscreen {
+        position: fixed;
+        right: calc(16px + env(safe-area-inset-right));
+        bottom: calc(16px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
+        padding: 12px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font: 500 15px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+
+      .player-fullscreen.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .player-perf {
+        bottom: calc(72px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
+      }
+
+      .player-gyro {
+        bottom: calc(128px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
+      }
+
+      .player-pastebtn {
+        bottom: calc(184px + env(safe-area-inset-bottom) - var(--viewport-gap, 0px));
+      }
+
+      /* The one control that shows before there is a piece. */
+      .player-paste {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        padding: 14px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        font: 500 16px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        cursor: pointer;
+      }
+
+      .player-paste[hidden] {
+        display: none;
+      }
+
+      /* Where the clipboard cannot be read: a box to paste into. */
+      .player-paste-sheet {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: min(92vw, 520px);
+        padding: 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1004;
+      }
+
+      .player-paste-sheet[hidden] {
+        display: none;
+      }
+
+      .player-paste-sheet textarea {
+        width: 100%;
+        height: 160px;
+        box-sizing: border-box;
+        resize: vertical;
+        background: #111;
+        color: #eee;
+        border: 1px solid #444;
+        border-radius: 6px;
+        font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .player-paste-sheet button {
+        padding: 10px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        font: 600 13px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+
+      #player-stage {
+        position: relative;
+        top: calc(-1 * var(--viewport-top-gap, 0px));
+        width: 100%;
+        height: calc(100% + var(--viewport-top-gap, 0px) + var(--viewport-gap, 0px));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+    <script defer src="build/player.js"></script>
+  </head>
+  <body>
+    <div id="player-stage"></div>
+    <button class="player-paste" type="button" hidden>Paste config</button>
+    <div class="player-status"></div>
+    <div class="player-paste-sheet" hidden>
+      <textarea placeholder="Paste the config here" spellcheck="false"></textarea>
+      <div>
+        <button type="button" data-act="load">Load</button>
+        <button type="button" data-act="cancel">Cancel</button>
+      </div>
+    </div>
+  </body>
+</html>

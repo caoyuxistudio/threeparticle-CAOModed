@@ -5,6 +5,8 @@ import { showLegacyConfigModal } from './showLegacyConfigModal';
 import { ObjectUtils } from '@newkrok/three-utils';
 import { setTerrain } from './world';
 import { getTexture, loadCustomAssets } from './assets';
+import { textureConfigs } from './texture-config';
+import { isStandalone } from './runtime-mode';
 import { getSceneObjects, replaceSceneObjects } from './scene-objects';
 import { findVideoEntry, importVideoEntry } from './video-textures';
 
@@ -93,6 +95,15 @@ const CUSTOM_TEXTURE_KEYS = [
 
 const readCustomTextures = () => {
   const all: Record<string, string> = {};
+  // A standalone player has no library in storage; what a piece brought with
+  // it is registered in memory, and that is what it can hand back.
+  if (isStandalone()) {
+    textureConfigs.forEach((config: any) => {
+      if (typeof config.url === 'string' && config.url.startsWith('data:'))
+        all[config.id] = config.url;
+    });
+    return all;
+  }
   CUSTOM_TEXTURE_KEYS.forEach((key) => {
     try {
       const list = JSON.parse(localStorage.getItem(key) || '[]');
@@ -272,11 +283,15 @@ const importEmbeddedTextures = (
 
   const KEY = 'particle-system-editor/image-textures';
   let stored: any[] = [];
-  try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) || '[]');
-    if (Array.isArray(parsed)) stored = parsed;
-  } catch {
-    /* start from an empty list if it is unreadable */
+  // Standalone: the images register for the session and nothing is stored.
+  const persist = !isStandalone();
+  if (persist) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(KEY) || '[]');
+      if (Array.isArray(parsed)) stored = parsed;
+    } catch {
+      /* start from an empty list if it is unreadable */
+    }
   }
 
   const urlOf = (name: string): string | undefined =>
@@ -314,11 +329,13 @@ const importEmbeddedTextures = (
     stored.unshift({ id: Math.floor(Math.random() * 100000000), name, url })
   );
 
-  try {
-    localStorage.setItem(KEY, JSON.stringify(stored));
-  } catch {
-    // Out of quota — the textures still register for this session below.
-    showSuccessSnackbar('Textures imported for this session only (storage full)');
+  if (persist) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(stored));
+    } catch {
+      // Out of quota — the textures still register for this session below.
+      showSuccessSnackbar('Textures imported for this session only (storage full)');
+    }
   }
 
   loadCustomAssets({

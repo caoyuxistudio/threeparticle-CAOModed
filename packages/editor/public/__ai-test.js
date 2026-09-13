@@ -645,6 +645,82 @@
   const cfgLiveTouch = () => !!window.editor.getCurrentParticleSystemConfig().touch?.isActive;
 
   /**
+   * The standalone player: a fresh page in an iframe, given the piece the way
+   * a person gives it — the text COPY produces — and checked against the
+   * editor it came from. Same origin, so a storage write by the player would
+   * be visible here; the player counts its own attempts instead, which is
+   * exact.
+   */
+  const standaloneReport = async () => {
+    const lines = [];
+    const check = (label, ok, detail = '') => lines.push(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? '  — ' + detail : ''}`);
+
+    const cfg = await load();
+    const json = window.editor.serialize?.();
+    check('the editor hands the piece out as COPY does', typeof json === 'string' && json.length > 100, `${json?.length ?? 0} chars`);
+
+    const frame = document.createElement('iframe');
+    frame.src = './player/?standalone-test';
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:360px;height:640px;border:0;opacity:0.02;pointer-events:none;';
+    document.body.appendChild(frame);
+    const until = async (fn, ms) => {
+      const start = performance.now();
+      while (performance.now() - start < ms) {
+        let v = null;
+        try { v = fn(); } catch { v = null; }
+        if (v) return v;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return null;
+    };
+    const p = await until(() => frame.contentWindow?.__player?.ready && frame.contentWindow.__player, 20000);
+    check('a standalone player boots', !!p);
+
+    if (p) {
+      check('it is standalone: no link, no editor heard', p.mode() === 'standalone' && p.heardEditor() === false);
+      check('it shows nothing until a paste', p.hasContent() === false);
+      check('the frame counter starts hidden', p.statsVisible() === false);
+      check('the Paste control is offered', !frame.contentDocument.querySelector('.player-paste').hidden);
+      const writesBefore = p.storageWrites();
+
+      const ok = await p.paste(json);
+      check('a pasted piece loads', ok === true && p.hasContent() === true);
+      check('the Paste control steps aside', !!frame.contentDocument.querySelector('.player-paste').hidden);
+
+      const want = cfg._editorData.sceneObjects;
+      const got = p.getSceneObjects();
+      check('the scene arrives whole', got.length === want.length && got.every((o, i) => o.id === want[i].id && o.type === want[i].type), `${got.length}/${want.length}`);
+      check('the output camera is the piece\'s', !!p.getOutputCamera());
+
+      // The same loader on both sides: what the player would COPY back is
+      // what it was given, field for field.
+      const back = p.serialize();
+      const drift = diff(JSON.parse(json), back);
+      check('the player serialises the piece back identically', drift.length === 0, drift.slice(0, 4).join(' | '));
+
+      const source = JSON.parse(json)._editorData?.colorInstanceTextureId;
+      const hasSource = source ? await until(() => p.hasTexture(source), 10000) : true;
+      check('the colour source is registered from the embedded data', !!hasSource, source ?? 'none');
+
+      const cam = want.find((o) => o.type === 'CAMERA');
+      check('the camera\'s parallax settings travel', p.getParallax().enabled === !!cam?.parallax?.enabled);
+      check('the touch settings travel', JSON.stringify(p.getConfig().touch ?? null) === JSON.stringify(JSON.parse(json).touch ?? p.getConfig().touch ?? null));
+      check('nothing was written to storage', writesBefore === 0 && p.storageWrites() === 0, `${p.storageWrites()} writes`);
+
+      // A second paste replaces the first: no leftovers from the previous piece.
+      const again = JSON.parse(json);
+      again._editorData.sceneObjects = again._editorData.sceneObjects.filter((o) => o.type !== 'SPHERE');
+      const ok2 = await p.paste(JSON.stringify(again));
+      check('a second paste replaces the piece', ok2 && p.getSceneObjects().length === again._editorData.sceneObjects.length, `${p.getSceneObjects().length} objects`);
+      check('junk is refused, and the piece stays', (await p.paste('not a config')) === false && p.hasContent());
+    }
+    frame.remove();
+
+    const failed = lines.filter((l) => l.startsWith('FAIL')).length;
+    return [`standalone: ${lines.length - failed}/${lines.length} passed`, ...lines].join('\n');
+  };
+
+  /**
    * The link to the display window, exercised from this side of it.
    *
    * The display is a separate page with its own renderer, so what can be
@@ -1271,6 +1347,7 @@
     presentReport,
     parallaxReport,
     touchReport,
+    standaloneReport,
     gizmoReport,
     videoReport,
     playerReport,

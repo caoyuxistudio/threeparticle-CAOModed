@@ -74,9 +74,18 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - **输出相机 + 右上角预览窗**。拖左下角红色把手改大小，最大可占屏幕 70%。尺寸会记住。
 - **后期属于相机**，不属于编辑器会话。SSR 的开关和参数存在 CAMERA 物体上，跟着 config 走。一个场景可以放多个相机各带各的设置，隐藏其余的就是切换机位。
 
-**Player 显示窗口**（预览窗左边那个按钮，`player.html`）。概念上是 TouchDesigner 的 Window 节点：编辑器留在原地继续调参，第二个窗口只放输出相机的画面，按画幅比例 letterbox，没有任何界面。
+**Player — 独立放映端**（`/player/`，源码 `src/player.ts` + `public/player/index.html`，同一个包的第二个 rollup 入口，产出 `build/player.js`）。TouchDesigner 的 editor / player 关系：editor 负责创作，player 只负责展示。它是 editor 的模块图去掉一切编辑的东西——Svelte、SMUI、lil-gui 根本不在它的依赖图里（不是运行时隐藏，是打包时不存在），一个渲染器、一个场景、输出相机直出画布。两种喂法：
 
-- **是独立窗口，不是新 tab**。浏览器会暂停隐藏 tab 的 rAF，所以做成 tab 的话你一看它编辑器就冻住了。
+- **standalone**（默认，直接打开 `/player/`）：黑屏 + 一个 **Paste config** 按钮。在 editor 里 COPY，到 player 里 ⌘V / Ctrl+V、点按钮（iOS 只允许在点击里读剪贴板；读不到就弹一个文本框贴）、拖一个 .json 进来、或者 `?config=<url>` 让机器喂。**不读不写任何存储、不监听任何频道**：作品只活在内存里，下一次贴就替换。这是手机打开的那个页面，也是以后 app 壳要包的那个页面。它启动时**一张贴图都不预加载**，贴进来的作品点名哪几张才去取（`ensureTexturesLoaded`）。默认没有帧数表（`S` 打开）。
+- **linked**（`/player/?link`，editor 预览窗旁边那个显示窗口按钮打开的就是它）：老行为——BroadcastChannel 实时同步、共享同源存储里的贴图和快照，桌面上一边调一边看。
+
+**两边不会漂的保证**：贴进来的 JSON 走的是 editor 自己 LOAD 用的 `loadParticleSystem`（legacy 转换、默认值、deepMerge、内嵌图片和 URL 视频的注册、场景交给 scene-objects），player 没有第二份加载逻辑。standalone 下"落盘"的那几处（图片进 `image-textures` 列表、视频进 `video-textures` 列表）由 `isStandalone()` 守在**存储边界**上改成内存（`runtime-mode.ts`），加载逻辑本身一行没分叉。player 里还给 `Storage.prototype.setItem` 包了一个计数器（`__player.storageWrites()`），HUD 的 `mode:` 一行报出来——"零存储"是量出来的，不是说出来的。harness 的 `standaloneReport` 在 iframe 里起一个真的 standalone player，把 editor `window.editor.serialize()`（和 COPY 完全一样的字符串）贴进去，再让 player 序列化回来逐字段比对，另外查场景、色源、视差 / touch 参数、零写入、二次贴替换、垃圾输入拒绝。**以后 editor 加任何进 config 的东西，跑一遍 standaloneReport 就知道 player 是否跟上了。**
+
+`/player/index.html` 里有 `<base href="../">`：页面在下一层目录，但 bundle、图标、以及 config 里 `./assets/videos/…` 这种从站点根写的地址都要按根解析，base 一行解决。`player.webmanifest`（start_url `./player/`）让手机把 player 单独加到主屏幕，图标点开就是无边框的放映窗。旧地址 `player.html` 已删（dev 用的 sirv 会把 `/player/` 先解析成 `player.html`，留着它 `/player/` 就打不开）。
+
+下面这些是 linked 模式的细节（显示窗口）：
+
+- **显示窗口是独立窗口，不是新 tab**。浏览器会暂停隐藏 tab 的 rAF，所以做成 tab 的话你一看它编辑器就冻住了。
 - **两个独立实例**。`world.ts` / `scene-objects.ts` 都是模块级单例，同一个页面开不出第二份；换个页面就各拿一套。代价是两个 WebGPU device，贴图各存一份，两边帧率都掉一些——这是调试形态刻意接受的成本。
 - **BroadcastChannel 实时同步**。改一个滑块或拖一盏灯，120ms 节流后推过去。粒子 config 和场景走两条消息：场景按 id 做增量 `updateSceneObject`，画框几何和全景 PMREM 的缓存因此不会被打掉。
 - **贴图不上线**。同源共享 localStorage，显示端自己读，所以消息只有几 KB。将来 Player 独立成站再把 `embeddedTextures` 塞回去。
@@ -141,21 +150,17 @@ Fork 自 **Istvan Krisztian Somoracz（NewKrok）** 的两个 MIT 项目：
 - 测试场景是内置 example **WIP-Test**（`packages/editor/public/examples/wip-test/`），存在磁盘上，清空 localStorage 也在。它引用的是那张山水画；73MB 的那个测试视频进不了仓库
 - **WIP-Test-2** 是作品本身：画框 + 点光 + 俯视输出相机（iPhone 17 Pro Max 画幅、SSR 开）+ 视频 color source。参数是 2026-09-11 在手机上调好后用 COPY 拷出的 JSON 直接写进去的（以后也这么更新：贴 JSON，不用截图），测试用的红球已经删掉。**编辑器一启动就直接加载它**（`DEFAULT_EXAMPLE`，在 `src/examples-config.js`；boot 一开始就 fetch，场景就绪后走和点 Examples 一样的 `window.editor.load`；fetch 失败就留在默认发射器，HUD 的 `boot:` 一行会写 `default … failed`）。代价是**刷新即回到示例**：面板里没导出的改动不会保留——粒子参数本来就不跨刷新，场景以前会留，现在也不留了；要保留就 Save 或者抄回 example。视频是 `public/assets/videos/wechat-20240829.mp4`（1000²、53s、1.6Mbps、10.6MB，随站点部署），config 用 **URL** 引用它（`_editorData.embeddedVideos`），所以任何能打开站点的设备都能播，手机上也是从 Examples 一点就开。这是「资产走 URL、config 走仓库」这条路的第一个样品
 - **做一个带视频的 example 的步骤**：把视频放进 `public/assets/videos/`；Textures 面板 **Add Video by URL** 填 `./assets/videos/<文件>`（相对地址，本地和 Pages 都能解析），Use；调好后 Copy，把 JSON 存成 `public/examples/<slug>/config.json`（slug 是名字小写、非字母数字换成连字符），配一张 `preview.webp`，在 `src/examples-config.js` 里加名字。本地上传（Add Video）的视频只在本机浏览器里，带不进 config
-- 控制台 harness `public/__ai-test.js`，当前基线 **218/218**（含 `report` 19、`touchReport` 9、`parallaxReport` 19、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 33、`frameReport` 24）
+- 控制台 harness `public/__ai-test.js`，当前基线 **235/235**（含 `report` 19、`standaloneReport` 17、`touchReport` 9、`parallaxReport` 19、`videoReport` 30、`gizmoReport` 12、`playerReport` 41、`presentReport` 33、`frameReport` 24）
 
 ---
 
-## 4. 下一步：把 Player 变成放映端
+## 4. 下一步
 
-现在的 `player.html` 是**调试形态**：跟编辑器同源、同一个 dev server，靠 BroadcastChannel 拿 config，编辑器在旁边一起渲染。它证明了管线通，但不是装置现场要跑的东西。
+Player 已经是放映端了（§3「Player — 独立放映端」）：贴 JSON 就能跑，单实例，零存储。剩下的：
 
-要变成放映端，还差两步：
+**1. App 壳。** iPhone 网页到不了真全屏（§3「iOS 27 beta 主屏幕模式的极限」）。做一个 WKWebView 壳，隐藏状态栏，指向 `/player/`（或者把 `public/player/` + `build/player.js` + `assets/` 打进 app 本地），config 走 `?config=` 或粘贴。只包 player，永远不包 editor。
 
-**1. 脱离编辑器。** config 来源从 BroadcastChannel 换成粘贴 JSON 或读 URL，`embeddedTextures` 塞回快照里（现在靠共享 localStorage 省掉了），页面就能独立部署。**交付方式：把 config 粘贴进去就能跑。**
-
-**2. 单实例高效渲染。** 现在为了能一边编辑一边看，两个 WebGPU 实例同时跑，资源各存一份。真正上墙时只有 Player 在跑，那条路径应该按最高效率来——编辑器那套 layer 分离、家具、预览 RT 一概不要。
-
-编辑器负责创作，Player 负责放映。装置现场跑的是 Player。
+**2. 手机上验手感。** 手指尾迹（touch）和陀螺仪视差都在，参数要在 iPhone 上调：Perf / Gyro 面板 → Copy report → 贴回来；作品参数照旧 COPY → 贴 JSON → 写进 example。
 
 这也是为什么前面那些设计要那样做：config 自包含、场景存进 config、后期归相机、layer 分离——都是为了让"复制一段 JSON 过去就能完整重现"这件事成立。
 
@@ -192,6 +197,7 @@ await __t.gizmoReport()     // 场景物体的拖拽手柄：合成指针事件�
 await __t.presentReport()   // 演示模式：进、量、出
 await __t.parallaxReport()  // 视差：平面不动、更深的动、来源、上限、翻转
 await __t.touchReport()     // 手指尾迹：屏幕→发射面、半径按视宽、样本进出
+await __t.standaloneReport() // 独立 player：iframe 里真起一个，贴 COPY 的字符串，逐字段比对，零存储
 ```
 
 `videoReport` 要能 fetch 到 `./assets-local/AnimateDiff_00013.mp4`。那是个指向仓库旁边 `assets4test/` 的软链，目录整个 gitignore，新机器上要重建：
@@ -254,7 +260,13 @@ three **r182**、`WebGPURenderer`、TSL 节点材质、Svelte 5、Rollup。
 - 这一段为手机加的基础设施：视频 color source（worker 读回）、演示模式、Perf HUD + Copy report、显示端存储快照与心跳、竖屏布局、只留 dark。
 - **陀螺仪视差相机**（`parallax.ts`）：TheParallaxView 的离轴投影思路，眼睛换成手机倾斜；参数在相机上，WIP-Test-2 已开。
 - **手指尾迹**（touch wake）：手指抹过粒子的流场注入，参数在 config 的 `touch`，WIP-Test-2 已开。
-- harness 基线 218/218。
+
+### 2026-09-13 · Player 独立成放映端
+
+- `/player/` 直接打开是黑屏 + Paste config；editor 里 COPY，player 里贴，加载完直接全屏播。零存储、不监听频道，作品只活在内存里；`?link` 才是老的显示窗口模式。
+- 加载走 editor 同一个 `loadParticleSystem`，存储边界上用 `isStandalone()` 改成内存；harness `standaloneReport` 在 iframe 里真起一个 player 逐字段比对。
+- 只按需加载作品点名的贴图，默认没有帧数表；`player.webmanifest` 让手机把 player 单独加到主屏幕。
+- harness 基线 235/235。
 
 ---
 

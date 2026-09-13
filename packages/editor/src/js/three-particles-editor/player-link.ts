@@ -19,9 +19,12 @@ export const PLAYER_CHANNEL = 'three-particles-player';
 /** Named so a second toggle re-focuses the window instead of opening another. */
 export const PLAYER_WINDOW_NAME = 'three-particles-player';
 
-export const PLAYER_URL = 'player.html';
+/** The standalone player: opens empty and takes a pasted piece. */
+export const PLAYER_URL = 'player/';
+/** The same page linked to this editor over the channel (the display window). */
+export const LINKED_PLAYER_URL = 'player/?link';
 
-/** The display's address, absolute, as a person would paste it elsewhere. */
+/** The standalone player's address, absolute, as a person would paste it elsewhere. */
 export const playerUrl = (): string => new URL(PLAYER_URL, window.location.href).href;
 
 /**

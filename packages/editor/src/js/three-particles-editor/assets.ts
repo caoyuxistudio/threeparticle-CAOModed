@@ -78,3 +78,24 @@ export const loadCustomAssets = ({
 
 export const initAssets = (onComplete: () => void) =>
   loadTextures({ textureConfigs: [...textureConfigs], onComplete });
+
+/**
+ * Loads just the named textures that are known but not yet decoded — how a
+ * standalone player fetches the built-ins a piece uses instead of all of them
+ * up front. Names that are unknown or already loaded cost nothing.
+ */
+export const ensureTexturesLoaded = (
+  ids: Array<string | undefined | null>,
+  onComplete: () => void
+): void => {
+  const pending = ids
+    .map((id) => (id ? getTexture(id) : undefined))
+    .filter(
+      (config): config is any => !!config && !(config as any).map && typeof config.url === 'string'
+    );
+  if (pending.length === 0) {
+    onComplete();
+    return;
+  }
+  loadTextures({ textureConfigs: pending, onComplete });
+};

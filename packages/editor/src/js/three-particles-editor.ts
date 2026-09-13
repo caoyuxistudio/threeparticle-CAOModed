@@ -1245,6 +1245,8 @@ interface EditorInterface {
   load: (config: ParticleSystemConfig) => void;
   loadFromClipboard: () => void;
   copyToClipboard: () => void;
+  /** The piece as COPY would put it on the clipboard: what a player pastes. */
+  serialize: () => string;
   resetCamera: () => void;
   reset: () => void;
   play: () => void;
@@ -1308,6 +1310,7 @@ window.editor = {
     });
   },
   copyToClipboard: () => copyToClipboard(particleSystemConfig),
+  serialize: () => JSON.stringify(serializeConfig(particleSystemConfig)),
   reset: () => recreateParticleSystem(false),
   resetCamera,
   play: resumeTime,
