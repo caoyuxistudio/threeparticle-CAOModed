@@ -23,6 +23,16 @@ struct PlayerWebView: UIViewRepresentable {
         configuration.allowsPictureInPictureMediaPlayback = false
         configuration.allowsAirPlayForMediaPlayback = false
 
+        #if DEBUG
+        // Debug builds forward the page's console and errors to the app's log,
+        // so `log stream --predicate 'process == "Particle Player"'` on a Mac
+        // shows what the page says — the simulator has no Web Inspector handy.
+        configuration.userContentController.addUserScript(
+            WKUserScript(source: Coordinator.consoleBridge, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        )
+        configuration.userContentController.add(context.coordinator, name: "console")
+        #endif
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.uiDelegate = context.coordinator
         webView.navigationDelegate = context.coordinator
@@ -43,11 +53,61 @@ struct PlayerWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler {
         let url: URL
 
         init(url: URL) {
             self.url = url
+        }
+
+        static let consoleBridge = """
+        (function () {
+          var send = function (level, args) {
+            try {
+              var text = args.map(function (a) {
+                if (typeof a === 'string') return a;
+                if (a && a.stack) return String(a.stack);
+                try { return JSON.stringify(a); } catch (e) { return String(a); }
+              }).join(' ');
+              window.webkit.messageHandlers.console.postMessage({ level: level, message: text });
+            } catch (e) {}
+          };
+          ['log', 'info', 'warn', 'error'].forEach(function (level) {
+            var original = console[level];
+            console[level] = function () {
+              var args = Array.prototype.slice.call(arguments);
+              send(level, args);
+              return original.apply(console, args);
+            };
+          });
+          window.addEventListener('error', function (e) {
+            send('error', [e.message, (e.filename || '') + ':' + e.lineno, e.error && e.error.stack]);
+          });
+          window.addEventListener('unhandledrejection', function (e) {
+            send('error', ['unhandledrejection', e.reason && (e.reason.stack || e.reason)]);
+          });
+          send('info', ['bridge ready; navigator.gpu is ' + typeof navigator.gpu + '; ' + navigator.userAgent]);
+        })();
+        """
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? [String: Any] else { return }
+            let level = body["level"] as? String ?? "log"
+            let text = body["message"] as? String ?? ""
+            NSLog("[web %@] %@", level, text)
+        }
+
+        // Once the page is up, ask it what it is running on, the way the HUD's
+        // Copy report would.
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            #if DEBUG
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                webView.evaluateJavaScript("(window.__perfHud && window.__perfHud.report) ? window.__perfHud.report() : 'no hud'") { result, error in
+                    if let text = result as? String { NSLog("[web hud] %@", text) }
+                    if let error { NSLog("[web hud] error %@", error.localizedDescription) }
+                }
+            }
+            #endif
         }
 
         // The page asks for the gyroscope (DeviceOrientationEvent.requestPermission);

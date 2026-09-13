@@ -31,7 +31,7 @@ import {
   resetGyroscope,
 } from './three-particles-editor/parallax';
 import { getDefaultParticleSystemConfig, updateParticleSystems } from '@newkrok/three-particles';
-import { enableWebGPU } from '@newkrok/three-particles/webgpu';
+import { prepareParticleBackend } from './three-particles-editor/gpu-support';
 import { buildParticleSystem } from './three-particles-editor/particle-factory';
 import {
   createWorld,
@@ -386,18 +386,9 @@ export const createParticleSystemEditor = async (targetQuery: string): Promise<v
   const defaultExample = fetchDefaultExample();
   clock = new THREE.Clock();
 
-  // Register WebGPU TSL materials only when the browser supports WebGPU
-  try {
-    if (navigator.gpu) {
-      const adapter = await navigator.gpu.requestAdapter();
-      if (adapter) {
-        enableWebGPU();
-        webGPUAvailable = true;
-      }
-    }
-  } catch {
-    // WebGPU not available — engine will use GLSL ShaderMaterial fallback
-  }
+  // WebGPU where it exists; TSL materials over WebGL2 with CPU simulation
+  // where it does not (the iOS Simulator, older browsers).
+  webGPUAvailable = (await prepareParticleBackend()) === 'webgpu';
 
   // Debug: log WGSL shader compilation errors with source code
   if (typeof GPUDevice !== 'undefined') {

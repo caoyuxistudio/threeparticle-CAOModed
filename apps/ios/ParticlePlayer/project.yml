@@ -48,6 +48,9 @@ targets:
         # The page reads the gyroscope for the parallax; iOS wants a reason.
         NSMotionUsageDescription: The piece shifts with the tilt of the phone.
         ITSAppUsesNonExemptEncryption: false
+        # A test build can point at the dev server on the Mac (-PlayerURL http://localhost:8080/player/).
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: studio.caoyuxi.particleplayer

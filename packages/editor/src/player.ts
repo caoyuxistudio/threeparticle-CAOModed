@@ -29,7 +29,7 @@ const linked = new URLSearchParams(window.location.search).has('link');
 setPlayerSource(linked ? 'linked' : 'standalone');
 
 import { updateParticleSystems } from '@newkrok/three-particles';
-import { enableWebGPU } from '@newkrok/three-particles/webgpu';
+import { prepareParticleBackend } from './js/three-particles-editor/gpu-support';
 
 import {
   createWorld,
@@ -709,17 +709,9 @@ const debugSurface = {
 const start = async (): Promise<void> => {
   clock = new THREE.Clock();
 
-  try {
-    if (navigator.gpu) {
-      const adapter = await navigator.gpu.requestAdapter();
-      if (adapter) {
-        enableWebGPU();
-        webGPUAvailable = true;
-      }
-    }
-  } catch {
-    // WebGPU not available — engine will use GLSL ShaderMaterial fallback
-  }
+  // WebGPU where it exists; TSL materials over WebGL2 with CPU simulation
+  // where it does not (the iOS Simulator, older browsers).
+  webGPUAvailable = (await prepareParticleBackend()) === 'webgpu';
 
   await createWorld('#player-stage');
   fitPlayerCanvas();
